@@ -3,7 +3,7 @@ pragma solidity ^0.5.0;
 
 /**
  * @dev Outlands: Planes are Shards of Planets
- * Ropsten - 0xa7920b57ab840417710011ffdbae0956da7df075
+ * Ropsten - 0x1604981a1d3b8672a14fac5ceef827d8a213b1d0
  *
  */
 contract OutlandsPlanes {
@@ -15,7 +15,7 @@ contract OutlandsPlanes {
      * planet: planet of the search
      */
     struct Search {
-        uint256 last;
+        uint256 next;
         uint256 await;
         uint256 planet;
     }
@@ -32,8 +32,7 @@ contract OutlandsPlanes {
     //number of active planets 
     uint256 public planetCap;
     //number of planes found by planet - max of 32 
-    mapping (uint256 => uint256) public planesFound;
-    mapping (bytes32 => address) private _finders;
+    mapping (uint256 => address[]) internal _finders;
     //cost to search 
     uint256 public searchCost = 100 * 1 finney;
     //time between searches 
@@ -78,7 +77,7 @@ contract OutlandsPlanes {
      * _shard: shard id
      */
     function isFound (uint256 _planet, uint256 _shard) public view returns(bool) {
-        return finder(_planet,_shard) != address(0); 
+        return getFinder(_planet,_shard) != address(0); 
     }
     /**
      * @dev Returns the address of who found the plane
@@ -87,12 +86,23 @@ contract OutlandsPlanes {
      * _planet: planet id
      * _shard: shard id
      */
-    function finder (uint256 _planet, uint256 _shard) public view returns(address) {
+    function getFinder (uint256 _planet, uint256 _shard) public view returns(address) {
         //check if above _cap
         if(_planet > planetCap) return address(0);
         //first shard is owner
         if(_shard == 0) return owner;
-        return _finders[planeHash(_planet,_shard)]; 
+        //modify id - player shards are 1-31
+        uint256 _id = _shard-1;
+        if(_id >= _finders[_planet].length) return address(0);
+        return _finders[_planet][_id]; 
+    }
+    /**
+     * @dev Returns any array of all finders for a planet 
+     * 
+     * _planet: planet id
+     */
+    function getAllFinders (uint256 _planet) public view returns(address[] memory) {
+        return _finders[_planet]; 
     }
     /**
      * @dev Returns maximum number of shards from a planet 
@@ -154,10 +164,10 @@ contract OutlandsPlanes {
      * _planet: the id of the planet the search originates from 
      */
     function payForSearch (uint256 _planet) public payable returns(uint256 await){
-        require(planesFound[_planet] < 32);
+        require(_finders[_planet].length < 32);
         require(msg.value >= searchCost);
         //have to wait for search time 
-        require(_planet < planetCap && searchData[msg.sender].last+searchTime < now);
+        require(_planet < planetCap && searchData[msg.sender].next < now);
         //send value 
         owner.transfer(address(this).balance);
         //update can seacrh 
@@ -193,18 +203,17 @@ contract OutlandsPlanes {
         //now go
         //reset to 0 set time 
         searchData[msg.sender].await = 0;
-        searchData[msg.sender].last = now;
+        searchData[msg.sender].next = now+searchTime;
         //check hash for success 
         bytes32 hash = keccak256(abi.encodePacked(blockhash(aB),msg.sender));
         uint256 search = uint8(hash[0]) % 32;
         //check if less than than found
         uint256 _planet  = searchData[msg.sender].planet;
         //increment if new shard found - cannot be found previous - gets harder every time
-        if(planesFound[_planet] < search) {
-            planesFound[_planet] += 1;
-            _finders[planeHash(_planet, planesFound[_planet])] = msg.sender; 
+        if(_finders[_planet].length < search) {
+            _finders[_planet].push(msg.sender); 
             //emit 
-            emit PlaneFound(msg.sender,_planet,planesFound[_planet]);
+            emit PlaneFound(msg.sender,_planet,_finders[_planet].length);
         }
         else {
             emit FailedSearch(msg.sender,_planet);
