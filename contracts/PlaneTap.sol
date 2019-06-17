@@ -22,7 +22,6 @@ interface ERC777 {
 
 contract PlaneTap {
     address owner;
-    uint256 random;
     PlaneGen Gen;
     TokenRegistry TR;
     OutlandsPlanes P;
@@ -30,13 +29,15 @@ contract PlaneTap {
     uint256 public timeBetweenTaps;
     mapping (uint256 => mapping(uint256 => uint256)) public nextTap;
     
-    constructor (address _gen) public {
+    constructor (address _p, address _gen, address _tr) public {
         owner = msg.sender;
+        //set the interface contracts 
         Gen = PlaneGen(_gen);
-        random = uint256(keccak256(abi.encodePacked(address(this), now)));
+        TR = TokenRegistry(_tr);
+        P = OutlandsPlanes(_p);
     }
     
-    function _token(uint256 _i) internal returns(address) {
+    function _token(uint256 _i) internal view returns(address) {
         return TR.Token(_i);
     }
 
@@ -44,14 +45,17 @@ contract PlaneTap {
         uint256 maxVal = 1 ether * _val / 100;
         address t = _token(_color);
         bytes memory nb;
-        ERC777(t).mint(t, _who, maxVal * 94/100, nb, nb);
-        ERC777(t).mint(t, _finder, maxVal * 5/100, nb, nb);
+        //The one who taps gets 89%, the finder gets 10%
+        ERC777(t).mint(t, _who, maxVal * 89/100, nb, nb);
+        ERC777(t).mint(t, _finder, maxVal * 10/100, nb, nb);
         ERC777(t).mint(t, owner, maxVal * 1/100, nb, nb);
     }
 
     function tap(uint256 pi, uint256 si) public {
-        //cannot claim to quickly 
+        //cannot claim too quickly 
         require(nextTap[pi][si] < now);
+        //update time 
+        nextTap[pi][si] = now + timeBetweenTaps;
         //finder 
         address finder = P.planeFinder(pi, si);
         //get cosmic 
