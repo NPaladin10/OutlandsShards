@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <title>Ethereum Sea</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="lib/noty.3.1.4.min.css">
+        <link rel="stylesheet" type="text/css" href="lib/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="src/shards.css">
+    </head>
+    <body>
+        <div id="spinner" class="lds-dual-ring"></div>
+        <div id="ui-main" align="center">
+            <!--MENU---------------------------------------------->
+            <div class="d-flex flex-row m-1" style="position:absolute;">
+                <div>
+                    <a class="btn btn-info btn-sm" data-toggle="collapse" href="#menu-list" role="button">
+                        <img src="media/md-menu.svg" height="20" width="20">
+                    </a>
+                </div>
+                <div>
+                    <div class="card collapse" id="menu-list" style="width:200px;">
+                        <div class="card card-body p-1">
+                            <button class="btn btn-info btn-block my-1" type="button" data-toggle="collapse" href="#unlockMenu">Unlock</button>
+                            <div id="unlockMenu" class="collapse">
+                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 6" v-if="!allowance.combiner[n]" @click="unlockCombiner(n)"> Unlock {{cpxNames[n-1]}}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!--END MENU---------------------------------------------->
+            <div class="overlay">
+                <span>{{CPX.join(' ')}}</span>
+                <div class="input-group" v-if="maxCPX>0 && toMint == 0">
+                    <input type="number" class="form-control" min="0" :max="maxCPX" step="0.1" v-model="toCombine">
+                    <div class="input-group-append">
+                        <button class="btn btn-info" type="button" @click="combineCPX()">Combine CPX</button>
+                    </div>
+                </div>
+                <button class="btn btn-info btn-block" type="button" @click="mint()" v-if="toMint>0">Mint {{toMint}} CPXD</button>
+                <button class="btn btn-info btn-block" type="button" @click="conductSearch()" v-if="maySearch">Conduct Search</button>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <button class="btn btn-info" type="button" @click="pid=-1">Show All</button>
+                    </div>
+                    <select class="custom-select" v-model="pid">
+                        <option v-for="n in cap" :value="n-1">Planet {{n-1}}</option>
+                    </select>
+                    <div class="input-group-append">
+                        <button class="btn btn-info" type="button" @click="payForSearch()" v-if="showPayForSearch" :disabled="nextSearchTime>0">New Shard Search ({{nextSearchTime}}s)</button>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center" v-if="sid>-1" v-cloak>
+                    <span>Plane {{sid}}</span>
+                    <button class="btn btn-info" type="button" @click="tap()" v-if="canTap" :disabled="nextTapTime>0" v-cloak>Tap ({{nextTapTime}}s)</button>
+                </div>
+            </div>
+            <div id="map" style="overflow-x:auto;">
+                <canvas height="0" width="0"></canvas>
+            </div>
+        </div>
+    </body>
+    <script src="lib/ethers-v4.min.js"></script>
+    <script src="lib/d3.v5.min.js"></script>
+    <script src="lib/vue.2.5.16.min.js"></script>
+    <script src="lib/noty.3.1.4.min.js"></script>
+    <script src="lib/popper.1.12.3.min.js"></script>
+    <script src="lib/jquery-3.3.1.min.js"></script>
+    <script src="lib/bootstrap.min.js"></script>
+    <script type="module" src="src/shards.js"></script>
+</html>
