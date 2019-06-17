@@ -1,0 +1,29 @@
+[v-cloak] {
+  display: none;
+}
+
+body {
+  margin: 0;
+  background-color: silver;
+}
+
+/* OVERLAY FOR CENTER DATA */
+.overlay {
+  position: fixed;
+  top: 5px;
+  left: 50%;
+  max-width: 400px;
+  transform: translateX(-50%);
+  background-color: whitesmoke;
+}
+
+/*CSS styling for Maps */
+circle.planet {
+  stroke: black;
+  fill: none;
+}
+
+circle.shard {
+  stroke: black;
+  fill: green;
+}
