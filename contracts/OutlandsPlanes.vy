@@ -1,7 +1,7 @@
 # Defining the planes of the outlands
 # Broken down into regions 
 # Gen - 0xbc4e464f489c74978b8def438d37a62236a26add
-# Ropsten - 0xb39546a8577bea78e8912f29257201d0543c8e20 
+# Ropsten - 0x4d8b51ebe8c8b127a28236e867fa0e56319c266e 
 
 #interface for Plane Data Generator 
 contract PlaneGen:
@@ -101,7 +101,7 @@ def editRegion(ri: uint256, data: uint256[33], cap: uint256):
 def search(ri: uint256) -> (uint256, uint256):
     assert(self._regions[ri][0] != 0)
     assert(msg.value >= self.costToSearch)
-    assert(self.nextSearchTime[msg.sender] < block.timestamp)
+    assert(self.nextSearchTime[msg.sender] < as_unitless_number(block.timestamp))
     #update time 
     #have to convert to unitless 
     self.nextSearchTime[msg.sender] = as_unitless_number(block.timestamp) + self.timeBetweenSearches
