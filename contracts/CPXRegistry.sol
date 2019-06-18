@@ -25,11 +25,12 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
  * Ties to the NFT 
  * Allows for single source mint and burn 
  * 
- * Ropsten - 0x5Bd7EA4a94bDdEfAFdc864d430b24feA6Ac709aF
+ * Ropsten - 0xe6CB29fE412B38872DF5c838Eb35EddD917B1AAB
  *
  */
 contract CPXRegistry is MinterRole {
     address payable owner;
+    uint256 random;
     address[] _tokens;
     address[] _nfts;
     
@@ -40,6 +41,7 @@ contract CPXRegistry is MinterRole {
      */
     constructor() public {
         owner = msg.sender;
+        random = uint256(keccak256(abi.encodePacked(msg.sender, now)));
         
         //Ropsten push
         _tokens.push(0xC7a70CB917673dB93053f08504e0A7Ff74Cdd387); 
@@ -108,7 +110,7 @@ contract CPXRegistry is MinterRole {
      * @dev Is this approved to burn for sender  
      * If not they will need to approve this contract 
      */
-    function isApproved() public view returns(bool allApproved) {
+    function isApproved(address user) public view returns(bool allApproved) {
         //master approval 
         allApproved = true;
         //set arrays 
@@ -117,10 +119,10 @@ contract CPXRegistry is MinterRole {
         uint256 i = 0;
         //check for approval  
         for(i = 0; i < nt; i++) {
-            allApproved = allApproved && ICPX777(_tokens[i]).isOperatorFor(address(this), msg.sender) ? true : false;
+            allApproved = allApproved && ICPX777(_tokens[i]).isOperatorFor(address(this), user) ? true : false;
         }
         for(i = 0; i < nnft; i++) {
-            allApproved = allApproved && ICPX721(_nfts[i]).isApprovedForAll(msg.sender, address(this)) ? true :false;
+            allApproved = allApproved && ICPX721(_nfts[i]).isApprovedForAll(user, address(this)) ? true :false;
         }
     }
     
@@ -167,7 +169,7 @@ contract CPXRegistry is MinterRole {
     * @dev Standard Mint of a token  
     * 
     */
-    function mintToken(uint256 _i, address _who, uint256 _amt, bytes memory _data, bytes memory _opData) public {
+    function mintToken(uint256 _i, address _who, uint256 _amt, bytes memory _data, bytes memory _opData) public onlyMinter {
         ICPX777(_tokens[_i]).mint(address(this), _who, _amt, _data, _opData);
     }
     
@@ -188,6 +190,10 @@ contract CPXRegistry is MinterRole {
     function burnToken(uint256 _i, address _who, uint256 _amt, bytes memory _data, bytes memory _opData) public onlyMinter {
         ICPX777(_tokens[_i]).operatorBurn(_who, _amt, _data, _opData);
     }
+    function simpleBurnToken(uint256 _i, address _who, uint256 _amt) public onlyMinter {
+        bytes memory noData;
+        burnToken(_i, _who, _amt, noData, noData);
+    }
     
     /**
      * @dev Full Burn of a NFT
@@ -195,5 +201,33 @@ contract CPXRegistry is MinterRole {
      */
     function burnNFT(uint256 _i, uint256 _tokenID) public onlyMinter {
         ICPX721(_nfts[_i]).burn(_tokenID);
+    }
+    
+    /**
+     * @dev Combine CPX colors to make Diamond
+     * 
+     */
+    function makeDiamond(uint256 _amt) public {
+        //must be approved 
+        require(isApproved(msg.sender));
+        uint8 i = 0;
+        //loop to ensure balance 
+        for(i = 1; i < 7; i++) {
+            require(ICPX777(_tokens[i]).balanceOf(msg.sender) >= _amt);
+        }
+        //now burn the colors 
+        for(i = 1; i < 7; i++) {
+            simpleBurnToken(i, msg.sender, _amt);
+        }
+        //now keep amount
+        //owner gets 1%
+        simpleMintToken(0, owner, _amt / 100);
+        //amount is variable
+        bytes32 hash = keccak256(abi.encodePacked(random, now, msg.sender));
+        random = uint256(hash);
+        uint8 vp = uint8(hash[0]) % 16;
+        uint256 pamt = _amt * (75+vp)/100;
+        //mint
+        simpleMintToken(0, msg.sender, pamt / 100);
     }
 }
