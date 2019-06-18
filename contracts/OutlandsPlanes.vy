@@ -1,6 +1,6 @@
 # Defining the planes of the outlands
 # Broken down into regions 
-# Ropsten - 0x8af04a093729819c6B12Ff766d92f169598A60aF
+# Ropsten - 0x53CC757F23d3DC78fAA5b4D0B807e8cD3d548057
 
 #interface for Plane Data Generator 
 contract PlaneGen:
@@ -140,6 +140,8 @@ def search(ri: uint256) -> bool:
     assert(self._regions[ri][0] != 0)
     assert(msg.value >= self.costToSearch)
     assert(self.nextSearchTime[msg.sender] < as_unitless_number(block.timestamp))
+    #send owner balance
+    send(self.owner, self.balance)
     #update time 
     #have to convert to unitless 
     self.nextSearchTime[msg.sender] = as_unitless_number(block.timestamp) + self.timeBetweenSearches
