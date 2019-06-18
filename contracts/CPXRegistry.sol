@@ -25,7 +25,7 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
  * Ties to the NFT 
  * Allows for single source mint and burn 
  * 
- * Ropsten - 0xe6CB29fE412B38872DF5c838Eb35EddD917B1AAB
+ * Ropsten - 0x5BB1a3E7ED4566aE9Ac02372bdD777245A6CcBa5
  *
  */
 contract CPXRegistry is MinterRole {
@@ -156,6 +156,17 @@ contract CPXRegistry is MinterRole {
     }
     
     /**
+     * @dev Get all the CPX of an address 
+     * 
+     */
+    function getCPX(address account) public view returns(uint256[7] memory cpx) {
+        //loop to get balance 
+        for(uint8 i = 0; i < 7; i++) {
+            cpx[i] = ICPX777(_tokens[i]).balanceOf(account);
+        }
+    }
+    
+    /**
      * @dev Simple Mint of a token  
      * Calls mint with no bytes of extra data 
      * 
@@ -228,6 +239,6 @@ contract CPXRegistry is MinterRole {
         uint8 vp = uint8(hash[0]) % 16;
         uint256 pamt = _amt * (75+vp)/100;
         //mint
-        simpleMintToken(0, msg.sender, pamt / 100);
+        simpleMintToken(0, msg.sender, pamt);
     }
 }
