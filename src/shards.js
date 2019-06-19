@@ -24,18 +24,17 @@ const maxShards = (_planet) => {
   return 1 + n % 32
 }
 const planeCPX = (_planet, _shard) => {
+  let cpxMag = [10,10,11,11,12,12,13,14,14,15,16,16,17,18,19,20]
   //CPX based on hash
   let _hash = planeHash(_planet, _shard)
   //number of CPX
-  let _cpxI = hashToDecimal(_hash,0) % 8
-  let nCPX = [0,1,1,1,1,2,2,3][_cpxI]
+  let _cpxI = hashToDecimal(_hash,1) % 8
+  let nCPX = [1,1,1,1,1,2,2,3][_cpxI]
   //if shard number greater than max - only 1 CPX
-  if(_shard > maxShards(_planet)) {
-    nCPX = 1    
-  }
+  if(_shard == 0 && nCPX < 3) nCPX++;
   //designate array - 6 colors of CPX
   return d3.range(nCPX).map(i => {
-    return 1 + hashToDecimal(_hash,i+1) % 6
+    return [1 + hashToDecimal(_hash,i+2) % 6, cpxMag[hashToDecimal(_hash,i+5) % 16]]
   })
 }
 
@@ -72,19 +71,34 @@ const pushPlanets = (n) => {
 /* Ethers Provider
 */
 
-var provider = null
-if (web3.currentProvider) {
+let provider = null, signer = null, wallet = null;
+if (typeof web3 !== 'undefined') {
     provider = new ethers.providers.Web3Provider(web3.currentProvider)
+    signer = provider.getSigner()
 } else {
     provider = ethers.getDefaultProvider('ropsten')
+    //find a signer if stored 
+    let lastSigner = localStorage.getItem("lastSigner")
+    //if nothing is stored - create wallet and save 
+    if(!lastSigner) {
+      wallet = ethers.Wallet.createRandom()
+      localStorage.setItem(signer.address, wallet.mnemonic)  
+      localStorage.setItem("lastSigner",wallet.address)
+    }
+    else {
+      //pull wallet from mnemonic
+      let mnemonic = localStorage.getItem(lastSigner)  
+      wallet = ethers.Wallet.fromMnemonic(mnemonic)
+      signer = wallet.connect(provider)
+    }
 }
-var signer = provider.getSigner()
 
 let block = null
 let network = null
 
 let seed = "OutlandsPlanes2019"
 let planets = []
+let UIMain = null
 
 provider.getNetwork().then(n=> { network = n})
 //log new blocks 
@@ -99,34 +113,29 @@ provider.on('block', (blockNumber)=>{
 let CPXContracts = {
   OutlandsPlanes : {
     abi : [
-      "event FailedSearch (address indexed who, uint256 indexed planet)", 
-      "event PlaneFound (address indexed who, uint256 indexed planet, uint256 shard)", 
-      "function searchData(address who) view returns (uint256 next, uint256 await, uint256 planet)",
-      "function planetCap() view returns (uint256 planetCap)",
-      "function payForSearch(uint256 _planet) public payable returns(uint256 await)",
-      "function conductSearch() public",
-      "function getFinder(uint256 _planet, uint256 _shard) public view returns(address)",
-      "function getAllFinders(uint256 _planet) public view returns(address[] memory)"
+      "event FailedSearch (uint256 indexed region, address indexed who)", 
+      "event NewPlane (uint256 indexed planet, uint256 shard, address indexed finder)",
+      "function regionData(uint256 ri) public view returns(uint256[33])", 
+      "function shardCount(uint256 pi) public view returns(uint256)",
+      "function search(uint256 ri) public returns(bool)"
     ],
-    address : "0x1604981a1d3b8672a14fac5ceef827d8a213b1d0"
+    address : "0x94616B1E5cadD4A3993ff3Ca5D5815547d5ABbBC"
   },
-  PlaneCosmic : {
+  CPXRegistry : {
     abi : [
-      "event Tap (address indexed who, uint256 indexed planet, uint256 shard)",
-      "function timeBetweenTaps() view returns (uint256 timeBetweenTaps)",
-      "function nextTapTime(uint256 _planet, uint8 _shard) view returns (uint256 nextTapTime)",
-      "function tap(uint256 _planet, uint8 _shard) public",
+      "function isApproved(address account) external view returns (bool)",
+      "function getCPX(address account) external view returns (uint256[7] cpx)",
+      "function makeDiamond(uint256 _amt)"
     ],
-    address : "0x932abb31a71ca4ec10003da346470ca3e66277a8"
+    address : "0x5BB1a3E7ED4566aE9Ac02372bdD777245A6CcBa5"
   },
-  CosmicCombiner : {
+  NFT : {
     abi : [
-      "event Combined (address indexed who, uint256 amount)",
-      "function toMint() public view returns(uint256 mint)",
-      "function mintCPXD() public",
-      "function combine(uint256 _amount) public"
+      "function tokensOfOwner(address owner) external view returns (uint256[])",
     ],
-    address : "0x5a2ca292f3cc7d0360d25a088a5cc5a686ca2cab"
+    address : [
+      "0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65"
+    ]
   },
   CPX : {
     abi : [
@@ -148,142 +157,115 @@ let CPXContracts = {
 }
 //handle the contracts - connect with the signer  
 let outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,signer)
-let planeCosmic = new ethers.Contract(CPXContracts.PlaneCosmic.address,CPXContracts.PlaneCosmic.abi,signer)
-let cosmicCombiner = new ethers.Contract(CPXContracts.CosmicCombiner.address,CPXContracts.CosmicCombiner.abi,signer)
+let cpxRegistry = new ethers.Contract(CPXContracts.CPXRegistry.address,CPXContracts.CPXRegistry.abi,signer)
+let cpxNFT = Array.from(new Array(1), (x,i) => {
+  return new ethers.Contract(CPXContracts.NFT.address[i],CPXContracts.NFT.abi,signer)
+})
 let cpxTokens = Array.from(new Array(7), (x,i) => {
   return new ethers.Contract(CPXContracts.CPX.address[i],CPXContracts.CPX.abi,signer)
 })
+
+//connect wallet if it exists
+
 //Log Updates 
-outlandsPlanes.on("PlaneFound",(who,planet,shard,event)=>{
-    console.log("PlaneFound: ", event)
+outlandsPlanes.on("NewPlane",(who,planet,shard,event)=>{
+    console.log("NewPlane: ", event)
 })
 outlandsPlanes.on("FailedSearch",(who,planet,event)=>{
     console.log("FailedSearch: ", event)
 })
 
 //Check number of planets 
+//Starts with a set region 
+const regions = [
+  {
+    range: [1,32],
+    shards : []
+  }
+]
 const capCheck = () => {
   //set data for later
   provider.getBlock ( "latest" ).then(b => { block = b })
+    .catch(e => {
+      console.log(e)
+    })
 
   //scan for CPX
+  if(UIMain) signer.getBalance().then(b => {
+    UIMain.balance = ethers.utils.formatEther(b)
+  }) 
   signer.getAddress().then(address => {
+    cpxRegistry.getCPX(address).then(T => UIMain.CPX = T.map(ethers.utils.formatEther))
+    cpxNFT[0].tokensOfOwner(address).then(T => {
+      //log of Token ids 
+    })
+
     cpxTokens.forEach((T,i) => {
       //check for operator permission 
-      T.isOperatorFor(CPXContracts.CosmicCombiner.address, address).then(isOp => {
+      T.isOperatorFor(CPXContracts.CPXRegistry.address, address).then(isOp => {
         UIMain.allowance.combiner[i] = isOp 
-      })
-      //get CPX
-      T.balanceOf(address).then(b => {
-        Vue.set(UIMain.CPX,i,Number(ethers.utils.formatEther(b.toString())))
       })
     })
   })
 
-  //scan if they are ready to mint 
-  cosmicCombiner.toMint().then(val => {
-    UIMain.toMint = Number(ethers.utils.formatEther(val.toString()))
-  })
-
-  outlandsPlanes.planetCap().then(_cap=>{
-      let cap = _cap.toNumber()
-      UIMain.cap = cap 
-      //if cap is bigger than what is created push more planets 
-      if(cap > planets.length) {
-        let delta = UIMain.cap - planets.length
-        pushPlanets(delta)
-      }
+  let R = UIMain ? regions[UIMain.rid] : regions[0]
+  if(R.range) {
+    //reset the planes 
+    let n = 1 + R.range[1] - R.range[0] 
+    if(R.shards.length < n) R.shards = d3.range(n).map(_=> 0)
+    for(let i = 0; i < n; i++) {
       //look at each 
-      for(let i = 0; i < cap; i++) {
-          //find the number of planes found 
-          outlandsPlanes.getAllFinders(i).then(f => planets[i].f = f)
-      }
-  })
+      //find the number of planes found 
+      let pi = i+R.range[0]
+      outlandsPlanes.shardCount(pi).then(ns => {
+        R.shards[pi] = ns.toNumber()
+      })
+    }
+  }
 }
 
 
 /* Drawing Functions 
 
 */
-const circlePack = (n) => {
-  let RNG = new Chance(seed+"."+n)
-  let h = null
+const circlePack = () => {
+  let rid = UIMain ? UIMain.rid : 0
+  let RNG = new Chance(seed+"."+rid)
+  let R = regions[rid]
 
-  if(n == -1) {
-    h = d3.hierarchy({
-      //once for each planet 
-      "children" : planets.map((p,i) => {
-        //shard are children 
-        p.children = p.shards.map((s,j) => {
-          if (j < 1+p.f.length) {
-            s.children = s.CPX.map(c => {
-              return {
-                color : ["red","orange","yellow","green","blue","purple"][c-1], 
-                A : 0.3
-              }
-            })
-            //if no children - no cpx make it gray 
-            if(s.children.length == 0) {
-              s.children = [{
-                A:0.3,
-                color: "gray"
-              }] 
-            }
-          }
-          else s.children = [{
-            A:0.3,
-            color: "white"
-          }] 
-
-          //now return 
-          return s
-        })
-        //return 
-        return p 
-      })
-    }) 
+  let n = 1 + R.range[1] - R.range[0]
+  //combine planes - 0 is always there 
+  let planes = [] 
+  for(let i = 0; i < n; i++) {
+    let pi = R.range[0]+i
+    let ns = R.shards[i]
+    for(let j = 0; j<=ns; j++) planes.push([pi,j])
   }
-  else {
-    let p = planets[n]
-    h = d3.hierarchy({
-      //once for each planet 
-      "children" : p.shards.map((s,j) => {
-          if (j < 1+p.f.length) {
-            s.children = s.CPX.map(c => {
-              return {
-                color : ["red","orange","yellow","green","blue","purple"][c-1], 
-                A : 0.3
-              }
-            })
-            //if no children - no cpx make it gray 
-            if(s.children.length == 0) {
-              s.children = [{
-                A:0.3,
-                color: "gray"
-              }] 
-            }
+  let h = d3.hierarchy({
+    //once for each plane 
+    "children" : planes.map(p => {
+      return {
+        id : p,
+        children : planeCPX(...p).map(cpx => {
+          return {
+            color : ["red","orange","yellow","green","blue","purple"][cpx[0]-1], 
+            A : cpx[1]/10
           }
-          else s.children = [{
-            A:0.3,
-            color: "white"
-          }] 
-
-          //now return 
-          return s
         })
+      }
     })
-  }
+  })
   h.sum(d => d.A)
 
   let pack = d3.pack().size([1,1])(h)
   //first is always full circle 
-  let map = h.descendants().slice(1)
+  let map = h.descendants()
   //now shuffle
   return RNG.shuffle(map)
 }
 
 let planetMap = []
-const drawCircleMap = (n)=>{
+const drawCircleMap = ()=>{
     const fC = 2*Math.PI
     let iW = window.innerWidth
     let iH = window.innerHeight
@@ -294,7 +276,7 @@ const drawCircleMap = (n)=>{
     ctx.clearRect(0, 0, iW, iH)
 
     //add data
-    let data = circlePack(n)
+    let data = circlePack()
 
     //use canvas because there could be a lot of circles  
     //do layer 1 then layer 2
@@ -302,21 +284,12 @@ const drawCircleMap = (n)=>{
     data.filter(d => d.depth == 1).forEach(d => {
       planetMap.push(d)
       ctx.beginPath()
-      ctx.arc(D * d.x + iH/2, D * d.y,D * d.r,0,fC)
+      ctx.arc(D * d.x, D * d.y,D * d.r,0,fC)
       ctx.stroke()
     })
     data.filter(d => d.depth == 2).forEach(d => {
       ctx.beginPath()
-      ctx.arc(D * d.x + iH  /2, D * d.y,D * d.r,0,fC)
-      if(n>-1){
-        ctx.fillStyle = d.data.color
-        ctx.fill()
-      }
-      ctx.stroke()
-    })
-    data.filter(d => d.depth == 3).forEach(d => {
-      ctx.beginPath()
-      ctx.arc(D * d.x + iH/2, D * d.y,D * d.r,0,fC)
+      ctx.arc(D * d.x, D * d.y,D * d.r,0,fC)
       ctx.fillStyle = d.data.color
       ctx.fill()
       ctx.stroke()
@@ -353,20 +326,7 @@ const searchCheck = () => {
     //get data from tap 
     if(UIMain.sid > -1) {
       planeCosmic.nextTapTime(UIMain.pid, UIMain.sid).then(t => UIMain.nextTap = t.toNumber())
-    }
-    //get search data from planes 
-    outlandsPlanes.searchData(a).then(data => {
-      UIMain.nextSearch = data.next.toNumber() 
-      //look if search is done 
-      if(data.await.toNumber() > 0) {
-        //if search submitted - may not search
-        if(!UIMain.madeSearch) UIMain.maySearch = true 
-      }
-      //allows search 
-      else {
-        UIMain.madeSearch = false
-      }
-    })    
+    }    
   })
 }
 
@@ -375,9 +335,11 @@ const searchCheck = () => {
 */
 
 //creates the VUE js instance
-const UIMain = new Vue({
+UIMain = new Vue({
     el: '#ui-main',
     data: {
+        address: "",
+        balance: 0,
         allowance : {
           combiner : [false,false,false,false,false,false,false]
         },
@@ -389,6 +351,7 @@ const UIMain = new Vue({
         now : 0,
         nextSearch: 0,
         nextTap: 0,
+        rid : 0,
         pid : -1,
         sid : -1,
         maySearch: false,
@@ -398,9 +361,7 @@ const UIMain = new Vue({
     },
     mounted() {
       // Start up 
-      //inital push
-      capCheck()   
-      pushPlanets(this.cap)
+      this.address = signer.address
       //Poll the number of planets 
       setInterval(()=>{
         capCheck()
@@ -408,8 +369,9 @@ const UIMain = new Vue({
       },5000)
       setInterval(()=> this.now = Date.now()/1000,500)
 
-      this.pid = Date.now()%32
-      drawCircleMap(this.pid)
+      //inital push
+      capCheck()   
+      drawCircleMap()
     },
     computed: {
         nextSearchTime() {
@@ -425,34 +387,19 @@ const UIMain = new Vue({
             return val < min ? val : min
           },99999)
         },
-        showPayForSearch () {
-            drawCircleMap(this.pid)
-            //update the view 
-            if(this.pid == -1) return 
-            if(this.maySearch || this.madeSearch || this.paid) return false
-            
-            return true
-        },
     },
     methods: {
-        payForSearch() {
+        conductSearch() {
             //pay for search 
             let pay = {
-              value: ethers.utils.parseUnits('100','finney')
+              value: ethers.utils.parseUnits('100','finney'),
+              // The price (in wei) per unit of gas
+              gasPrice: ethers.utils.parseUnits('2.0', 'gwei'),
+              gasLimit: 100000,
             }
-            outlandsPlanes.payForSearch(this.pid,pay).then(t => {
+            outlandsPlanes.search(this.rid,pay).then(t => {
               console.log("Transaction sent: "+t.hash)
-              this.paid = true
             })
-        },
-        conductSearch() {
-          outlandsPlanes.conductSearch().then(t => {
-              console.log("Transaction sent: "+t.hash)
-              //remove button
-              this.maySearch = false
-              this.madeSearch = true
-              this.paid = false
-          })
         },
         tap(){
           planeCosmic.tap(this.pid, this.sid).then(t => {
@@ -460,7 +407,7 @@ const UIMain = new Vue({
           })
         },
         unlockCombiner(i) {
-          cpxTokens[i].authorizeOperator(CPXContracts.CosmicCombiner.address).then(t => {
+          cpxTokens[i].authorizeOperator(CPXContracts.CPXRegistry.address).then(t => {
               console.log("Transaction sent: "+t.hash)
           })
         },
@@ -470,16 +417,11 @@ const UIMain = new Vue({
               console.log("Transaction sent: "+t.hash)
           })
         },
-        mint() {
-          cosmicCombiner.mintCPXD().then(t => {
-              console.log("Transaction sent: "+t.hash)
-          })
-        }
     }
 })
 
 
 
 setInterval(()=>{
-    drawCircleMap(UIMain.pid)
+    drawCircleMap()
 },15000)

@@ -8,7 +8,7 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
  * @dev See https://eips.ethereum.org/EIPS/eip-721
  * 
  * Ropsten
- * - Outlands Planes Registrar - 0xD034d78D123F2F6873E056C6A9A0FCA78c676b8A
+ * - Outlands Planes Registrar - 0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65
  */
 
 contract CPX721 is ERC721Full, MinterRole {
@@ -35,6 +35,14 @@ contract CPX721 is ERC721Full, MinterRole {
      */
     function tokenExists(uint256 tokenId) public view returns(bool) {
         return _exists(tokenId);
+    }
+    
+    /**
+     * @dev Get array of owned tokens.
+     * @param owner of the ERC721 token.
+     */
+    function tokensOfOwner(address owner) public view returns (uint256[] memory) {
+        return _tokensOfOwner(owner);
     }
     
     /**

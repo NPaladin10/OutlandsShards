@@ -17,7 +17,7 @@ interface PlaneGen {
 /**
  * @dev Tap Planes for CPX  
  * 
- * Ropsten - 0xC285A7373C3C84C7dA9f97C161f5292fb62C9939
+ * Ropsten - 
  */
 
 contract PlaneTap {
@@ -44,13 +44,19 @@ contract PlaneTap {
         //destroy
         selfdestruct(owner);
     }
+    
+    function setTimeBetweenTaps(uint256 _time) public {
+        require(msg.sender == owner);
+        timeBetweenTaps = _time;
+    }
 
     function _mint(address _finder, address _who, uint256 _color, uint256 _val) internal {
-        uint256 maxVal = 1 ether * _val / 100;
+        //values go from 10 to 20 
+        uint256 maxVal = (_val * 1 ether) / 10;
         //The one who taps gets 89%, the finder gets 10%
-        TR.simpleMintToken(_color, _who, maxVal * 89/100);
-        TR.simpleMintToken(_color, _finder, maxVal * 10/100);
-        TR.simpleMintToken(_color, owner, maxVal * 1/100);
+        TR.simpleMintToken(_color, _who, (89 * maxVal) /100);
+        TR.simpleMintToken(_color, _finder, maxVal /10);
+        TR.simpleMintToken(_color, owner, maxVal /100);
     }
 
     function tap(uint256 pi, uint256 si) public {

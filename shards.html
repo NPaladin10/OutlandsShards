@@ -31,15 +31,14 @@
             </div>
             <!--END MENU---------------------------------------------->
             <div class="overlay">
-                <span>{{CPX.join(' ')}}</span>
+                <div>{{address}}</div>
+                <span>Ξ{{balance}} CPX {{CPX.join(' ')}}</span>
                 <div class="input-group" v-if="maxCPX>0 && toMint == 0">
                     <input type="number" class="form-control" min="0" :max="maxCPX" step="0.1" v-model="toCombine">
                     <div class="input-group-append">
                         <button class="btn btn-info" type="button" @click="combineCPX()">Combine CPX</button>
                     </div>
                 </div>
-                <button class="btn btn-info btn-block" type="button" @click="mint()" v-if="toMint>0">Mint {{toMint}} CPXD</button>
-                <button class="btn btn-info btn-block" type="button" @click="conductSearch()" v-if="maySearch">Conduct Search</button>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <button class="btn btn-info" type="button" @click="pid=-1">Show All</button>
@@ -48,7 +47,7 @@
                         <option v-for="n in cap" :value="n-1">Planet {{n-1}}</option>
                     </select>
                     <div class="input-group-append">
-                        <button class="btn btn-info" type="button" @click="payForSearch()" v-if="showPayForSearch" :disabled="nextSearchTime>0">New Shard Search ({{nextSearchTime}}s)</button>
+                        <button class="btn btn-info" type="button" @click="conductSearch()" :disabled="nextSearchTime>0">New Shard Search ({{nextSearchTime}}s)</button>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center" v-if="sid>-1" v-cloak>

@@ -17,6 +17,11 @@ contract ICPX721 is IERC721Enumerable, MinterRole {
     function tokenURI(uint256 tokenId) external view returns (string memory);
     
     /**
+     * Enumerable
+     */
+    function tokensOfOwner(address owner) external view returns (uint256[] memory);
+    
+    /**
      * Mintable 
      */
     function currentID() external returns (uint256);

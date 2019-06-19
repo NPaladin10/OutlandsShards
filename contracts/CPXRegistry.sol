@@ -16,7 +16,7 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
 
 /**
  * Ropsten ERC721 
- * Outlands Planes Registrar - 0xD034d78D123F2F6873E056C6A9A0FCA78c676b8A
+ * Outlands Planes Registrar - 0x72ab0a4ea9e64fcfcc154d55b8777a7ad8383f65
  */
 
 /**
@@ -52,7 +52,7 @@ contract CPXRegistry is MinterRole {
         _tokens.push(0xc0464049799024f02118d8CDB8cd4B858154707c);
         _tokens.push(0x2ef8b97424b11B9A956D91657604535A29B258E7);
         
-        _nfts.push(0xD034d78D123F2F6873E056C6A9A0FCA78c676b8A);
+        _nfts.push(0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65);
     }
     
     /**
