@@ -1,11 +1,13 @@
 # Defining the planes of the outlands
 # Broken down into regions 
-# Ropsten - 0x94616B1E5cadD4A3993ff3Ca5D5815547d5ABbBC
+# Ropsten - 
 
 #interface for Plane Data Generator 
 contract PlaneGen:
     def maxShards(pi: uint256) -> uint256: constant
     def planeHash(pi: uint256, si: uint256) -> bytes32: constant
+    def cpxColors(pi: uint256, si: uint256) -> (uint256, uint256, uint256): constant
+    def cpxVals(pi: uint256, si: uint256) -> (uint256, uint256, uint256): constant
 
 #interface for Plane NFT
 contract PlaneNFT:
@@ -14,11 +16,13 @@ contract PlaneNFT:
 
 #interface for Registry
 contract Registry:
+    def simpleMintToken(_i: uint256, _who: address, _amt: uint256): modifying
     def mintNFT(_i: uint256, _who: address) -> uint256: modifying
     def renounceMinter(): modifying
 
 # Events of the token.
 NewPlane: event({planet: indexed(uint256), shard: uint256, finder: indexed(address)})
+Tap: event({planet: indexed(uint256), shard: uint256, who: indexed(address)})
 FailedSearch: event({region: indexed(uint256), player: indexed(address)})
 
 #Geography
@@ -34,11 +38,12 @@ _start: uint256
 costToSearch: public(uint256)
 timeBetweenSearches: public(uint256)
 nextSearchTime: public(map(address, uint256))
+timeBetweenTaps: public(uint256)
+nextTapTime: public(map(bytes32, uint256))
 
 #Core Setup 
 owner: address
 seed: string[32]
-random: uint256
 Gen: PlaneGen
 Reg: Registry
 NFT: PlaneNFT
@@ -47,12 +52,11 @@ NFT: PlaneNFT
 @public
 def __init__():
   self.owner = msg.sender
-  self.random = convert(msg.sender, uint256)
   self._cap = 32 
   #One finney 
   self.costToSearch = 10**15
   #setup contracts - Ropsten 
-  self.Gen = PlaneGen(0xBC4e464f489c74978b8DeF438D37a62236A26add)
+  self.Gen = PlaneGen(0x713F4E0Eb1247Dfab6f4Da58256fC6B7Fc6941fD)
   self.Reg = Registry(0x5BB1a3E7ED4566aE9Ac02372bdD777245A6CcBa5)
   self.NFT = PlaneNFT(0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65)
   #detemine starting index 
@@ -70,8 +74,17 @@ def _mint(who: address, pi: uint256):
     #set data for memory later 
     self._idToPlane[tid] = [pi, si]
     self._planeToID[self.Gen.planeHash(pi, si)] = tid 
-    #log
-    log.NewPlane(pi, si, who)
+    
+
+#internal contract to mint CPX 
+@private
+def _mintCPX(_pOnwer: address, who: address, c: uint256, val: uint256): 
+    #val goes from 10 to 20 
+    base: uint256 = val * as_unitless_number(as_wei_value(1, "ether")) / 10
+    #mint a token - 89% to tap - who, 10 % to plane owner  
+    self.Reg.simpleMintToken(c, who, (89 * base) / 10)
+    self.Reg.simpleMintToken(c, _pOnwer, base / 10)
+    self.Reg.simpleMintToken(c, self.owner, base / 100)
 
 
 #Kill the contract 
@@ -113,8 +126,24 @@ def setCostToSearch(_cost: uint256):
 #Give region information   
 @public
 @constant
-def regionData(ri: uint256) -> uint256[33]:
-    return self._regions[ri]
+def regionData(ri: uint256) -> uint256[64]:
+    rs: uint256[64]
+    if(self._regions[ri][0] == 0):
+        return rs 
+    pi: uint256
+    if(self._regions[ri][2] == 0):
+        d: uint256 = self._regions[ri][1]-self._regions[ri][0]
+        start: uint256 = self._regions[ri][0]
+        for i in range(32):
+            pi = start+convert(i,uint256)
+            rs[i] = pi
+            rs[i+32] = self.shardCount[pi]
+    else: 
+        for i in range(32):
+            pi = self._regions[ri][i+1]
+            rs[i] = pi
+            rs[i+32] = self.shardCount[pi]
+    return rs
 
 
 #Give total plane count    
@@ -160,40 +189,50 @@ def editRegion(ri: uint256, data: uint256[33], cap: uint256):
         self._cap = cap
 
 
+# Tap for color  
+@public
+def Tap(pi: uint256, si: uint256): 
+    #check time 
+    phash: bytes32 = self.Gen.planeHash(pi, si)
+    assert(self.nextTapTime[phash] < as_unitless_number(block.timestamp))
+    #update time 
+    #have to convert to unitless 
+    self.nextTapTime[phash] = as_unitless_number(block.timestamp) + self.timeBetweenTaps
+    #get plane owner 
+    tokenId : uint256
+    pOwner : address
+    pOwner, tokenId = self.planeToToken(pi, si)
+    c: uint256[3]
+    v: uint256[3]
+    c[0], c[1], c[2] = self.Gen.cpxColors(pi, si)
+    v[0], v[1], v[2] = self.Gen.cpxVals(pi, si)
+    #loop
+    for i in range(3):
+        if(v[i] > 0):
+            self._mintCPX(pOwner, msg.sender, c[i], v[i])
+            
+    #log
+    log.Tap(pi, si, msg.sender)
+        
+
 #Conduct search 
 @payable
 @public
-def search(ri: uint256) -> bool:
-    assert(self._regions[ri][0] != 0)
+def search(pi: uint256):
+    #must be in cap  
+    assert(pi < self._cap)
+    #check shard count 
+    assert(self.shardCount[pi] < self.Gen.maxShards(pi))
+    #must pay 
     assert(msg.value >= self.costToSearch)
+    #can only search every so often 
     assert(self.nextSearchTime[msg.sender] < as_unitless_number(block.timestamp))
     #send owner balance
     send(self.owner, self.balance)
     #update time 
     #have to convert to unitless 
     self.nextSearchTime[msg.sender] = as_unitless_number(block.timestamp) + self.timeBetweenSearches
-    #generate the random hash
-    hash: bytes32 = sha3(concat(convert(self.random,bytes32),convert(msg.sender,bytes32),convert(block.timestamp,bytes32)))
-    #set hash to what was generateed 
-    self.random = convert(hash,uint256)
-    #determine lecth of modulo to use for planet 
-    length: uint256
-    planet: uint256
-    if(self._regions[ri][2] == 0): 
-        length = self._regions[ri][1] - self._regions[ri][0]
-        #planet is calculated 
-        planet = self._regions[ri][0] + convert(slice(hash, start=0, len=1) ,uint256) % length
-    else: 
-        length = self._regions[ri][0]
-        #planet comes from array 
-        idx: uint256 = 1+convert(slice(hash, start=0, len=1) ,uint256) % length
-        planet = self._regions[ri][convert(idx,int128)] 
-    #determine shard 
-    shard: uint256 = convert(slice(hash, start=1, len=1), uint256) % 32 
-    #check if planet can have more shards and that the random shard picked is greater than the current count 
-    if(self.shardCount[planet] < self.Gen.maxShards(planet) and shard > self.shardCount[planet]):
-        self._mint(msg.sender, planet)
-        return True
-    else:
-        log.FailedSearch(ri, msg.sender)
-        return False
+    ##mint 
+    self._mint(msg.sender, pi)
+    #log
+    log.NewPlane(pi, self.shardCount[pi], msg.sender)
