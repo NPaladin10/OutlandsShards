@@ -31,9 +31,22 @@ contract PlaneGen {
         }
     }
     
+    //max number of shards from a planet  
     function maxShards(uint256 pi) public view returns(uint256) {
         bytes32 hash = _planetHash(pi);
         return 1 + uint8(hash[0]) % 32;
+    }
+    
+    function maxShardArray(uint256[] memory pis) public view returns(uint256[] memory max) {
+        //keep it under control 
+        require(pis.length <= 32);
+        //get length to define array 
+        uint256 n = pis.length;
+        max = new uint256[](n);
+        //now loop 
+        for(uint256 i = 0; i < n; i++) {
+            max[i] = maxShards(pis[i]);
+        }
     }
     
     function planeHash(uint256 pi, uint256 si) public view returns(bytes32) {
