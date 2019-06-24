@@ -1,5 +1,4 @@
-# Defining the planes of the outlands
-# Broken down into regions 
+# Allow the PLanes to be tapped for cosmic 
 # Ropsten - 
 
 #interface for Plane Data Generator 
@@ -26,13 +25,13 @@ Tap: event({planet: indexed(uint256), shard: uint256, who: indexed(address)})
 FailedSearch: event({region: indexed(uint256), player: indexed(address)})
 
 #Geography
-_regions: map(uint256, uint256[33])
 shardCount: public(map(uint256, uint256))
 _idToPlane: map(uint256, uint256[2])
 _planeToID: map(bytes32, uint256)
 #Keep the total cap of planets 
-_cap: uint256
+cap: public(uint256)
 _start: uint256
+_currentId: uint256
 
 #Cost and time
 costToSearch: public(uint256)
@@ -43,7 +42,7 @@ nextTapTime: public(map(bytes32, uint256))
 
 #Core Setup 
 owner: address
-seed: string[32]
+paused: bool
 Gen: PlaneGen
 Reg: Registry
 NFT: PlaneNFT
@@ -52,7 +51,8 @@ NFT: PlaneNFT
 @public
 def __init__():
   self.owner = msg.sender
-  self._cap = 32 
+  self.cap = 32
+  self.paused = False 
   #One finney 
   self.costToSearch = 10**15
   #setup contracts - Ropsten 
@@ -61,6 +61,7 @@ def __init__():
   self.NFT = PlaneNFT(0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65)
   #detemine starting index 
   self._start = self.NFT.currentID()
+  self._currentId = self._start
 
 
 #internal contract to mint NFT and update token/planes 
@@ -68,6 +69,7 @@ def __init__():
 def _mint(who: address, pi: uint256): 
     #mint a new NFT  
     tid: uint256 = self.Reg.mintNFT(0, who)
+    self._currentId = tid 
     #increase shard count 
     self.shardCount[pi] = self.shardCount[pi]+1
     si: uint256 = self.shardCount[pi]
@@ -97,6 +99,15 @@ def kill():
     selfdestruct(self.owner)
 
 
+@public
+def pause():
+    assert(msg.sender == self.owner)
+    if(self.paused):
+        self.paused = False 
+    else:
+        self.paused = True 
+    
+
 #Set Contract Reference Address
 @public
 def setContractAddress(_i: uint256, _a: address):
@@ -111,9 +122,23 @@ def setContractAddress(_i: uint256, _a: address):
 
 #Set time 
 @public
+def setPlanetIdCap(_cap: uint256):
+    assert(msg.sender == self.owner)
+    self.cap = _cap
+
+
+#Set time 
+@public
 def setTimeBetweenSearches(_time: uint256):
     assert(msg.sender == self.owner)
     self.timeBetweenSearches = _time
+
+
+#Set time 
+@public
+def setTimeBetweenTaps(_time: uint256):
+    assert(msg.sender == self.owner)
+    self.timeBetweenTaps = _time
     
 
 #Set cost 
@@ -123,41 +148,34 @@ def setCostToSearch(_cost: uint256):
     self.costToSearch = _cost
 
 
-#Give region information   
-@public
-@constant
-def regionData(ri: uint256) -> uint256[64]:
-    rs: uint256[64]
-    if(self._regions[ri][0] == 0):
-        return rs 
-    pi: uint256
-    if(self._regions[ri][2] == 0):
-        d: uint256 = self._regions[ri][1]-self._regions[ri][0]
-        start: uint256 = self._regions[ri][0]
-        for i in range(32):
-            pi = start+convert(i,uint256)
-            rs[i] = pi
-            rs[i+32] = self.shardCount[pi]
-    else: 
-        for i in range(32):
-            pi = self._regions[ri][i+1]
-            rs[i] = pi
-            rs[i+32] = self.shardCount[pi]
-    return rs
-
-
 #Give total plane count    
 @public
 @constant
-def totalCount() -> uint256:
-    return self._cap + self.NFT.currentID() - self._start
+def tokenRange() -> (uint256, uint256):
+    return (self._start, self._currentId)
+
+
+#Provide the finder of a 
+@public
+@constant
+def planeOwner(pi: uint256, si: uint256) -> address:
+    if(pi == 0 or pi > self.cap):
+        return ZERO_ADDRESS
+    if(si == 0):
+        return self.owner
+    if(si > self.shardCount[pi]):
+        return ZERO_ADDRESS
+    else:
+        phash: bytes32 = self.Gen.planeHash(pi, si)
+        tid: uint256 = self._planeToID[phash]
+        return self.NFT.ownerOf(tid)
 
 
 #Provide the finder and tokenId of a plane 
 @public
 @constant
 def planeToToken(pi: uint256, si: uint256) -> (address, uint256):
-    if(pi > self._cap):
+    if(pi == 0 or pi > self.cap):
         return (ZERO_ADDRESS, 0)
     if(si == 0):
         return (self.owner, 0)
@@ -173,35 +191,27 @@ def planeToToken(pi: uint256, si: uint256) -> (address, uint256):
 @public
 @constant
 def tokenToPlane(ti: uint256) -> (uint256, uint256):
-    assert(ti >= self._start)
-    assert(ti < self.NFT.currentID())
+    assert(ti >= self._start and ti <= self._currentId)
     p: uint256[2] = self._idToPlane[ti]
     return (p[0],p[1])
-
-
-# Create the regions - owner only 
-@public
-def editRegion(ri: uint256, data: uint256[33], cap: uint256): 
-    assert(msg.sender == self.owner)
-    self._regions[ri] = data
-    #loop to look for cap 
-    if(cap > self._cap):
-        self._cap = cap
 
 
 # Tap for color  
 @public
 def Tap(pi: uint256, si: uint256): 
+    assert(not self.paused)
     #check time 
     phash: bytes32 = self.Gen.planeHash(pi, si)
     assert(self.nextTapTime[phash] < as_unitless_number(block.timestamp))
-    #update time 
-    #have to convert to unitless 
-    self.nextTapTime[phash] = as_unitless_number(block.timestamp) + self.timeBetweenTaps
     #get plane owner 
     tokenId : uint256
     pOwner : address
     pOwner, tokenId = self.planeToToken(pi, si)
+    #must have an owner 
+    assert(pOwner != ZERO_ADDRESS)
+    #update time 
+    #have to convert to unitless 
+    self.nextTapTime[phash] = as_unitless_number(block.timestamp) + self.timeBetweenTaps
     c: uint256[3]
     v: uint256[3]
     c[0], c[1], c[2] = self.Gen.cpxColors(pi, si)
@@ -219,8 +229,9 @@ def Tap(pi: uint256, si: uint256):
 @payable
 @public
 def search(pi: uint256):
+    assert(not self.paused)
     #must be in cap  
-    assert(pi < self._cap)
+    assert(pi > 0 and pi < self.cap)
     #check shard count 
     assert(self.shardCount[pi] < self.Gen.maxShards(pi))
     #must pay 
