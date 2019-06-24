@@ -1,5 +1,5 @@
 # Allow the PLanes to be tapped for cosmic 
-# Ropsten - 
+# Ropsten -  0x9F7F670A7Ad157B36d876A939042e56D6A88E9B5
 
 #interface for Plane Data Generator 
 contract PlaneGen:
@@ -56,8 +56,8 @@ def __init__():
   #One finney 
   self.costToSearch = 10**15
   #setup contracts - Ropsten 
-  self.Gen = PlaneGen(0x713F4E0Eb1247Dfab6f4Da58256fC6B7Fc6941fD)
-  self.Reg = Registry(0x5BB1a3E7ED4566aE9Ac02372bdD777245A6CcBa5)
+  self.Gen = PlaneGen(0x3dd41e473656F8fe1907987334E89a3Bb422C2Eb)
+  self.Reg = Registry(0xeD20801CED01693C12B876921039e30bEd5F8B8d)
   self.NFT = PlaneNFT(0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65)
   #detemine starting index 
   self._start = self.NFT.currentID()
@@ -83,8 +83,10 @@ def _mint(who: address, pi: uint256):
 def _mintCPX(_pOnwer: address, who: address, c: uint256, val: uint256): 
     #val goes from 10 to 20 
     base: uint256 = val * as_unitless_number(as_wei_value(1, "ether")) / 10
-    #mint a token - 89% to tap - who, 10 % to plane owner  
-    self.Reg.simpleMintToken(c, who, (89 * base) / 10)
+    #get variability 
+    var: uint256 = convert(sha3(concat(convert(as_unitless_number(block.timestamp), bytes32), convert(who, bytes32))), uint256) % 8
+    #mint a token - 80 + var% to tap - who, 10 % to plane owner  
+    self.Reg.simpleMintToken(c, who, ((80 + var) * base) / 100)
     self.Reg.simpleMintToken(c, _pOnwer, base / 10)
     self.Reg.simpleMintToken(c, self.owner, base / 100)
 
@@ -120,7 +122,7 @@ def setContractAddress(_i: uint256, _a: address):
         self.NFT = PlaneNFT(_a)
     
 
-#Set time 
+#Set Planet Cap  
 @public
 def setPlanetIdCap(_cap: uint256):
     assert(msg.sender == self.owner)
@@ -153,6 +155,16 @@ def setCostToSearch(_cost: uint256):
 @constant
 def tokenRange() -> (uint256, uint256):
     return (self._start, self._currentId)
+
+
+#Give total shard count of planet array    
+@public
+@constant
+def shardArray(pi: uint256[32]) -> uint256[32]:
+    nS: uint256[32]
+    for i in range(32):
+        nS[i] = self.shardCount[pi[i]]
+    return nS
 
 
 #Provide the finder of a 
@@ -199,14 +211,13 @@ def tokenToPlane(ti: uint256) -> (uint256, uint256):
 # Tap for color  
 @public
 def Tap(pi: uint256, si: uint256): 
+    assert(pi > 0)
     assert(not self.paused)
     #check time 
     phash: bytes32 = self.Gen.planeHash(pi, si)
     assert(self.nextTapTime[phash] < as_unitless_number(block.timestamp))
     #get plane owner 
-    tokenId : uint256
-    pOwner : address
-    pOwner, tokenId = self.planeToToken(pi, si)
+    pOwner: address = self.planeOwner(pi, si)
     #must have an owner 
     assert(pOwner != ZERO_ADDRESS)
     #update time 

@@ -1,7 +1,7 @@
 pragma solidity ^0.5.0;
 
 /**
- * Ropsten - 0x713F4E0Eb1247Dfab6f4Da58256fC6B7Fc6941fD
+ * Ropsten - 0x3dd41e473656F8fe1907987334E89a3Bb422C2Eb 
  */
 
 contract PlaneGen {
@@ -50,12 +50,12 @@ contract PlaneGen {
     }
     
     function planeHash(uint256 pi, uint256 si) public view returns(bytes32) {
-        if(si > maxShards(pi)) return bytes32(0);
+        if(pi == 0 || si > maxShards(pi)) return bytes32(0);
         return keccak256(abi.encodePacked(_planetHash(pi), si));
     }
     
     function CPX(uint256 pi, uint256 si) public view returns(uint256[3] memory colors, uint256[3] memory mag) {
-        if(si > maxShards(pi)) return (colors, mag);
+        if(pi == 0 || si > maxShards(pi)) return (colors, mag);
         bytes32 hash = planeHash(pi, si);
         uint256 nc = _nc(hash, si);
         //loop for color and mag 
@@ -66,7 +66,7 @@ contract PlaneGen {
     }
     
     function cpxColors(uint256 pi, uint256 si) public view returns(uint256 a, uint256 b, uint256 c) {
-        if(si > maxShards(pi)) return (0,0,0);
+        if(pi == 0 || si > maxShards(pi)) return (0,0,0);
         bytes32 hash = planeHash(pi, si);
         uint256 nc = _nc(hash, si);
         //loop for color and mag 
@@ -76,7 +76,7 @@ contract PlaneGen {
     }
     
     function cpxVals(uint256 pi, uint256 si) public view returns(uint256 a, uint256 b, uint256 c) {
-        if(si > maxShards(pi)) return (0,0,0);
+        if(pi == 0 || si > maxShards(pi)) return (0,0,0);
         bytes32 hash = planeHash(pi, si);
         uint256 nc = _nc(hash, si);
         //loop for color and mag 
