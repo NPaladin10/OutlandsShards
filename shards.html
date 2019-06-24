@@ -23,7 +23,8 @@
                         <div class="card card-body p-1">
                             <button class="btn btn-info btn-block my-1" type="button" data-toggle="collapse" href="#unlockMenu">Unlock</button>
                             <div id="unlockMenu" class="collapse">
-                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 6" v-if="!allowance.combiner[n]" @click="unlockCombiner(n)"> Unlock {{cpxNames[n-1]}}</button>
+                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 7" v-if="!allowance.combiner[n-1]" @click="unlockCombiner(n-1)"> Unlock {{cpxNames[n-1]}}</button>
+                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 1" v-if="!allowance.NFT[n-1]" @click="unlockNFT(n-1)"> Unlock {{nftNames[n-1]}}</button>
                             </div>
                         </div>
                     </div>
@@ -31,28 +32,19 @@
             </div>
             <!--END MENU---------------------------------------------->
             <div class="overlay">
-                <div>{{address}}</div>
-                <span>Ξ{{balance}} CPX {{CPX.join(' ')}}</span>
-                <div class="input-group" v-if="maxCPX>0 && toMint == 0">
+                <div v-if="address != ''">
+                    <div><span>Ξ{{balance}} CPXD {{CPX[0]}}</span></div>
+                    <div>CPX {{CPX.slice(1).join(' ')}}</div>
+                </div>
+                <div class="input-group" v-if="maxCPX>0 && unlocked">
                     <input type="number" class="form-control" min="0" :max="maxCPX" step="0.1" v-model="toCombine">
                     <div class="input-group-append">
                         <button class="btn btn-info" type="button" @click="combineCPX()">Combine CPX</button>
                     </div>
                 </div>
-                <div class="input-group">
-                    <div class="input-group-prepend">
-                        <button class="btn btn-info" type="button" @click="pid=-1">Show All</button>
-                    </div>
-                    <select class="custom-select" v-model="pid">
-                        <option v-for="n in cap" :value="n-1">Planet {{n-1}}</option>
-                    </select>
-                    <div class="input-group-append">
-                        <button class="btn btn-info" type="button" @click="conductSearch()" :disabled="nextSearchTime>0">New Shard Search ({{nextSearchTime}}s)</button>
-                    </div>
-                </div>
-                <div class="d-flex justify-content-between align-items-center" v-if="sid>-1" v-cloak>
-                    <span>Plane {{sid}}</span>
-                    <button class="btn btn-info" type="button" @click="tap()" v-if="canTap" :disabled="nextTapTime>0" v-cloak>Tap ({{nextTapTime}}s)</button>
+                <div>
+                  <button type="button" class="btn btn-block btn-success m-0" @click="conductSearch()" :disabled="nextSearchTime>0">Claim New Shard <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span></button>
+                  <button type="button" class="btn btn-block btn-success m-0" v-if="pid>-1" @click="tap()" :disabled="nextTapTime>0">Tap Plane {{pid}}/Shard {{sid}}<span v-if="nextTapTime>0">({{nextTapTime}}s)</span></button>
                 </div>
             </div>
             <div id="map" style="overflow-x:auto;">
