@@ -12,6 +12,7 @@ const hashToDecimal = (_hash, _id) => {
 /* Hash Functions 
   Used for seeding and random generation  
 */
+const seed = "OutlandsPlanes2019"
 
 const planetHash = (_planet) => {
   return ethers.utils.solidityKeccak256(['string', 'uint256'], [seed, _planet]) 
@@ -19,9 +20,8 @@ const planetHash = (_planet) => {
 const planeHash = (_planet, _shard) => {
   return ethers.utils.solidityKeccak256(['bytes32', 'uint256'], [planetHash(_planet), _shard]) 
 }
-const maxShards = (_planet) => {
-  let n = hashToDecimal(planetHash(_planet),0)
-  return 1 + n % 32
+const maxShards = (_planets) => {
+  return _planets.map(pid => 1+(hashToDecimal(planetHash(pid),0) % 32))
 }
 const planeCPX = (_planet, _shard) => {
   let cpxMag = [10,10,11,11,12,12,13,14,14,15,16,16,17,18,19,20]
@@ -38,99 +38,45 @@ const planeCPX = (_planet, _shard) => {
   })
 }
 
-//FUnction to push planets to the array 
-//Everything calculate from hash 
-const pushPlanets = (n) => {
-  //start with current length index 
-  let start = planets.length
-  //iterate over n 
-  for(let i = 0; i < n; i++) {
-    //get the id and max number of shards 
-    let id = start + i
-    let ms = maxShards(id)
-
-    //push new planet
-    planets.push({
-      id : id,
-      hash : planetHash(i),
-      maxS : ms,
-      f: [],
-      //32 shards  - determine hash and cpx 
-      shards : d3.range(32).map(j=>{
-        return {
-          id : j,
-          hash : planeHash(id, j),
-          CPX : planeCPX(id, j)
-        }
-      })
-    })
-  }
-}
-
-
-/* Ethers Provider
-*/
-
-let provider = null, signer = null, wallet = null;
-if (typeof web3 !== 'undefined') {
-    provider = new ethers.providers.Web3Provider(web3.currentProvider)
-    signer = provider.getSigner()
-} else {
-    provider = ethers.getDefaultProvider('ropsten')
-    //find a signer if stored 
-    let lastSigner = localStorage.getItem("lastSigner")
-    //if nothing is stored - create wallet and save 
-    if(!lastSigner) {
-      wallet = ethers.Wallet.createRandom()
-      localStorage.setItem(signer.address, wallet.mnemonic)  
-      localStorage.setItem("lastSigner",wallet.address)
-    }
-    else {
-      //pull wallet from mnemonic
-      let mnemonic = localStorage.getItem(lastSigner)  
-      wallet = ethers.Wallet.fromMnemonic(mnemonic)
-      signer = wallet.connect(provider)
-    }
-}
-
-let block = null
-let network = null
-
-let seed = "OutlandsPlanes2019"
-let planets = []
-let UIMain = null
-
-provider.getNetwork().then(n=> { network = n})
-//log new blocks 
-provider.on('block', (blockNumber)=>{
-    console.log(network.name + ' New Block: ' + blockNumber)
-})
-
 /* Contract Data 
 
 */
 
 let CPXContracts = {
+  PlaneGen : {
+    abi : [
+      "function maxShardArray(uint256[] memory pis) public view returns(uint256[] max)", 
+    ],
+    address : "0x3dd41e473656F8fe1907987334E89a3Bb422C2Eb"
+  },
   OutlandsPlanes : {
     abi : [
-      "event FailedSearch (uint256 indexed region, address indexed who)", 
+      "event Tap (uint256 indexed planet, uint256 shard, address indexed who)", 
       "event NewPlane (uint256 indexed planet, uint256 shard, address indexed finder)",
-      "function regionData(uint256 ri) public view returns(uint256[33])", 
-      "function shardCount(uint256 pi) public view returns(uint256)",
-      "function search(uint256 ri) public returns(bool)"
+      "function costToSearch() public view returns(uint256)",
+      "function timeBetweenSearches() public view returns(uint256)",
+      "function timeBetweenTaps() public view returns(uint256)",
+      "function nextSearchTime(address) public view returns(uint256)",
+      "function nextTapTime(bytes32) public view returns(uint256)",
+      "function shardArray(uint256[32] pi) public view returns(uint256[32])", 
+      "function planeToToken(uint256 pi, uint256 si) public view returns(address, uint256)", 
+      "function Tap(uint256 pi, uint256 si) public", 
+      "function search(uint256 pi) public payable", 
     ],
-    address : "0x94616B1E5cadD4A3993ff3Ca5D5815547d5ABbBC"
+    address : "0x9F7F670A7Ad157B36d876A939042e56D6A88E9B5"
   },
   CPXRegistry : {
     abi : [
       "function isApproved(address account) external view returns (bool)",
       "function getCPX(address account) external view returns (uint256[7] cpx)",
-      "function makeDiamond(uint256 _amt)"
+      "function makeDiamond(uint256 _amt) public"
     ],
-    address : "0x5BB1a3E7ED4566aE9Ac02372bdD777245A6CcBa5"
+    address : "0xeD20801CED01693C12B876921039e30bEd5F8B8d"
   },
   NFT : {
     abi : [
+      "function setApprovalForAll(address to, bool approved) public",
+      "function isApprovedForAll(address owner, address operator) public view returns (bool)",
       "function tokensOfOwner(address owner) external view returns (uint256[])",
     ],
     address : [
@@ -155,72 +101,128 @@ let CPXContracts = {
       ]
   }
 }
-//handle the contracts - connect with the signer  
-let outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,signer)
-let cpxRegistry = new ethers.Contract(CPXContracts.CPXRegistry.address,CPXContracts.CPXRegistry.abi,signer)
+
+
+/* Ethers Provider
+*/
+let block = null, network = null;
+let provider = null, signer = null, wallet = null;
+if (typeof web3 !== 'undefined') {
+    provider = new ethers.providers.Web3Provider(web3.currentProvider)
+    signer = provider.getSigner()
+} else {
+    provider = ethers.getDefaultProvider('ropsten')
+    /*
+    //find a signer if stored 
+    let lastSigner = localStorage.getItem("lastSigner")
+    //if nothing is stored - create wallet and save 
+    if(!lastSigner) {
+      wallet = ethers.Wallet.createRandom()
+      localStorage.setItem(wallet.address, wallet.mnemonic)  
+      localStorage.setItem("lastSigner",wallet.address)
+    }
+    else {
+      //pull wallet from mnemonic
+      let mnemonic = localStorage.getItem(lastSigner)  
+      wallet = ethers.Wallet.fromMnemonic(mnemonic)
+      signer = wallet.connect(provider)
+    }
+    */
+}
+provider.getNetwork().then(n=> { network = n})
+
+//handle the contracts - connect with the signer / provider 
+let whoSends = signer ? signer : provider
+let outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,whoSends)
+let cpxRegistry = new ethers.Contract(CPXContracts.CPXRegistry.address,CPXContracts.CPXRegistry.abi,whoSends)
 let cpxNFT = Array.from(new Array(1), (x,i) => {
-  return new ethers.Contract(CPXContracts.NFT.address[i],CPXContracts.NFT.abi,signer)
+  return new ethers.Contract(CPXContracts.NFT.address[i],CPXContracts.NFT.abi,whoSends)
 })
 let cpxTokens = Array.from(new Array(7), (x,i) => {
-  return new ethers.Contract(CPXContracts.CPX.address[i],CPXContracts.CPX.abi,signer)
+  return new ethers.Contract(CPXContracts.CPX.address[i],CPXContracts.CPX.abi,whoSends)
 })
 
-//connect wallet if it exists
-
-//Log Updates 
-outlandsPlanes.on("NewPlane",(who,planet,shard,event)=>{
-    console.log("NewPlane: ", event)
-})
-outlandsPlanes.on("FailedSearch",(who,planet,event)=>{
-    console.log("FailedSearch: ", event)
-})
+let planets = []
+let UIMain = null
 
 //Check number of planets 
 //Starts with a set region 
 const regions = [
   {
     range: [1,32],
-    shards : []
   }
 ]
-const capCheck = () => {
+const ethCheck = () => {
   //set data for later
   provider.getBlock ( "latest" ).then(b => { block = b })
-    .catch(e => {
-      console.log(e)
-    })
+    .catch(console.log)
+  
+  if (typeof web3 !== 'undefined') {
+    signer = provider.getSigner()
+  }
 
   //scan for CPX
-  if(UIMain) signer.getBalance().then(b => {
-    UIMain.balance = ethers.utils.formatEther(b)
-  }) 
-  signer.getAddress().then(address => {
-    cpxRegistry.getCPX(address).then(T => UIMain.CPX = T.map(ethers.utils.formatEther))
-    cpxNFT[0].tokensOfOwner(address).then(T => {
-      //log of Token ids 
+  if(UIMain && signer) {
+    let address = UIMain.address
+    //get data from tap 
+    if(UIMain.pid > -1) {
+      outlandsPlanes.nextTapTime(planeHash(UIMain.pid, UIMain.sid)).then(t => UIMain.nextTap = t.toNumber())
+    }
+
+    signer.getAddress().then(a => {
+      if(a != UIMain.address) {
+        UIMain.address = a  
+        //redo contracts 
+        outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,signer)
+        cpxRegistry = new ethers.Contract(CPXContracts.CPXRegistry.address,CPXContracts.CPXRegistry.abi,signer)
+        cpxNFT = Array.from(new Array(1), (x,i) => {
+          return new ethers.Contract(CPXContracts.NFT.address[i],CPXContracts.NFT.abi,signer)
+        })
+        cpxTokens = Array.from(new Array(7), (x,i) => {
+          return new ethers.Contract(CPXContracts.CPX.address[i],CPXContracts.CPX.abi,signer)
+        })
+      }
+    }) 
+    signer.getBalance().then(b => {
+      UIMain.balance = ethers.utils.formatEther(b).slice(0,5)
     })
 
-    cpxTokens.forEach((T,i) => {
-      //check for operator permission 
-      T.isOperatorFor(CPXContracts.CPXRegistry.address, address).then(isOp => {
-        UIMain.allowance.combiner[i] = isOp 
+    if(address !="") {
+      cpxRegistry.getCPX(address).then(T => UIMain.CPX = T.map(v => ethers.utils.formatEther(v).slice(0,4)))
+      cpxNFT[0].tokensOfOwner(address).then(T => {
+        //log of Token ids 
+        UIMain.owns = T.map(ti => ti.toNumber())
       })
-    })
-  })
+
+      outlandsPlanes.nextSearchTime(address).then(t => UIMain.nextSearch = t.toNumber())
+
+      //check approval 
+      cpxTokens.forEach((T,i) => {
+        //check for operator permission 
+        T.isOperatorFor(CPXContracts.CPXRegistry.address, address).then(isOp => {
+          Vue.set(UIMain.allowance.combiner,i,isOp)
+        })
+      })
+      cpxNFT.forEach((T,i) => {
+        //check for operator permission 
+        T.isApprovedForAll(address, CPXContracts.CPXRegistry.address).then(isOp => {
+          Vue.set(UIMain.allowance.NFT,i,isOp)
+        })
+      })  
+    }
+  }  
 
   let R = UIMain ? regions[UIMain.rid] : regions[0]
   if(R.range) {
     //reset the planes 
     let n = 1 + R.range[1] - R.range[0] 
-    if(R.shards.length < n) R.shards = d3.range(n).map(_=> 0)
-    for(let i = 0; i < n; i++) {
-      //look at each 
-      //find the number of planes found 
-      let pi = i+R.range[0]
-      outlandsPlanes.shardCount(pi).then(ns => {
-        R.shards[pi] = ns.toNumber()
-      })
-    }
+    R.pids = d3.range(n).map(i => R.range[0]+i)
+    if(!R.shards) R.shards = d3.range(n).map(_=> 0)
+    if(!R.max) R.max = maxShards(R.pids)
+    //find the number of planes found 
+    outlandsPlanes.shardArray(R.pids).then(ns => {
+      R.shards = d3.range(n).map(j=> ns[j].toNumber())
+    })
   }
 }
 
@@ -284,12 +286,12 @@ const drawCircleMap = ()=>{
     data.filter(d => d.depth == 1).forEach(d => {
       planetMap.push(d)
       ctx.beginPath()
-      ctx.arc(D * d.x, D * d.y,D * d.r,0,fC)
+      ctx.arc(D * (d.x+0.25), D * d.y,D * d.r,0,fC)
       ctx.stroke()
     })
     data.filter(d => d.depth == 2).forEach(d => {
       ctx.beginPath()
-      ctx.arc(D * d.x, D * d.y,D * d.r,0,fC)
+      ctx.arc(D * (d.x+0.25), D * d.y,D * d.r,0,fC)
       ctx.fillStyle = d.data.color
       ctx.fill()
       ctx.stroke()
@@ -298,10 +300,8 @@ const drawCircleMap = ()=>{
     canvas.on("click",function(){
       let p = d3.mouse(this)
       //adjust for scaling 
-      let x = (p[0]-iH/2) / D
+      let x = (p[0] / D) - 0.25
       let y = p[1] / D
-      //set planet 
-      searchCheck()
       //scan shards or planets 
       //get the planet 
       let cp = planetMap.find(_p => {
@@ -309,25 +309,12 @@ const drawCircleMap = ()=>{
         let dy = _p.y - y 
         return dx*dx+dy*dy < _p.r*_p.r 
       })  
-      if(UIMain.pid > -1) {
-        UIMain.sid = cp.data.id 
-        //check if claimed 
-        UIMain.canTap = UIMain.sid < 1+planets[UIMain.pid].f.length ? true : false
-      }
-      else {
-        UIMain.pid = cp.data.id
-        UIMain.sid = -1
-      }
+      
+      UIMain.pid = cp.data.id[0] 
+      UIMain.sid = cp.data.id[1] 
+      //set planet 
+      ethCheck()
     })
-}
-
-const searchCheck = () => {
-  signer.getAddress().then(a => {
-    //get data from tap 
-    if(UIMain.sid > -1) {
-      planeCosmic.nextTapTime(UIMain.pid, UIMain.sid).then(t => UIMain.nextTap = t.toNumber())
-    }    
-  })
 }
 
 /* UI 
@@ -341,10 +328,13 @@ UIMain = new Vue({
         address: "",
         balance: 0,
         allowance : {
-          combiner : [false,false,false,false,false,false,false]
+          combiner : [false,false,false,false,false,false,false],
+          NFT : [false],
         },
-        cpxNames : ["Ruby","Citrine","Topaz","Emerald","Sapphire","Amethyst"],
+        cpxNames : ["Diamond","Ruby","Citrine","Topaz","Emerald","Sapphire","Amethyst"],
+        nftNames : ["Planes Register"],
         CPX : [0,0,0,0,0,0,0],
+        owns : [],
         toCombine: 0,
         toMint: 0,
         cap: 32,
@@ -360,17 +350,14 @@ UIMain = new Vue({
         canTap : false,
     },
     mounted() {
-      // Start up 
-      this.address = signer.address
       //Poll the number of planets 
       setInterval(()=>{
-        capCheck()
-        searchCheck()
+        ethCheck()
       },5000)
       setInterval(()=> this.now = Date.now()/1000,500)
 
       //inital push
-      capCheck()   
+      ethCheck()   
       drawCircleMap()
     },
     computed: {
@@ -387,22 +374,31 @@ UIMain = new Vue({
             return val < min ? val : min
           },99999)
         },
+        unlocked () {
+          return this.allowance.combiner.slice(1).reduce((isApproved,ca)=> {
+            return isApproved && ca 
+          },true)
+        }
     },
     methods: {
         conductSearch() {
-            //pay for search 
-            let pay = {
-              value: ethers.utils.parseUnits('100','finney'),
-              // The price (in wei) per unit of gas
-              gasPrice: ethers.utils.parseUnits('2.0', 'gwei'),
-              gasLimit: 100000,
-            }
-            outlandsPlanes.search(this.rid,pay).then(t => {
-              console.log("Transaction sent: "+t.hash)
-            })
+          //find a planet with shards left 
+          let R = regions[this.rid]
+          let pids = R.pids.reduce((remain,pi,i)=> {
+            if(R.max[i] > R.shards[i]) remain.push(pi)
+            return remain
+          },[])
+          let pi = chance.pickone(pids)
+          //pay for search 
+          let pay = {
+            value: ethers.utils.parseUnits('100','finney'),
+          }
+          outlandsPlanes.search(pi, pay).then(t => {
+            console.log("Transaction sent: "+t.hash)
+          })
         },
         tap(){
-          planeCosmic.tap(this.pid, this.sid).then(t => {
+          outlandsPlanes.Tap(Number(this.pid), Number(this.sid)).then(t => {
               console.log("Transaction sent: "+t.hash)
           })
         },
@@ -411,9 +407,14 @@ UIMain = new Vue({
               console.log("Transaction sent: "+t.hash)
           })
         },
+        unlockNFT(i) {
+          cpxNFT[i].setApprovalForAll(CPXContracts.CPXRegistry.address, true).then(t => {
+              console.log("Transaction sent: "+t.hash)
+          })
+        },
         combineCPX() {
           let val = ethers.utils.parseUnits(this.toCombine,'ether')
-          cosmicCombiner.combine(val.toString()).then(t => {
+          cpxRegistry.makeDiamond(val.toString()).then(t => {
               console.log("Transaction sent: "+t.hash)
           })
         },
