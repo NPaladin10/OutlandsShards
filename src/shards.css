@@ -5,14 +5,13 @@
 body {
   margin: 0;
   background-color: silver;
+  overflow: hidden;
 }
 
 /* OVERLAY FOR CENTER DATA */
 .overlay {
   position: fixed;
-  top: 5px;
   left: 50%;
-  max-width: 400px;
   transform: translateX(-50%);
   background-color: whitesmoke;
 }
@@ -26,4 +25,26 @@ circle.planet {
 circle.shard {
   stroke: black;
   fill: green;
+}
+
+.diamond {
+  color: aliceblue;
+}
+.ruby {
+  color: red;
+}
+.citrine {
+  color: orange;
+}
+.topaz {
+  color: yellow;
+}
+.emerald {
+  color: green;
+}
+.sapphire {
+  color: blue;
+}
+.amethyst {
+  color: purple;
 }

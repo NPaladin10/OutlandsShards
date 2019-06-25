@@ -194,6 +194,9 @@ const ethCheck = () => {
         UIMain.owns = T.map(ti => ti.toNumber())
       })
 
+      //cost 
+      outlandsPlanes.costToSearch().then(c => UIMain.searchCost = ethers.utils.formatEther(c))
+      //time 
       outlandsPlanes.nextSearchTime(address).then(t => UIMain.nextSearch = t.toNumber())
 
       //check approval 
@@ -273,7 +276,7 @@ const drawCircleMap = ()=>{
     let iH = window.innerHeight
     let D = iH < iW ? iH : iW
     //set size
-    let canvas = d3.select("#map canvas").attr("height", iH).attr("width", iW)
+    let canvas = d3.select("#map canvas").attr("height", D).attr("width", D)
     var ctx = canvas.node().getContext("2d")
     ctx.clearRect(0, 0, iW, iH)
 
@@ -283,24 +286,37 @@ const drawCircleMap = ()=>{
     //use canvas because there could be a lot of circles  
     //do layer 1 then layer 2
     planetMap = []
+    let selected = null
     data.filter(d => d.depth == 1).forEach(d => {
       planetMap.push(d)
+      //outline in blue
+      if(UIMain && (UIMain.pid == d.data.id[0] && UIMain.sid == d.data.id[1])){
+        selected = d 
+      }
       ctx.beginPath()
-      ctx.arc(D * (d.x+0.25), D * d.y,D * d.r,0,fC)
-      ctx.stroke()
+      ctx.arc(D * d.x, D * d.y,D * d.r,0,fC)
+      ctx.stroke()      
     })
     data.filter(d => d.depth == 2).forEach(d => {
       ctx.beginPath()
-      ctx.arc(D * (d.x+0.25), D * d.y,D * d.r,0,fC)
+      ctx.arc(D * d.x, D * d.y,D * d.r,0,fC)
       ctx.fillStyle = d.data.color
       ctx.fill()
       ctx.stroke()
     })
+    if(selected) {
+      let d = selected
+      ctx.beginPath()
+      ctx.arc(D * d.x, D * d.y,D * d.r * 1.1,0,fC)
+      ctx.strokeStyle = "blue";
+      ctx.stroke()
+      ctx.strokeStyle = "black";
+    }
 
     canvas.on("click",function(){
       let p = d3.mouse(this)
       //adjust for scaling 
-      let x = (p[0] / D) - 0.25
+      let x = (p[0] / D)
       let y = p[1] / D
       //scan shards or planets 
       //get the planet 
@@ -314,6 +330,7 @@ const drawCircleMap = ()=>{
       UIMain.sid = cp.data.id[1] 
       //set planet 
       ethCheck()
+      drawCircleMap()
     })
 }
 
@@ -339,6 +356,7 @@ UIMain = new Vue({
         toMint: 0,
         cap: 32,
         now : 0,
+        searchCost : 0.001,
         nextSearch: 0,
         nextTap: 0,
         rid : 0,
@@ -391,7 +409,7 @@ UIMain = new Vue({
           let pi = chance.pickone(pids)
           //pay for search 
           let pay = {
-            value: ethers.utils.parseUnits('100','finney'),
+            value: ethers.utils.parseUnits(this.searchCost,'ether'),
           }
           outlandsPlanes.search(pi, pay).then(t => {
             console.log("Transaction sent: "+t.hash)
@@ -419,6 +437,11 @@ UIMain = new Vue({
           })
         },
     }
+})
+
+//check for resize
+window.addEventListener("resize", ()=> {
+  drawCircleMap()
 })
 
 
