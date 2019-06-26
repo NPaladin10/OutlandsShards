@@ -82,7 +82,7 @@ let CPXContracts = {
       "function tokensOfOwner(address owner) external view returns (uint256[])",
     ],
     address : [
-      "0xc6b43dfbe2acb52ee930f13a1a36e0f871f0320b"
+      "0xc6b43dfbe2acb52ee930f13a1a36e0f871f0320b",
       "0x3496f8F96c230E6f03eECe73521cAe0C81879700"
     ]
   },
