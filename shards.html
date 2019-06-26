@@ -11,64 +11,9 @@
     <body>
         <div id="spinner" class="lds-dual-ring"></div>
         <div id="ui-main" align="center">
-            <!--MENU---------------------------------------------->
-            <div class="d-flex flex-row m-1" style="z-index:100;position:fixed;">
-                <div>
-                    <a class="btn btn-info btn-sm" data-toggle="collapse" href="#menu-list" role="button">
-                        <img src="media/md-menu.svg" height="20" width="20">
-                    </a>
-                </div>
-                <div>
-                    <div class="card collapse" id="menu-list" style="width:200px;">
-                        <div class="card card-body p-1">
-                            <button type="button" class="btn btn-block btn-info" @click="conductSearch()" :disabled="nextSearchTime>0">
-                                Claim New Shard <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
-                            </button>
-                            <button class="btn btn-info btn-block my-1" type="button" data-toggle="collapse" href="#unlockMenu">Unlock</button>
-                            <div id="unlockMenu" class="collapse">
-                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 7" v-if="!allowance.combiner[n-1]" @click="unlockCombiner(n-1)">Unlock {{cpxNames[n-1]}}</button>
-                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 1" v-if="!allowance.NFT[n-1]" @click="unlockNFT(n-1)">Unlock {{nftNames[n-1]}}</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!--END MENU---------------------------------------------->
-            <!--OVERHEAD---------------------------------------------->
-            <div class="overlay m-1" style="top:0;">
-                <div>
-                    <button type="button" class="btn btn-block btn-success m-0" v-if="pid>-1" @click="tap()" :disabled="nextTapTime>0">
-                        Tap <span v-if="nextTapTime>0">({{nextTapTime}}s)</span>
-                    </button>
-                </div>
-            </div>
-            <!--END OVERHEAD---------------------------------------------->
+            <a class="btn btn-outline-info" role="button" href="index.html">Return to Outlands</a>
             <div id="map">
-                <canvas height="0" width="0"></canvas>
-            </div>
-            <!--FOOTER---------------------------------------------->
-            <!--END FOOTER---------------------------------------------->
-            <div class="overlay m-1 p-1" style="bottom:0;" align="center">
-                <div class="bg-light" v-if="address != ''">
-                    <div class="d-flex justify-content-center">
-                        <span class="font-weight-bold">Ξ</span>
-                        <span>{{balance}}</span>
-                        <span class="font-weight-bold diamond">&#10023;</span>
-                        <span>{{CPX[0]}}</span>
-                        <div class="input-group input-group-sm ml-2" style="width:175px;" v-if="maxCPX>0 && unlocked">
-                            <input type="number" class="form-control" min="0" :max="maxCPX" step="0.1" v-model="toCombine">
-                            <div class="input-group-append">
-                                <button class="btn btn-info" type="button" @click="combineCPX()">Combine CPX</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-1" style="font-size: small;">
-                        <span class="mr-1" v-for="n in 6">
-                            <span class="font-weight-bold" :class="cpxNames[n].toLowerCase()">&#10023;</span>
-                            <span>{{CPX[n]}}</span>
-                        </span>
-                    </div>
-                </div>
+                <svg height="0" width="0"></svg>
             </div>
         </div>
     </body>
