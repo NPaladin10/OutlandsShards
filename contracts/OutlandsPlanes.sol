@@ -1,222 +1,271 @@
-//Manages the Planes of the Outlands.
-pragma solidity ^0.5.0;
+# Allow the PLanes to be tapped for cosmic 
+# Ropsten -  0xF4fB24395C346916C27b1E3B3b3FDaC1E2c79664 
 
-/**
- * @dev Outlands: Planes are Shards of Planets
- * Ropsten - 0x1604981a1d3b8672a14fac5ceef827d8a213b1d0
- *
- */
-contract OutlandsPlanes {
-    /**
-     * @dev Basic Search structure.
-     * 
-     * last: time the last search was performed
-     * await: block the search must wait for
-     * planet: planet of the search
-     */
-    struct Search {
-        uint256 next;
-        uint256 await;
-        uint256 planet;
-    }
+#interface for Plane Data Generator 
+contract PlaneGen:
+    def maxShards(pi: uint256) -> uint256: constant
+    def planeHash(pi: uint256, si: uint256) -> bytes32: constant
+    def cpxColors(pi: uint256, si: uint256) -> (uint256, uint256, uint256): constant
+    def cpxVals(pi: uint256, si: uint256) -> (uint256, uint256, uint256): constant
+
+#interface for Plane NFT
+contract PlaneNFT:
+    def currentID() -> uint256: constant
+    def ownerOf(tokenId: uint256) -> address: constant
+
+#interface for Registry
+contract Registry:
+    def simpleMintToken(_i: uint256, _who: address, _amt: uint256): modifying
+    def mintNFT(_i: uint256, _who: address) -> uint256: modifying
+    def renounceMinter(): modifying
+
+# Events of the token.
+NewPlane: event({planet: indexed(uint256), shard: uint256, finder: indexed(address)})
+Tap: event({planet: indexed(uint256), shard: uint256, who: indexed(address)})
+FailedSearch: event({region: indexed(uint256), player: indexed(address)})
+
+#Geography
+shardCount: public(map(uint256, uint256))
+_idToPlane: map(uint256, uint256[2])
+_planeToID: map(bytes32, uint256)
+#Keep the total cap of planets 
+cap: public(uint256)
+_start: uint256
+_currentId: uint256
+
+#Cost and time
+costToSearch: public(uint256)
+timeBetweenSearches: public(uint256)
+nextSearchTime: public(map(address, uint256))
+timeBetweenTaps: public(uint256)
+nextTapTime: public(map(bytes32, uint256))
+
+#Core Setup 
+owner: address
+paused: bool
+Gen: PlaneGen
+Reg: Registry
+NFT: PlaneNFT
+
+# Setup global variables
+@public
+def __init__():
+  self.owner = msg.sender
+  self.cap = 32
+  self.paused = False 
+  #One finney 
+  self.costToSearch = 10**15
+  #setup contracts - Ropsten 
+  self.Gen = PlaneGen(0x3dd41e473656F8fe1907987334E89a3Bb422C2Eb)
+  self.Reg = Registry(0x3B54797E3E34461C1d3C7A56631c0ffa2E02b4aB)
+  self.NFT = PlaneNFT(0xC6B43DfbE2acB52ee930f13a1a36E0F871F0320B)
+  #detemine starting index 
+  self._start = self.NFT.currentID()
+  self._currentId = self._start
+
+
+#internal contract to mint NFT and update token/planes 
+@private
+def _mint(who: address, pi: uint256): 
+    #mint a new NFT  
+    tid: uint256 = self.Reg.mintNFT(0, who)
+    self._currentId = tid 
+    #increase shard count 
+    self.shardCount[pi] = self.shardCount[pi]+1
+    si: uint256 = self.shardCount[pi]
+    #set data for memory later 
+    self._idToPlane[tid] = [pi, si]
+    self._planeToID[self.Gen.planeHash(pi, si)] = tid 
     
-    event FailedSearch (address indexed who, uint256 indexed planet);  
-    event PlaneFound (address indexed who, uint256 indexed planet, uint256 shard);
+
+#internal contract to mint CPX 
+@private
+def _mintCPX(_pOnwer: address, who: address, c: uint256, val: uint256): 
+    #val goes from 10 to 20 
+    base: uint256 = val * as_unitless_number(as_wei_value(1, "ether")) / 10
+    #get variability 
+    var: uint256 = convert(sha3(concat(convert(as_unitless_number(block.timestamp), bytes32), convert(who, bytes32))), uint256) % 8
+    #mint a token - 80 + var% to tap - who, 10 % to plane owner  
+    self.Reg.simpleMintToken(c, who, ((80 + var) * base) / 100)
+    self.Reg.simpleMintToken(c, _pOnwer, base / 10)
+    self.Reg.simpleMintToken(c, self.owner, base / 100)
+
+
+#Kill the contract 
+@public
+def kill():
+    assert(msg.sender == self.owner)
+    #renounce minter 
+    self.Reg.renounceMinter()
+    #kill and send owner balance
+    selfdestruct(self.owner)
+
+
+@public
+def pause():
+    assert(msg.sender == self.owner)
+    if(self.paused):
+        self.paused = False 
+    else:
+        self.paused = True 
     
-    /**
-     * @dev Globals
-     */
-    address payable owner;
-    //hash seed
-    string seed = "OutlandsPlanes2019";
-    //number of active planets 
-    uint256 public planetCap;
-    //number of planes found by planet - max of 32 
-    mapping (uint256 => address[]) internal _finders;
-    //cost to search 
-    uint256 public searchCost = 100 * 1 finney;
-    //time between searches 
-    uint256 searchTime = 3600;
-    mapping (address => Search) public searchData;
+
+#Set Contract Reference Address
+@public
+def setContractAddress(_i: uint256, _a: address):
+    assert(msg.sender == self.owner)
+    if(_i == 0):
+        self.Gen = PlaneGen(_a)
+    if(_i == 1):
+        self.Reg = Registry(_a)
+    if(_i == 2):
+        self.NFT = PlaneNFT(_a)
     
-    /**
-     * @dev constructor
-     * 
-     * _cap: maximum number of planets allowed to search
-     */
-    constructor(uint256 _cap) public {
-        owner = msg.sender;
-        planetCap = _cap;
-    }
+
+#Set Planet Cap  
+@public
+def setPlanetIdCap(_cap: uint256):
+    assert(msg.sender == self.owner)
+    self.cap = _cap
+
+
+#Set time 
+@public
+def setTimeBetweenSearches(_time: uint256):
+    assert(msg.sender == self.owner)
+    self.timeBetweenSearches = _time
+
+
+#Set time 
+@public
+def setTimeBetweenTaps(_time: uint256):
+    assert(msg.sender == self.owner)
+    self.timeBetweenTaps = _time
     
-    /**
-     * @dev View functions 
-     */
-     
-    /**
-     * @dev Generates Planet hash based upon seed and planet id 
-     * 
-     * _planet: planet id
-     */
-    function planetHash (uint256 _planet) public view returns(bytes32 hash) {
-        hash = keccak256(abi.encodePacked(seed,_planet)); 
-    }
-    /**
-     * @dev Generates Plane hash based planet and shard id 
-     * 
-     * _planet: planet id
-     * _shard: shard id
-     */
-    function planeHash (uint256 _planet, uint256 _shard) public view returns(bytes32 hash) {
-        hash = keccak256(abi.encodePacked(planetHash(_planet),_shard)); 
-    }
-    /**
-     * @dev Returns True/Flase if a plane has been found by a address
-     * 
-     * _planet: planet id
-     * _shard: shard id
-     */
-    function isFound (uint256 _planet, uint256 _shard) public view returns(bool) {
-        return getFinder(_planet,_shard) != address(0); 
-    }
-    /**
-     * @dev Returns the address of who found the plane
-     * shard 0 is always found by the owner 
-     * 
-     * _planet: planet id
-     * _shard: shard id
-     */
-    function getFinder (uint256 _planet, uint256 _shard) public view returns(address) {
-        //check if above _cap
-        if(_planet > planetCap) return address(0);
-        //first shard is owner
-        if(_shard == 0) return owner;
-        //modify id - player shards are 1-31
-        uint256 _id = _shard-1;
-        if(_id >= _finders[_planet].length) return address(0);
-        return _finders[_planet][_id]; 
-    }
-    /**
-     * @dev Returns any array of all finders for a planet 
-     * 
-     * _planet: planet id
-     */
-    function getAllFinders (uint256 _planet) public view returns(address[] memory) {
-        return _finders[_planet]; 
-    }
-    /**
-     * @dev Returns maximum number of shards from a planet 
-     * Above this number there are only islands or the maelstrom
-     * 
-     * _planet: planet id
-     */
-    function maxShards (uint256 _planet) public view returns(uint256 nShards) {
-        bytes32 hash = planetHash(_planet);
-        nShards = 1 + uint8(hash[0]) % 32;
-    }
-    
-    /**
-     * @dev Owner Functions 
-     */
-     /**
-     * @dev Kill function
-     * Destroys the contract
-     */
-    function kill () public {
-        require(msg.sender == owner);
-        selfdestruct(owner);
-    }
-    /**
-     * @dev Sets the maximum number of planets in the Outlands
-     * 
-     * _cap: the new maximum number of planets to create shards from
-     */
-    function setPlanetCap (uint256 _cap) public {
-        require(msg.sender == owner);
-        planetCap = _cap;
-    }
-    /**
-     * @dev Sets search cost
-     * 
-     * _cost: the new cost to search
-     */
-    function setSearchCost (uint256 _cost) public {
-        require(msg.sender == owner);
-        searchCost = _cost;
-    }
-    /**
-     * @dev Sets the minimum time between searches for an address
-     * 
-     * _time: the time in seconds
-     */
-    function setSearchTime (uint256 _time) public {
-        require(msg.sender == owner);
-        searchTime = _time;
-    }
-    
-    /**
-     * @dev Before a player can search they must pay for the search
-     * Allows for randomization because they do not know the upcomming hash
-     * There are only 32 shards in any planet 
-     * A player must wait the search time 
-     * Sets the search Struct for the player
-     * 
-     * _planet: the id of the planet the search originates from 
-     */
-    function payForSearch (uint256 _planet) public payable returns(uint256 await){
-        require(_finders[_planet].length < 32);
-        require(msg.value >= searchCost);
-        //have to wait for search time 
-        require(_planet < planetCap && searchData[msg.sender].next < now);
-        //send value 
-        owner.transfer(address(this).balance);
-        //update can seacrh 
-        searchData[msg.sender].await = block.number+1;
-        searchData[msg.sender].planet = _planet;
-        await = searchData[msg.sender].await; 
-    }
-    
-    /**
-     * @dev Conducts the search the player paid for
-     * Player must wait until the following block to conduct 
-     * If they waited too long they are allowed a redo
-     * Resets their search data 
-     * 
-     * Uses the hash to pick a number between 0 and 31
-     * If greater than the currently number of found shards, finds a new shard
-     * It becomes harder and harder to find a shard 
-     * 
-     * New shards are linked to the player address
-     */
-    function conductSearch () public {
-        //get await block 
-        uint256 aB = searchData[msg.sender].await;
-        //await block cannot be 0
-        require( aB != 0);
-        //has to be less than the current block
-        if(aB > block.number) return;
-        else if (block.number - aB > 256) {
-            //catch values outside of bounds 
-            searchData[msg.sender].await = block.number+1;
-            return;
-        }
-        //now go
-        //reset to 0 set time 
-        searchData[msg.sender].await = 0;
-        searchData[msg.sender].next = now+searchTime;
-        //check hash for success 
-        bytes32 hash = keccak256(abi.encodePacked(blockhash(aB),msg.sender));
-        uint256 search = uint8(hash[0]) % 32;
-        //check if less than than found
-        uint256 _planet  = searchData[msg.sender].planet;
-        //increment if new shard found - cannot be found previous - gets harder every time
-        if(_finders[_planet].length < search) {
-            _finders[_planet].push(msg.sender); 
-            //emit 
-            emit PlaneFound(msg.sender,_planet,_finders[_planet].length);
-        }
-        else {
-            emit FailedSearch(msg.sender,_planet);
-        }
-    }
-} 
+
+#Set cost 
+@public
+def setCostToSearch(_cost: uint256):
+    assert(msg.sender == self.owner)
+    self.costToSearch = _cost
+
+
+#Give total plane count    
+@public
+@constant
+def tokenRange() -> (uint256, uint256):
+    return (self._start, self._currentId)
+
+
+#Give total shard count of planet array    
+@public
+@constant
+def shardArray(pi: uint256[32]) -> uint256[32]:
+    nS: uint256[32]
+    for i in range(32):
+        nS[i] = self.shardCount[pi[i]]
+    return nS
+
+
+#Provide the finder of a 
+@public
+@constant
+def planeOwner(pi: uint256, si: uint256) -> address:
+    if(pi == 0 or pi > self.cap):
+        return ZERO_ADDRESS
+    if(si == 0):
+        return self.owner
+    if(si > self.shardCount[pi]):
+        return ZERO_ADDRESS
+    else:
+        phash: bytes32 = self.Gen.planeHash(pi, si)
+        tid: uint256 = self._planeToID[phash]
+        return self.NFT.ownerOf(tid)
+
+
+#Provide the finder and tokenId of a plane 
+@public
+@constant
+def planeToToken(pi: uint256, si: uint256) -> (address, uint256):
+    if(pi == 0 or pi > self.cap):
+        return (ZERO_ADDRESS, 0)
+    if(si == 0):
+        return (self.owner, 0)
+    if(si > self.shardCount[pi]):
+        return (ZERO_ADDRESS, 0)
+    else:
+        phash: bytes32 = self.Gen.planeHash(pi, si)
+        tid: uint256 = self._planeToID[phash]
+        return (self.NFT.ownerOf(tid), tid)
+
+
+#Provide the plane of a tokenId  
+@public
+@constant
+def tokenToPlane(ti: uint256) -> (uint256, uint256):
+    assert(ti >= self._start and ti <= self._currentId)
+    p: uint256[2] = self._idToPlane[ti]
+    return (p[0],p[1])
+
+
+@public
+@constant
+def tokenToPlaneArray(ti: uint256[32]) -> (uint256[64]):
+    t: uint256
+    p: uint256[64]
+    for i in range(32):
+        t = ti[i]
+        p[i], p[i+32] = self.tokenToPlane(t)
+    return p
+
+
+# Tap for color  
+@public
+def Tap(pi: uint256, si: uint256): 
+    assert(pi > 0)
+    assert(not self.paused)
+    #check time 
+    phash: bytes32 = self.Gen.planeHash(pi, si)
+    assert(self.nextTapTime[phash] < as_unitless_number(block.timestamp))
+    #get plane owner 
+    pOwner: address = self.planeOwner(pi, si)
+    #must have an owner 
+    assert(pOwner != ZERO_ADDRESS)
+    #update time 
+    #have to convert to unitless 
+    self.nextTapTime[phash] = as_unitless_number(block.timestamp) + self.timeBetweenTaps
+    c: uint256[3]
+    v: uint256[3]
+    c[0], c[1], c[2] = self.Gen.cpxColors(pi, si)
+    v[0], v[1], v[2] = self.Gen.cpxVals(pi, si)
+    #loop
+    for i in range(3):
+        if(v[i] > 0):
+            self._mintCPX(pOwner, msg.sender, c[i], v[i])
+            
+    #log
+    log.Tap(pi, si, msg.sender)
+        
+
+#Conduct search 
+@payable
+@public
+def search(pi: uint256):
+    assert(not self.paused)
+    #must be in cap  
+    assert(pi > 0 and pi < self.cap)
+    #check shard count 
+    assert(self.shardCount[pi] < self.Gen.maxShards(pi))
+    #must pay 
+    assert(msg.value >= self.costToSearch)
+    #can only search every so often 
+    assert(self.nextSearchTime[msg.sender] < as_unitless_number(block.timestamp))
+    #send owner balance
+    send(self.owner, self.balance)
+    #update time 
+    #have to convert to unitless 
+    self.nextSearchTime[msg.sender] = as_unitless_number(block.timestamp) + self.timeBetweenSearches
+    ##mint 
+    self._mint(msg.sender, pi)
+    #log
+    log.NewPlane(pi, self.shardCount[pi], msg.sender)

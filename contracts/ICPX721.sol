@@ -25,6 +25,7 @@ contract ICPX721 is IERC721Enumerable, MinterRole {
      * Mintable 
      */
     function currentID() external returns (uint256);
+    function mintWithTokenURI(address to, string memory URI) public returns (bool);
     function mint(address to) public returns (bool);
     
     /**

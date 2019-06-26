@@ -1,5 +1,5 @@
 # Allow the PLanes to be tapped for cosmic 
-# Ropsten -  0x9F7F670A7Ad157B36d876A939042e56D6A88E9B5
+# Ropsten -  0xF4fB24395C346916C27b1E3B3b3FDaC1E2c79664 
 
 #interface for Plane Data Generator 
 contract PlaneGen:
@@ -58,7 +58,7 @@ def __init__():
   #setup contracts - Ropsten 
   self.Gen = PlaneGen(0x3dd41e473656F8fe1907987334E89a3Bb422C2Eb)
   self.Reg = Registry(0xeD20801CED01693C12B876921039e30bEd5F8B8d)
-  self.NFT = PlaneNFT(0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65)
+  self.NFT = PlaneNFT(0xC6B43DfbE2acB52ee930f13a1a36E0F871F0320B)
   #detemine starting index 
   self._start = self.NFT.currentID()
   self._currentId = self._start
@@ -206,6 +206,17 @@ def tokenToPlane(ti: uint256) -> (uint256, uint256):
     assert(ti >= self._start and ti <= self._currentId)
     p: uint256[2] = self._idToPlane[ti]
     return (p[0],p[1])
+
+
+@public
+@constant
+def tokenToPlaneArray(ti: uint256[32]) -> (uint256[64]):
+    t: uint256
+    p: uint256[64]
+    for i in range(32):
+        t = ti[i]
+        p[i], p[i+32] = self.tokenToPlane(t)
+    return p
 
 
 # Tap for color  

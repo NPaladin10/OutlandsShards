@@ -8,13 +8,62 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
  * @dev See https://eips.ethereum.org/EIPS/eip-721
  * 
  * Ropsten
- * - Outlands Planes Registrar - 0x72ab0A4eA9E64FcFCC154d55b8777A7ad8383F65
+ * - Outlands Planes Registry - 0xC6B43DfbE2acB52ee930f13a1a36E0F871F0320B
  */
 
 contract CPX721 is ERC721Full, MinterRole {
+    string private baseURL = "https://npaladin10.github.io/OutlandsShards/shards.html?tid=";
     uint256 public currentID;
     
     constructor (string memory name, string memory symbol) public ERC721Full(name, symbol) {}
+    
+    /**
+     * @dev Internal function to turn a number into a string 
+     * @param _i uint256 
+     */
+    function _uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint j = _i;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len - 1;
+        while (_i != 0) {
+            bstr[k--] = byte(uint8(48 + _i % 10));
+            _i /= 10;
+        }
+        return string(bstr);
+    }
+    
+    /**
+     * @dev Returns an URI for a given token ID.
+     * Throws if the token ID does not exist. May return an empty string.
+     * @param tokenId uint256 ID of the token to query
+     */
+    function tokenURI(uint256 tokenId) external view returns (string memory) {
+        require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
+        return string(abi.encodePacked(baseURL, _uint2str(tokenId)));
+    }
+    
+    /**
+     * @dev Function to mint tokens.
+     * @param to The address that will receive the minted tokens.
+     * @param URI The token URI of the minted token.
+     * @return A boolean that indicates if the operation was successful.
+     */
+    function mintWithTokenURI(address to, string memory URI) public onlyMinter returns (bool) {
+        //only increasing index of ids
+        _mint(to, currentID);
+        _setTokenURI(currentID, URI);
+        //increment
+        currentID++;
+        return true;
+    }
     
     /**
      * @dev Function to mint tokens.
