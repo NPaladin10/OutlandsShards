@@ -1,0 +1,50 @@
+[v-cloak] {
+  display: none;
+}
+
+body {
+  margin: 0;
+  background-color: silver;
+  overflow: hidden;
+}
+
+/* OVERLAY FOR CENTER DATA */
+.overlay {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: whitesmoke;
+}
+
+/*CSS styling for Maps */
+circle.planet {
+  stroke: black;
+  fill: none;
+}
+
+circle.shard {
+  stroke: black;
+  fill: green;
+}
+
+.diamond {
+  color: aliceblue;
+}
+.ruby {
+  color: red;
+}
+.citrine {
+  color: orange;
+}
+.topaz {
+  color: yellow;
+}
+.emerald {
+  color: green;
+}
+.sapphire {
+  color: blue;
+}
+.amethyst {
+  color: purple;
+}
