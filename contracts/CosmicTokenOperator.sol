@@ -3,6 +3,10 @@ pragma solidity ^0.5.0;
 import  "./CPX777-test.sol";
 import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/MinterRole.sol";
 
+/**
+* Ropsten - 0x61a89f29cDeEBd7fdBC8c2d84Cd21f2c8aAd88e4
+*/
+
 contract CosmicTokenOperator is MinterRole {
     address builder;
     CPX777[] Tokens;
