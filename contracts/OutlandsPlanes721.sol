@@ -8,7 +8,7 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
  * @dev See https://eips.ethereum.org/EIPS/eip-721
  * 
  * Ropsten
- * - 
+ * - 0x60833250E9F1c0d6Ea49086f80db75e586F7d43c
  */
 
 contract OutlandsPlane721 is ERC721Full, MinterRole {
