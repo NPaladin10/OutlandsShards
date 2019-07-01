@@ -14,6 +14,8 @@ const hashToDecimal = (_hash, _id) => {
 */
 const seed = "OutlandsPlanes2019"
 
+//Vyper formatting for hash 
+//ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id("Random"), ethers.utils.hexZeroPad(ethers.utils.bigNumberify(5).toHexString(),32)]);
 const planetHash = (_planet) => {
   return ethers.utils.solidityKeccak256(['string', 'uint256'], [seed, _planet]) 
 }
