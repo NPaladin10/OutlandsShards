@@ -11,26 +11,45 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
  * - 
  */
 
-contract OutlandsPlane721 is ERC721Full, MinterRole {
-    event NewPlane (address indexed finder, uint256 i);
+contract OutlandsHero721 is ERC721Full, MinterRole {
+    using SafeMath for uint256;
+    
+    event NewHero (address indexed finder, uint256 indexed plane, uint256 i);
+    event FundsWithdrawn (address indexed who, uint256 amt);
     //Aditional data for control of minting 
     //Cost and time
-    uint256 public costToSearch = 1 finney;
-    uint256 public timeBetweenSearches = 30;
-    mapping (address => uint256) public nextSearchTime;
+    uint256 public costToRecruit = 3 * 1 finney;
+    uint256 public shareToOwner = 3 * 1 finney / 2;
+    uint256 public timeBetweenRecruit = 30;
+    mapping (uint256 => uint256) public nextRecruitTime;
+    
+    //Data for token 
+    struct HeroData {
+        uint256 pi;
+        bytes32 hash;
+    }
+    mapping (uint256 => HeroData) public Heroes;
 
     //sets urls 
-    string private dataURL = "https://npaladin10.github.io/OutlandsShards/shards.html?plane=";
+    string private dataURL = "https://npaladin10.github.io/OutlandsShards/index.html?hero=";
 
     address payable bank;
     address admin;
     //pausable 
     bool paused = false;
+    
+    //Store funds
+    uint256 _totalFunds;
+    mapping (address => uint256) public fundsReceived;
+    
+    //link to other contract 
+    ERC721Full OP;
 
     //contrtuctor - set name and symbol
-    constructor () public ERC721Full("Outlands Plane", "OPR") {
+    constructor () public ERC721Full("Outlands Hero", "OH") {
         admin = msg.sender;
         bank = msg.sender;
+        OP = ERC721Full(0xDCB77B866fE07451e8F89871EdB27b27aF9F2AFC);
     }
     
     /**
@@ -57,17 +76,12 @@ contract OutlandsPlane721 is ERC721Full, MinterRole {
     }
     
     /**
-     * @dev Initialize a number of planes  
+     * @dev Internal function to determine initial hash  
      */
-    function initPlanes() public {
-        uint256 start = totalSupply();
-        require(msg.sender == admin && start < 64);
-        for(uint256 i = 0; i < 8; i++) {
-            //only increasing index of ids
-            _mint(admin, start+i);
-        }
+    function _hash(address who) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(OP.totalSupply(),who,now));
     }
-    
+
     /**
      * @dev Pause 
      */
@@ -95,17 +109,24 @@ contract OutlandsPlane721 is ERC721Full, MinterRole {
     /**
      * @dev Set cost 
      */
-    function setCostToSearch(uint256 cost) public {
+    function setCostToRecruit(uint256 cost) public {
         require(msg.sender == admin);
-        costToSearch = cost;
+        costToRecruit = cost;
+    }
+    /**
+     * @dev Set share 
+     */
+    function setShare(uint256 share) public {
+        require(msg.sender == admin);
+        shareToOwner = share;
     }
     
     /**
      * @dev Set Time 
      */
-    function setTimeBetweenSearches(uint256 time) public {
+    function setTimeBetweenRecruit(uint256 time) public {
         require(msg.sender == admin);
-        timeBetweenSearches = time;
+        timeBetweenRecruit = time;
     }
     
     /**
@@ -144,35 +165,74 @@ contract OutlandsPlane721 is ERC721Full, MinterRole {
     }
     
     /**
+     * @dev Withdraw balance to bank
+     */
+    function withdrawToBank() public {
+        require(msg.sender == admin || msg.sender == bank);
+        //get the balance of contract minus what is allocated to users
+        uint256 funds = address(this).balance.sub(_totalFunds);
+        //withdraw 
+        bank.transfer(funds);
+        //emit 
+        emit FundsWithdrawn(bank, funds);
+    }
+    
+    /**
+     * @dev Withdraw balance if funds have been received
+     */
+    function withdrawFundsReceived() public {
+        uint256 funds = fundsReceived[msg.sender];
+        //capture no funds 
+        if(funds == 0) {
+            return;
+        }
+        else {
+            //subtract   
+            fundsReceived[msg.sender] = fundsReceived[msg.sender].sub(funds);
+            _totalFunds = _totalFunds.sub(funds);
+            //pay 
+            msg.sender.transfer(funds);
+            //emit 
+            emit FundsWithdrawn(msg.sender, funds);
+        }
+    }
+    
+    /**
      * @dev Function to mint tokens.
      * @param to The address that will receive the minted tokens.
      * @return A boolean that indicates if the operation was successful.
      */
-    function minterMint(address to) public onlyMinter returns (bool) {
-        uint256 currentID = totalSupply();
-        //only increasing index of ids
-        _mint(to, currentID);
+    function minterMint(uint256 pi, address to) public onlyMinter returns (bool) {
+        require(pi < OP.totalSupply());
+        //mint 
+        uint256 id = totalSupply();
+        _mint(to, id);
+        Heroes[id] = HeroData(pi, _hash(to));
         //log
-        emit NewPlane(to, currentID);
+        emit NewHero(to, pi, id);
         return true;
     }
     
     /**
-     * @dev Conduct a search for a new plane \
+     * @dev Conduct a search for a new plane 
      */
-    function Search() public payable {
+    function Recruit(uint256 pi) public payable {
         require(!paused);
         //must pay 
-        require(msg.value >= costToSearch);
+        require(msg.value >= costToRecruit);
         //can only search every so often 
-        require(nextSearchTime[msg.sender] < now);
-        //send owner balance
-        bank.transfer(address(this).balance);
+        require(nextRecruitTime[pi] < now);
+        //send plane owner their share
+        address pOwner = OP.ownerOf(pi);
+        fundsReceived[pOwner] = fundsReceived[pOwner].add(shareToOwner);
+        _totalFunds = _totalFunds.add(shareToOwner);
         //update time 
-        nextSearchTime[msg.sender] = now + timeBetweenSearches;
+        nextRecruitTime[pi] = now + timeBetweenRecruit;
         //mint 
-        _mint(msg.sender, totalSupply());
+        uint256 id = totalSupply();
+        _mint(msg.sender, id);
+        Heroes[id] = HeroData(pi, _hash(msg.sender));
         //log
-        emit NewPlane(msg.sender, totalSupply()-1);
+        emit NewHero(msg.sender, pi, id);
     }
 }
