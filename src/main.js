@@ -3,10 +3,22 @@ import "../lib/chance.min.js"
 
 /* Utilities 
 */
+//common, uncommon, rare, very rare, mythic
+const rarity = (n) => {
+  if(n < 128) return "c";
+  else if(n < 206) return "u";
+  else if(n < 244) return "r";
+  else if(n < 254) return "v";
+  else return "m";
+}
 const hashToDecimal = (_hash, _id) => {
   //0x ofset
   let id = _id+1
   return parseInt(_hash.slice(id*2,(id*2)+2),16)
+}
+//For Vyper formatting
+const uintToBytes = (i) => {
+  return ethers.utils.hexZeroPad(ethers.utils.bigNumberify(i).toHexString(),32)
 }
 
 /* Hash Functions 
@@ -14,30 +26,117 @@ const hashToDecimal = (_hash, _id) => {
 */
 const seed = "OutlandsPlanes2019"
 
-//Vyper formatting for hash 
-//ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id("Random"), ethers.utils.hexZeroPad(ethers.utils.bigNumberify(5).toHexString(),32)]);
-const planetHash = (_planet) => {
-  return ethers.utils.solidityKeccak256(['string', 'uint256'], [seed, _planet]) 
+const peopleGen = (seed, r="c") => {
+  let rng = new Chance(seed)
+
+  let animal = () => {
+    let types = {    
+      bug: ["termite", "tick", "snail", "slug", "worm", "ant", "centipede", "scorpion", "mosquito", "firefly", "locust", "dragonfly", "moth", "bee", "wasp"],
+      land: ["snake", "lizard", "rat", "weasel", "boar", "dog", "fox", "wolf", "cat", "lion", "panther", "deer", "horse", "ox", "rhino", "bear", "gorilla", "ape", "mammoth"],
+      air: ["chicken", "duck", "goose", "jay", "parrot", "gull", "pelican", "crane", "raven", "falcon", "eagle", "owl", "condor", "pteranodon"],
+      water: ["jellyfish", "clam", "eel", "frog", "fish", "crab", "lobster", "turtle", "alligator", "shark", "squid", "octopus", "whale"]
+    }
+    let a = rng.pickone(types[rng.weighted(["bug","land","air","water"],[20,40,30,10])])
+    return a.charAt(0).toUpperCase() + a.slice(1)
+  }
+  let droids = ["Humanoid", "Quad", "Insectoid", "Block", "Cylinder", "Sphere"]
+  let plants = ["Flower","Grass","Vine","Tree","Fern","Conifer","Algae","Palm","Moss","Mushroom"]
+  let data = {
+    el : ["Air","Animal","Darkness","Earth", "Fire","Light","Plants","Water","Storms","Winter"],
+    dm : ["Chaos","Creation","Destruction","Healing","Justice","Knowledge",
+    "Luck","Might","Nature","Secrecy","Transmutation","Wealth"],
+    c : [[["Human"],["Bugbear","Drow","Dwarf","Elf","Gnoll","Gnome","Goblin",
+      "Halfling","Hobgoblin","Human","Kobold","Lizardfolk","Minotaur",
+      "Orc","Sahuagin"],["Animal"]],[20,40,40]],
+    u : [[["Ogre","Aasimar","Centaur","Chuul","Tiefling","Troll"],["Plant","Droid","L'na","c+el"]],[30,70]],
+    r : [[["Fire Giant","Frost Giant","Stone Giant","Hill Giant"],["u+el","c+el+dm"]],[40,60]],
+    v : ["Cloud Giant","Storm Giant","Brass Dragon","Copper Dragon","Bronze Dragon","White Dragon"],
+    m : ["Red Dragon","Blue Dragon","Green Dragon","Black Dragon","Gold Dragon","Silver Dragon","Aboleth"]
+  }
+
+  
+  let d = data[r]
+  //uses weight and then pickone
+  let what = ["v","m"].includes(r) ? rng.pickone(d) : rng.pickone(rng.weighted(d[0],d[1]))
+  let w = []
+  if(what.includes("+")) {
+    w = what.split("+")
+    d = data[w[0]]
+    what = rng.pickone(rng.weighted(d[0],d[1])) 
+    //check for uncommon pick of c+el 
+    if(what.includes("+")) {
+      d = data.c 
+      what = rng.pickone(rng.weighted(d[0],d[1])) 
+      w.push("dm")
+    }
+  }
+  if(what == "Plant") {
+    what = rng.pickone(plants) + " People"
+  }
+  if(what == "Animal") {
+    what = animal() + " People"
+  }
+  if(what == "Droid") {
+    what = rng.pickone(droids) + " Droid"
+  }
+  if(what == "L'na") {
+    what = animal() + " " + animal() + " L'na"
+  }
+  if(w.length > 0){
+    what += " "+rng.pickone(data.el)
+    if(w.length > 2) {
+      what += " "+rng.pickone(data.dm) + " Axial"
+    }
+    else what += " Genasi";
+  }
+  return what 
 }
-const planeHash = (_planet, _shard) => {
-  return ethers.utils.solidityKeccak256(['bytes32', 'uint256'], [planetHash(_planet), _shard]) 
+const planetHash = (i) => {
+  return ethers.utils.solidityKeccak256(['string','string', 'uint256'], [seed, "planet",i]) 
 }
-const maxShards = (_planets) => {
-  return _planets.map(pid => 1+(hashToDecimal(planetHash(pid),0) % 32))
+const planetData = (i) => {
+  let hash = planetHash(i)
+  //people array
+  //common, uncommon, rare, very rare, mythic 
+  let people = ["c","u","r","v","m"].map((j,k) => peopleGen(hash+"-"+k,j)) 
+
+  return {
+    i : i,
+    hash : hash,
+    type : hashToDecimal(hash,0),
+    state : hashToDecimal(hash,1),
+    people : people,
+    planes : []
+  }
 }
-const planeCPX = (_planet, _shard) => {
-  let cpxMag = [10,10,11,11,12,12,13,14,14,15,16,16,17,18,19,20]
-  //CPX based on hash
-  let _hash = planeHash(_planet, _shard)
+const planeCPX = (hash) => {
+  let cpxMag = [5,5,6,6,7,7,8,9,9,10,11,11,12,13,14,15]
   //number of CPX
-  let _cpxI = hashToDecimal(_hash,1) % 8
+  let _cpxI = hashToDecimal(hash,1) % 8
   let nCPX = [1,1,1,1,1,2,2,3][_cpxI]
-  //if shard number greater than max - only 1 CPX
-  if(_shard == 0 && nCPX < 3) nCPX++;
   //designate array - 6 colors of CPX
   return d3.range(nCPX).map(i => {
-    return [1 + hashToDecimal(_hash,i+2) % 6, cpxMag[hashToDecimal(_hash,i+5) % 16]]
+    return [1 + hashToDecimal(hash,(i*2)+2) % 6, cpxMag[hashToDecimal(hash,(i*2)+3) % 16]]
   })
+}
+const planeHash = (i) => {
+  if(i < 0) return ""
+  //Vyper formatting for hash 
+  return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id(seed), uintToBytes(i)])
+}
+const planeData = (i) => {
+  let hash = planeHash(i)
+  let pi = 0
+  if(i < 256){
+    pi = 1 + hashToDecimal(hash,0) % 32
+  }
+
+  return {
+    i : i, 
+    pi : pi,
+    hash : hash,
+    cpx : planeCPX(hash)
+  }
 }
 
 /* Contract Data 
@@ -45,48 +144,17 @@ const planeCPX = (_planet, _shard) => {
 */
 
 let CPXContracts = {
-  PlaneGen : {
-    abi : [
-      "function maxShardArray(uint256[] memory pis) public view returns(uint256[] max)", 
-    ],
-    address : "0x3dd41e473656F8fe1907987334E89a3Bb422C2Eb"
-  },
   OutlandsPlanes : {
     abi : [
-      "event Tap (uint256 indexed planet, uint256 shard, address indexed who)", 
-      "event NewPlane (uint256 indexed planet, uint256 shard, address indexed finder)",
+      "event NewPlane (address indexed finder, uint256 i)",
       "function costToSearch() public view returns(uint256)",
       "function timeBetweenSearches() public view returns(uint256)",
-      "function timeBetweenTaps() public view returns(uint256)",
       "function nextSearchTime(address) public view returns(uint256)",
-      "function nextTapTime(bytes32) public view returns(uint256)",
-      "function tokenRange() public view returns(uint256, uint256)",
-      "function shardArray(uint256[32] pi) public view returns(uint256[32])", 
-      "function tokenToPlane(uint256 ti) public view returns(uint256,uint256)", 
-      "function planeToToken(uint256 pi, uint256 si) public view returns(address, uint256)", 
-      "function Tap(uint256 pi, uint256 si) public", 
-      "function search(uint256 pi) public payable", 
-    ],
-    address : "0xF4fB24395C346916C27b1E3B3b3FDaC1E2c79664"
-  },
-  CPXRegistry : {
-    abi : [
-      "function isApproved(address account) external view returns (bool)",
-      "function getCPX(address account) external view returns (uint256[7] cpx)",
-      "function makeDiamond(uint256 _amt) public"
-    ],
-    address : "0x3B54797E3E34461C1d3C7A56631c0ffa2E02b4aB"
-  },
-  NFT : {
-    abi : [
-      "function setApprovalForAll(address to, bool approved) public",
-      "function isApprovedForAll(address owner, address operator) public view returns (bool)",
+      "function totalSupply() public view returns(uint256)",
       "function tokensOfOwner(address owner) external view returns (uint256[])",
+      "function Search() public payable", 
     ],
-    address : [
-      "0xc6b43dfbe2acb52ee930f13a1a36e0f871f0320b",
-      "0x3496f8F96c230E6f03eECe73521cAe0C81879700"
-    ]
+    address : "0xa8Af2e26488a02A4653687f71EFA212a2001e7a2"
   },
   CPX : {
     abi : [
@@ -139,27 +207,27 @@ provider.getNetwork().then(n=> { network = n})
 //handle the contracts - connect with the signer / provider 
 let whoSends = signer ? signer : provider
 let outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,whoSends)
-let cpxRegistry = new ethers.Contract(CPXContracts.CPXRegistry.address,CPXContracts.CPXRegistry.abi,whoSends)
-let cpxNFT = Array.from(new Array(1), (x,i) => {
-  return new ethers.Contract(CPXContracts.NFT.address[i],CPXContracts.NFT.abi,whoSends)
-})
-let cpxTokens = Array.from(new Array(7), (x,i) => {
-  return new ethers.Contract(CPXContracts.CPX.address[i],CPXContracts.CPX.abi,whoSends)
-})
 
-let planets = []
 let UIMain = null
 
-//Check number of planets 
-//Starts with a set region 
-const regions = [
-  {
-    range: [1,32],
-  }
-]
 //cross reference tokens 
-const tokenToPlane = new Map()
-const planeToToken = new Map()
+const tokensPlanes = new Map()
+const planets = new Map()
+//function to add planes and check for planets 
+const addPlaneData = (i) => {
+  let d = planeData(i)
+  //check for planet 
+  if(!planets.has(d.pi)) {
+    planets.set(d.pi,planetData(d.pi))
+  }
+  let p = planets.get(d.pi)
+  p.planes.push(i)
+
+  tokensPlanes.set(i,d)
+}
+//initialize 32 
+d3.range(32).map(addPlaneData)
+console.log(d3.range(32).map(i => planetData(i).people))
 
 const ethCheck = () => {
   //set data for later
@@ -175,7 +243,7 @@ const ethCheck = () => {
     let address = UIMain.address
     //get data from tap 
     if(UIMain.pid > -1) {
-      outlandsPlanes.nextTapTime(planeHash(UIMain.pid, UIMain.sid)).then(t => UIMain.nextTap = t.toNumber())
+      //outlandsPlanes.nextTapTime(planeHash(UIMain.pid, UIMain.sid)).then(t => UIMain.nextTap = t.toNumber())
     }
 
     signer.getAddress().then(a => {
@@ -183,22 +251,15 @@ const ethCheck = () => {
         UIMain.address = a  
         //redo contracts 
         outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,signer)
-        cpxRegistry = new ethers.Contract(CPXContracts.CPXRegistry.address,CPXContracts.CPXRegistry.abi,signer)
-        cpxNFT = Array.from(new Array(1), (x,i) => {
-          return new ethers.Contract(CPXContracts.NFT.address[i],CPXContracts.NFT.abi,signer)
-        })
-        cpxTokens = Array.from(new Array(7), (x,i) => {
-          return new ethers.Contract(CPXContracts.CPX.address[i],CPXContracts.CPX.abi,signer)
-        })
       }
-    }) 
+    })
+    //get the eth balance  
     signer.getBalance().then(b => {
       UIMain.balance = ethers.utils.formatEther(b).slice(0,5)
     })
 
     if(address !="") {
-      cpxRegistry.getCPX(address).then(T => UIMain.CPX = T.map(v => ethers.utils.formatEther(v).slice(0,4)))
-      cpxNFT[0].tokensOfOwner(address).then(T => {
+      outlandsPlanes.tokensOfOwner(address).then(T => {
         //log of Token ids 
         UIMain.owns = T.map(ti => ti.toNumber())
       })
@@ -207,53 +268,16 @@ const ethCheck = () => {
       outlandsPlanes.costToSearch().then(c => UIMain.searchCost = ethers.utils.formatEther(c))
       //time 
       outlandsPlanes.nextSearchTime(address).then(t => UIMain.nextSearch = t.toNumber())
-
-      //check approval 
-      cpxTokens.forEach((T,i) => {
-        //check for operator permission 
-        T.isOperatorFor(CPXContracts.CPXRegistry.address, address).then(isOp => {
-          Vue.set(UIMain.allowance.combiner,i,isOp)
-        })
-      })
-      cpxNFT.forEach((T,i) => {
-        //check for operator permission 
-        T.isApprovedForAll(address, CPXContracts.CPXRegistry.address).then(isOp => {
-          Vue.set(UIMain.allowance.NFT,i,isOp)
-        })
-      })  
     }
   }  
 
   //get range of tokens 
-  outlandsPlanes.tokenRange().then(r => {
-    let start = r[0].toNumber()
-    let current = r[1].toNumber()
-    let n = 1 + current - start
-    //filter tids not stored
-    let tids = d3.range(n).map(i => i+start).filter(i => !tokenToPlane.has(i))
+  outlandsPlanes.totalSupply().then(n => {
+    n = n.toNumber()
+    let pids = d3.range(n).map(i => i).filter(i => !tokensPlanes.has(i))
     //now pull data 
-    tids.forEach(i => {
-      outlandsPlanes.tokenToPlane(i).then(p => {
-        p = p.map(pi => pi.toNumber())
-        //set in map 
-        tokenToPlane.set(i, p)
-        planeToToken.set(planeHash(...p), i)
-      })
-    })
+    pids.forEach(addPlaneData)
   })
-
-  let R = UIMain ? regions[UIMain.rid] : regions[0]
-  if(R.range) {
-    //reset the planes 
-    let n = 1 + R.range[1] - R.range[0] 
-    R.pids = d3.range(n).map(i => R.range[0]+i)
-    if(!R.shards) R.shards = d3.range(n).map(_=> 0)
-    if(!R.max) R.max = maxShards(R.pids)
-    //find the number of planes found 
-    outlandsPlanes.shardArray(R.pids).then(ns => {
-      R.shards = d3.range(n).map(j=> ns[j].toNumber())
-    })
-  }
 }
 
 
@@ -261,32 +285,21 @@ const ethCheck = () => {
 
 */
 const circlePack = () => {
-  let rid = UIMain ? UIMain.rid : 0
-  let RNG = new Chance(seed+"."+rid)
-  let R = regions[rid]
+  let RNG = new Chance(seed)
 
-  let n = 1 + R.range[1] - R.range[0]
-  //combine planes - 0 is always there 
-  let planes = [] 
-  for(let i = 0; i < n; i++) {
-    let pi = R.range[0]+i
-    let ns = R.shards[i]
-    for(let j = 0; j<=ns; j++) planes.push([pi,j])
-  }
+  //get data 
+  let planes = [...tokensPlanes.values()]
   let h = d3.hierarchy({
     //once for each plane 
     "children" : planes.map(p => {
-      return {
-        id : p,
-        hash: planeHash(...p),
-        token: p[1] > 0 ? planeToToken.get(planeHash(...p)) : -1,
-        children : planeCPX(...p).map(cpx => {
+      return Object.assign({
+        children : p.cpx.map(cpx => {
           return {
             color : ["red","orange","yellow","green","blue","purple"][cpx[0]-1], 
             A : cpx[1]/10
           }
         })
-      }
+      },p)
     })
   })
   h.sum(d => d.A)
@@ -320,11 +333,11 @@ const drawCircleMap = ()=>{
     data.filter(d => d.depth == 1).forEach(d => {
       planetMap.push(d)
       //outline in blue
-      if(UIMain && (planeHash(UIMain.pid, UIMain.sid) == d.data.hash)){
+      if(UIMain && (planeHash(UIMain.tid) == d.data.hash)){
         selected = d 
       }
       //get owned 
-      if(UIMain && UIMain.owns.includes(d.data.token)) {
+      if(UIMain && UIMain.owns.includes(d.data.i)) {
         owned.push(d)
       }
       ctx.beginPath()
@@ -373,8 +386,7 @@ const drawCircleMap = ()=>{
         return dx*dx+dy*dy < _p.r*_p.r 
       })  
       
-      UIMain.pid = cp.data.id[0] 
-      UIMain.sid = cp.data.id[1] 
+      UIMain.tid = cp.data.i
       //set planet 
       ethCheck()
       drawCircleMap()
@@ -403,12 +415,11 @@ UIMain = new Vue({
         toMint: 0,
         cap: 32,
         now : 0,
-        searchCost : 0.001,
+        searchCost : "0.01",
         nextSearch: 0,
         nextTap: 0,
         rid : 0,
-        pid : -1,
-        sid : -1,
+        tid : -1,
         maySearch: false,
         paid : false,
         madeSearch: false,
@@ -447,22 +458,18 @@ UIMain = new Vue({
     },
     methods: {
         conductSearch() {
-          //find a planet with shards left 
-          let R = regions[this.rid]
-          let pids = R.pids.reduce((remain,pi,i)=> {
-            if(R.max[i] > R.shards[i]) remain.push(pi)
-            return remain
-          },[])
-          let pi = chance.pickone(pids)
           //pay for search 
           let pay = {
-            value: ethers.utils.parseUnits(this.searchCost,'ether'),
+            value: ethers.utils.parseUnits(this.searchCost,"ether"),
           }
-          outlandsPlanes.search(pi, pay).then(t => {
+          
+          outlandsPlanes.Search(pay).then(t => {
             console.log("Transaction sent: "+t.hash)
           })
+          
         },
         tap(){
+          //<button class="btn btn-outline-success btn-sm" type="button" v-if="tid>-1" @click="tap()" :disabled="nextTapTime>0">{{tid}} Tap</button>
           outlandsPlanes.Tap(Number(this.pid), Number(this.sid)).then(t => {
               console.log("Transaction sent: "+t.hash)
           })
