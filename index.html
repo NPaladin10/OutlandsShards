@@ -22,7 +22,7 @@
                     <div class="card collapse" id="menu-list" style="width:200px;">
                         <div class="card card-body p-1">
                             <button type="button" class="btn btn-block btn-info" @click="conductSearch()" :disabled="nextSearchTime>0">
-                                Claim New Shard <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
+                                Claim New Plane <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
                             </button>
                             <button class="btn btn-info btn-block my-1" type="button" data-toggle="collapse" href="#unlockMenu">Unlock</button>
                             <div id="unlockMenu" class="collapse">
@@ -37,7 +37,7 @@
             <!--OVERHEAD---------------------------------------------->
             <div class="overlay m-1" style="top:0;">
                 <div>
-                    <button class="btn btn-outline-success btn-sm" type="button" v-if="pid>-1" @click="tap()" :disabled="nextTapTime>0">{{pid}}-{{sid}} Tap</button>
+                    
                 </div>
             </div>
             <!--END OVERHEAD---------------------------------------------->
