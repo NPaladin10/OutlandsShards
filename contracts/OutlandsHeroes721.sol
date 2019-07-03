@@ -8,7 +8,7 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
  * @dev See https://eips.ethereum.org/EIPS/eip-721
  * 
  * Ropsten
- * - 
+ * - 0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8
  */
 
 contract OutlandsHero721 is ERC721Full, MinterRole {
@@ -20,7 +20,7 @@ contract OutlandsHero721 is ERC721Full, MinterRole {
     //Cost and time
     uint256 public costToRecruit = 3 * 1 finney;
     uint256 public shareToOwner = 3 * 1 finney / 2;
-    uint256 public timeBetweenRecruit = 30;
+    uint256 public timeBetweenRecruit = 3600;
     mapping (uint256 => uint256) public nextRecruitTime;
     
     //Data for token 
@@ -49,7 +49,7 @@ contract OutlandsHero721 is ERC721Full, MinterRole {
     constructor () public ERC721Full("Outlands Hero", "OH") {
         admin = msg.sender;
         bank = msg.sender;
-        OP = ERC721Full(0xDCB77B866fE07451e8F89871EdB27b27aF9F2AFC);
+        OP = ERC721Full(0xa8Af2e26488a02A4653687f71EFA212a2001e7a2);
     }
     
     /**
