@@ -24,11 +24,8 @@
                             <button type="button" class="btn btn-block btn-info" @click="conductSearch()" :disabled="nextSearchTime>0">
                                 Claim New Plane <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
                             </button>
-                            <button class="btn btn-info btn-block my-1" type="button" data-toggle="collapse" href="#unlockMenu">Unlock</button>
-                            <div id="unlockMenu" class="collapse">
-                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 7" v-if="!allowance.combiner[n-1]" @click="unlockCombiner(n-1)">Unlock {{cpxNames[n-1]}}</button>
-                                <button class="btn btn-info btn-block my-1" type="button" v-for="n in 1" v-if="!allowance.NFT[n-1]" @click="unlockNFT(n-1)">Unlock {{nftNames[n-1]}}</button>
-                            </div>
+                            <button type="button" class="btn btn-block btn-info" v-if="heroIds.length>0" @click="showHeroes=!showHeroes">View Heroes</button>
+                            <button type="button" class="btn btn-block btn-success" @click="claimHeroFunds()" v-if="shareToClaim>0">Claim <span class="font-weight-bold">Ξ</span>{{shareToClaim}}</button>
                         </div>
                     </div>
                 </div>
@@ -37,7 +34,21 @@
             <!--OVERHEAD---------------------------------------------->
             <div class="overlay m-1" style="top:0;">
                 <div>
-                    
+                    <button class="btn btn-success" type="button" v-if="tid>-1" @click="Recruit()" :disabled="nextRecruitTime>0">Recruit Hero From {{tid}} <span v-if="nextRecruitTime>0">({{nextRecruitTime}}s)</span></button>                
+                </div>
+                <div v-if="showHeroes">
+                    <div class="input-group">
+                      <select class="custom-select" v-model="hid">
+                        <option v-for="id in heroIds" :value="id">{{id}}</option>
+                      </select>
+                    </div>
+                    <div v-if="hid > -1">
+                        <div>Plane: {{heroData.tid}} People: {{heroData.ppl}}</div>
+                        <div>Aspects: {{heroData.approaches.join(', ')}}</div>
+                        <h5>Skills</h5>
+                        <div v-for="s in heroData.skills">[{{s[0]}}] {{s.slice(1).join(", ")}}</div>
+                    </div>
+                    <button type="button" class="btn btn-block btn-info" @click="showHeroes=false">Close</button>
                 </div>
             </div>
             <!--END OVERHEAD---------------------------------------------->
