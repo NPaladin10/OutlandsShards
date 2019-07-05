@@ -7,6 +7,19 @@ const SKILLGROUPS = ["Arcane", "Combat", "Diplomacy", "Exploration", "Science", 
 
 /* Utilities 
 */
+//Difficulty of a challenge 1 - 10, based off of 1024
+const difficulty = (n) => {
+  if(n <= 256) return 1;
+  else if(n <= 512) return 2;
+  else if(n <= 648) return 3;
+  else if(n <= 768) return 4;
+  else if(n <= 875) return 5;
+  else if(n <= 970) return 6;
+  else if(n <= 1010) return 7;
+  else if(n <= 1020) return 8;
+  else if(n <= 1022) return 9;
+  else return 10;
+}
 //common, uncommon, rare, very rare, mythic
 const rarity = (n) => {
   if(n <= 128) return 1;
@@ -194,6 +207,26 @@ const planetData = (i) => {
 }
 
 //Plane Data 
+const planeTrouble = (period, i) => {
+  let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(i), "trouble", i])
+  //determine difficulty 
+  let dn = (hashToDecimal(hash,1)*256+hashToDecimal(hash,0)) % 1024
+  let d = difficulty(dn)
+  //determine size
+  let sz = [5,5,5,5,5,5,5,5,6,6,7,8,9,10,11,12][hashToDecimal(hash,2)%16]
+  //determine primary approach 
+  let a = hashToDecimal(hash,3) % 6
+  //determine primary skill 
+  let s = hashToDecimal(hash,4) % 6
+
+  return {
+    period, i,
+    diff : d,
+    sz : sz,
+    approach : a,
+    skill: s 
+  }
+}
 const planeCPX = (hash) => {
   let cpxMag = [5,5,6,6,7,7,8,9,9,10,11,11,12,13,14,15]
   //number of CPX
@@ -232,8 +265,11 @@ const init = (_seed) => {
         planetData,
         planeHash,
         planeData,
-        heroData
+        heroData,
+        planeTrouble
     }
 } 
+
+console.log(d3.range(32).map(i => planeTrouble(0,i)))
 
 export {init}
