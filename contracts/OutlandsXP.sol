@@ -36,13 +36,17 @@ contract OutlandsXP is MinterRole{
     /**
      * @dev Gives a hero xp  
      */
-    function giveXP(uint256[] memory ids, uint256[] memory xp) public onlyMinter {
+    function _giveXP(uint256 id, uint256 xp) internal {
+        totalXP[id] = totalXP[id].add(xp);
+    }
+    function giveXPSingle(uint256 id, uint256 xp) public onlyMinter  {
+        _giveXP(id,xp);
+    }
+    function giveXPArray(uint256[] memory ids, uint256[] memory xp) public onlyMinter {
         require(ids.length == xp.length);
         uint256 n = ids.length;
-        uint256 _id;
         for(uint256 i = 0; i < n; i++){
-            _id = ids[i];
-            totalXP[_id] = totalXP[_id].add(xp[_id]);
+            _giveXP(ids[i], xp[i]);
         }
     }
     
