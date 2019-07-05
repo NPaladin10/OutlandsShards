@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-import  "./CPX777-test.sol";
+import "github.com/NPaladin10/OutlandsShards/contracts/CPX777.sol";
 import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/MinterRole.sol";
 
 /**
