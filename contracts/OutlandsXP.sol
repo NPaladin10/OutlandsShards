@@ -3,6 +3,11 @@ pragma solidity ^0.5.0;
 import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/MinterRole.sol";
 
+/**
+* @dev XP tracker for heroes 
+* ropsten - 0x58E2671A70F57C1A76362c5269E3b1fD426f43a9
+*/
+
 contract OutlandsXP is MinterRole{
     using SafeMath for uint256;
     //tracks XP given and expended 
