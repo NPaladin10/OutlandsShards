@@ -39,6 +39,18 @@ let CPXContracts = {
     ],
     address : "0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8"
   },
+   OutlandsTrouble: {
+    abi : [
+      "function cooldown(uint256 ti) public view returns(uint256)",
+      "function currentPeriod() public view returns(uint256)",
+      "function timeBetweenPeriods() public view returns(uint256)",
+      "function costToChallenge() public view returns(uint256)",
+      "function countOfChallenges() public view returns(uint256)",
+      "function getChallengeById(uint256) public view returns (address,uint256,uint256[])",
+      "function submitChallenge(uint256 ti, uint256[] heroes) public payable"
+    ],
+    address : "0x38E24687e779c49FCd0d8e00bEcbea95Dd126C61"
+  },
   CPX : {
     abi : [
       "function balanceOf(address account) external view returns (uint256)",
@@ -92,12 +104,14 @@ provider.getBlock ( "latest" ).then(b => { block = b })
 let whoSends = signer ? signer : provider
 let outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,whoSends)
 let outlandsHeroes = new ethers.Contract(CPXContracts.OutlandsHeroes.address,CPXContracts.OutlandsHeroes.abi,whoSends)
+let outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,whoSends)
 
 let UIMain = null
 
 //cross reference tokens 
 const tokensPlanes = new Map()
 const tokensHeroes = new Map()
+const heroChallengeCooldown = new Map()
 const planets = new Map()
 //function to add planes and check for planets 
 const addPlaneData = (i) => {
@@ -132,19 +146,25 @@ const ethCheck = () => {
       let pids = d3.range(n).map(i => i).filter(i => !tokensPlanes.has(i))
       //now pull data 
       pids.forEach(addPlaneData)
-    }) 
+    })
+
+    //get challenge period 
+    outlandsTrouble.currentPeriod().then(p => UIMain.currentPeriod = p.toNumber()) 
+
+    //get data from tap 
+    if(UIMain.tid > -1) {
+      //outlandsPlanes.nextTapTime(planeHash(UIMain.pid, UIMain.sid)).then(t => UIMain.nextTap = t.toNumber())
+      
+    }
   }
 
   //scan for CPX
   if(UIMain && signer) {
     let address = UIMain.address
-    //get data from tap 
-    if(UIMain.pid > -1) {
-      //outlandsPlanes.nextTapTime(planeHash(UIMain.pid, UIMain.sid)).then(t => UIMain.nextTap = t.toNumber())
-    }
     //cost 
     outlandsPlanes.costToSearch().then(c => UIMain.searchCost = ethers.utils.formatEther(c))
     outlandsHeroes.costToRecruit().then(c => UIMain.recruitCost = ethers.utils.formatEther(c))
+    outlandsTrouble.costToChallenge().then(c => UIMain.challengeCost = ethers.utils.formatEther(c))
 
     signer.getAddress().then(a => {
         if(a != UIMain.address) {
@@ -167,8 +187,15 @@ const ethCheck = () => {
 
       //pull hero data 
       outlandsHeroes.tokensOfOwner(address).then(T => {
+        T = T.map(ti => ti.toNumber())
+        //check for challenge cooldown
+        T.forEach(ti => {
+          outlandsTrouble.cooldown(ti).then(cool => {
+            heroChallengeCooldown.set(ti,cool.toNumber())
+          })
+        })
         //log of Token ids 
-        let owns = T.map(ti => ti.toNumber()).filter(i => !tokensHeroes.has(i))
+        let owns = T.filter(i => !tokensHeroes.has(i))
         //now get data 
         owns.forEach(i => {
           //res = [pi,hash]
@@ -194,6 +221,36 @@ const ethCheck = () => {
 
 /* Drawing Functions 
 */
+const drawArc = () => {
+  let diff =  UIMain.trouble.diff 
+  let skillProb = [98.7,93.8,81.5,61.7,38.27,18.52,6.17,1.23]
+  let zp = [1.23,4.94,12.35,19.75,23.46,19.75,12.35,4.94,1.23]
+  let r = 30
+
+  for(let i = 0; i < 6; i++){
+    if(!UIMain.troubleHeroes[i].skillsById) continue;
+    //calculate probabilities 
+    let s = UIMain.troubleHeroes[i].skillsById[i]
+    let d = diff - s 
+    let p = d < -3 ? 100 : d > 4 ? 0 : skillProb[d+3]
+    let z = d < -4 ? 0 : d > 4 ? 0 : zp[d+4]   
+    let f = 100 - p 
+    //create arc 
+    let arc = d3.arc().innerRadius(10).outerRadius(r) 
+    let pie = d3.pie()([p-z,z,f])
+    //select and clear 
+    let svg = d3.select("#dpArc-"+i)
+    svg.attr("height",r*2).attr("width",r*2)
+    svg.html("")
+    //append the g to shift center
+    let vis = svg.append("g").attr("transform", "translate(" + r + "," + r + ")")
+    //append the arcs
+    vis.selectAll("path").data(pie).enter().append("path")
+      .attr("d",arc)
+      .attr("fill",(d,j) => ["green","lightblue","red"][j])
+  }
+}
+
 const circlePack = () => {
   let RNG = new Chance(seed)
 
@@ -297,6 +354,7 @@ const drawCircleMap = ()=>{
       })  
       
       UIMain.tid = cp.data.i
+      UIMain.trouble = utils.planeTrouble(UIMain.currentPeriod ,UIMain.tid)
       //set planet 
       ethCheck()
       drawCircleMap()
@@ -312,32 +370,37 @@ UIMain = new Vue({
     data: {
         address: "",
         balance: 0,
-        allowance : {
-          combiner : [false,false,false,false,false,false,false],
-          NFT : [false],
-        },
         cpxNames : ["Diamond","Ruby","Citrine","Topaz","Emerald","Sapphire","Amethyst"],
-        nftNames : ["Planes Register"],
+        skillNames : ["Arcane", "Combat", "Diplomacy", "Exploration", "Science", "Thievery"],
+        skillProb : [98.7,93.8,81.5,61.7,38.27,18.52,6.17,1.23],
         CPX : [0,0,0,0,0,0,0],
+        //Plane data 
         owns : [],
+        tid : -1,
+        maySearch: false,
+        searchCost : "0.01",
+        nextSearch: 0,
         //Hero data 
+        hid : -1,
         heroIds : [],
         showHeroes : false,
-        hid : -1,
+        heroName : "",
+        recruitCost : "0.003",
+        nextRecruit: 0,
+        //Trouble
+        currentPeriod : 0,
+        solveTrouble : false,
+        troubleHeroIds : [-1,-1,-1,-1,-1,-1],
+        trouble : {},
+        challengeCost : "0.001",
         //
         toCombine: 0,
         toMint: 0,
         cap: 32,
         now : 0,
         shareToClaim : 0,
-        searchCost : "0.01",
-        recruitCost : "0.003",
-        nextSearch: 0,
-        nextRecruit: 0,
         nextTap: 0,
         rid : 0,
-        tid : -1,
-        maySearch: false,
         paid : false,
         madeSearch: false,
         canTap : false,
@@ -366,6 +429,15 @@ UIMain = new Vue({
           let dt = Math.ceil(this.nextTap - this.now)
           return dt < 0 ? 0 : dt
         },
+        //Handle Trouble 
+        troubleHeroes () {
+          let h = this.troubleHeroIds.map(id => id > -1 ? tokensHeroes.get(id) : {})
+          return h 
+        },
+        canSolveTrouble () {
+          return this.troubleHeroIds.reduce((state,id) => state && id > -1,true)
+        },
+        //
         heroData () {
           return this.hid == -1 ? {} : tokensHeroes.get(this.hid)
         },
@@ -381,6 +453,13 @@ UIMain = new Vue({
         }
     },
     methods: {
+        drawArc() { drawArc() },
+        skillDiff (diff,sid) {
+          let s = this.troubleHeroes[sid].skillsById[sid]
+          let d = diff - s 
+          let p = d < -3 ? 100 : d > 4 ? 0 : this.skillProb[d+3]
+          return {d,p}
+        },
         conductSearch() {
           //pay for search 
           let pay = {
@@ -414,6 +493,20 @@ UIMain = new Vue({
               console.log("Transaction sent: "+t.hash)
           })
         },
+        saveHero () {
+          let h = this.heroData
+          tokensHeroes.set(this.hid,h)
+        },
+        commitToSolveTrouble () {
+          //pay 
+          let pay = {
+            value: ethers.utils.parseUnits(this.challengeCost,"ether"),
+          }
+          let hids = this.troubleHeroIds.slice()
+          outlandsTrouble.submitChallenge(this.tid, hids, pay).then(t => {
+              console.log("Transaction sent: "+t.hash)
+          })
+        }
     }
 })
 

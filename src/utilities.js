@@ -177,12 +177,15 @@ const heroData = (i,tid,baseHash,planes) => {
   //skills
   let skills = rng.shuffle(SKILLGROUPS)
   //skill ranks
+  let skillsById = [r,r-1,r-2,r-2,r-3,r-3]
   let sr = [[r,skills[0]],[r-1,skills[1]],[r-2,skills[2],skills[3]],[r-3,skills[4],skills[5]]]
 
   return {
     i, tid, pi, r, ppl,
+    name: "",
     approaches : ac.map(ci => APPROACHES[ci-1]),
-    skills : sr
+    skills : sr,
+    skillsById : skillsById
   }   
 }
 
@@ -208,7 +211,7 @@ const planetData = (i) => {
 
 //Plane Data 
 const planeTrouble = (period, i) => {
-  let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(i), "trouble", i])
+  let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(i), "trouble", period])
   //determine difficulty 
   let dn = (hashToDecimal(hash,1)*256+hashToDecimal(hash,0)) % 1024
   let d = difficulty(dn)
@@ -223,8 +226,8 @@ const planeTrouble = (period, i) => {
     period, i,
     diff : d,
     sz : sz,
-    approach : a,
-    skill: s 
+    approach : APPROACHES[a],
+    skill: SKILLGROUPS[s] 
   }
 }
 const planeCPX = (hash) => {
@@ -269,7 +272,5 @@ const init = (_seed) => {
         planeTrouble
     }
 } 
-
-console.log(d3.range(32).map(i => planeTrouble(0,i)))
 
 export {init}
