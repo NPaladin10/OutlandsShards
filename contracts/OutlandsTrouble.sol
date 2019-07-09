@@ -5,12 +5,12 @@ import "github.com/NPaladin10/OutlandsShards/contracts/OutlandsHeroes721.sol";
 import "github.com/NPaladin10/OutlandsShards/contracts/OutlandsXP.sol";
 
 /**
- * ropsten - 
+ * ropsten - 0x38E24687e779c49FCd0d8e00bEcbea95Dd126C61
  */
 
 contract OutlandsTrouble is MinterRole{
     event NewChallenge (uint256 indexed period, address indexed player, uint256 indexed plane);
-    event CompleteChallenge (uint256 indexed period, address indexed player, bytes32 hash);
+    event CompleteChallenge (uint256 indexed period, uint256 cid, bytes32 hash);
     //link to other contracts 
     //Hero NFT
     CosmicTokenOperator CPX;
@@ -21,6 +21,7 @@ contract OutlandsTrouble is MinterRole{
     //track period 
     uint256 public currentPeriod;
     uint256 public timeBetweenPeriods = 60*60*24;
+    uint256 public lastReset;
 
     //structure of challenge
     struct Challenge {
@@ -41,6 +42,7 @@ contract OutlandsTrouble is MinterRole{
         bank = 0xB62cCa4D5982D52dff6043fCab8DEBe2bbaBf6AA;
         //time 
         currentPeriod = 1;
+        lastReset = now;
         //set up addresses
         XP = OutlandsXP(0x58E2671A70F57C1A76362c5269E3b1fD426f43a9);
         OH = OutlandsHero721(0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8);
@@ -125,6 +127,7 @@ contract OutlandsTrouble is MinterRole{
     function nextPeriod() public onlyMinter {
         delete _activeChallenges;
         currentPeriod = currentPeriod+1;
+        lastReset = now;
     }
     
     /**
@@ -141,12 +144,14 @@ contract OutlandsTrouble is MinterRole{
             C = _activeChallenges[ids[i]];
             //give xp
             for(uint256 j = 0 ; j < n; j++){
-                XP.giveXPSingle(C.heroes[j], xp[i][j]);
+                if(xp[i][j] > 0) {
+                    XP.giveXPSingle(C.heroes[j], xp[i][j]);
+                }
             }
             //give cpx
             CPX.simpleMint(cpx[i][0], C.player, cpx[i][1]);
             //report the challenge is complete 
-            emit CompleteChallenge(currentPeriod, C.player, hash[i]);
+            emit CompleteChallenge(currentPeriod, ids[i], hash[i]);
         }
     }
 
