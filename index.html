@@ -36,6 +36,7 @@
             <!--END MENU---------------------------------------------->
             <!--OVERHEAD---------------------------------------------->
             <div class="overlay m-1" style="top:0;">
+            <!--TROUBLE---------------------------------------------->
                 <div v-if="solveTrouble" v-cloak>
                     <h5 class="my-0">Plane {{tid}} Trouble</h5>
                     <h6 class="mx-1 my-0">{{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
@@ -50,8 +51,8 @@
                                     <select class="custom-select" v-model="troubleHeroIds[n-1]" @change="drawArc()">
                                         <option v-for="id in heroIds" :value="id">{{id}}</option>
                                     </select>
-                                    <div class="input-group-append" v-if="troubleHeroIds[n-1] > -1">
-                                        <span class="input-group-text">{{troubleHeroes[n-1].skillsById[n-1]}} / {{skillDiff(trouble.diff,n-1).p}}%</span>
+                                    <div class="input-group-append" v-if="troubleHeroIds[n-1] != -1">
+                                        <span class="input-group-text">{{troubleHeroes[n-1].skillsById[n-1]}} / {{skillDiff(n-1).p}}%</span>
                                     </div>
                                 </div>
                             </div>
@@ -77,6 +78,7 @@
                         <h6 class="mx-1 my-0">Trouble: {{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
                     </div>
                 </div>
+             <!--END TROUBLE---------------------------------------------->
                 <div class="mt-2" v-if="showHeroes && !solveTrouble" v-cloak>
                     <div class="input-group">
                         <div class="input-group-prepend">
