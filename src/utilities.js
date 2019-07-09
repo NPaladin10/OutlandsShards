@@ -7,6 +7,13 @@ const SKILLGROUPS = ["Arcane", "Combat", "Diplomacy", "Exploration", "Science", 
 
 /* Utilities 
 */
+const arrayUnique = (arr) => {
+  return arr.reduce((unq,v) => {
+    if(!unq.includes(v)) unq.push(v)
+    return unq
+  },[])
+}
+
 //Difficulty of a challenge 1 - 10, based off of 1024
 const difficulty = (n) => {
   if(n <= 256) return 1;
@@ -159,11 +166,11 @@ const peopleGen = (seed, r="c") => {
 }
 
 // Hero Data Generator 
-const heroData = (i,tid,baseHash,planes) => {
+const heroData = (heroId,planeId,baseHash) => {
   //unique hash for hero 
-  let hash = ethers.utils.solidityKeccak256(['string','uint256','bytes32'], [seed,i,baseHash])
+  let hash = ethers.utils.solidityKeccak256(['string','uint256','bytes32'], [seed,heroId,baseHash])
   //pull planet id of plane - heroes are from a plane 
-  let pi = planes.get(tid).pi
+  let pi = planeData(planeId).pi
   //pull people data 
   let p = people[pi - 1]
   //first hash deterines rarity
@@ -173,17 +180,32 @@ const heroData = (i,tid,baseHash,planes) => {
   //now the rest is through randomization
   let rng = new Chance(hash)
   let nc = rng.weighted([1,2],[7,3])
-  let ac = rng.shuffle([1,2,3,4,5,6]).slice(0,nc)
+  let ac = rng.shuffle([0,1,2,3,4,5]).slice(0,nc)
   //skills
-  let skills = rng.shuffle(SKILLGROUPS)
+  let skills = rng.shuffle([0,1,2,3,4,5])
+  let sN = skills.map(v => SKILLGROUPS[v])
+  let skillsById = [0,0,0,0,0,0]
   //skill ranks
-  let skillsById = [r,r-1,r-2,r-2,r-3,r-3]
-  let sr = [[r,skills[0]],[r-1,skills[1]],[r-2,skills[2],skills[3]],[r-3,skills[4],skills[5]]]
+  let ranks = [r,r-1,r-2,r-2,r-3,r-3]
+  //for presentation
+  let sr = [[r,sN[0]],[r-1,sN[1]],[r-2,sN[2],sN[3]],[r-3,sN[4],sN[5]]]
+  if(r >= 5) {
+    ranks = [r,r-1,r-2,r-3,r-3,r-4]
+    sr = [[r,sN[0]],[r-1,sN[1]],[r-2,sN[2]],[r-3,sN[3],sN[4]],[r-4,sN[5]]]
+  }
+  else if(r >= 7) {
+    ranks = [r,r-1,r-2,r-3,r-4,r-5]
+    sr = [[r,sN[0]],[r-1,sN[1]],[r-2,sN[2]],[r-3,sN[3]],[r-4,sN[4]],[r-5,sN[5]]]
+  }
+  //handle cross reference for quick bonus lookup
+  ranks.forEach((v,i) => skillsById[skills[i]] = v)
 
   return {
-    i, tid, pi, r, ppl,
+    id: heroId, 
+    plane: planeId, 
+    r, ppl,
     name: "",
-    approaches : ac.map(ci => APPROACHES[ci-1]),
+    approaches : ac.map(ci => APPROACHES[ci]),
     skills : sr,
     skillsById : skillsById
   }   
@@ -223,11 +245,14 @@ const planeTrouble = (period, i) => {
   let s = hashToDecimal(hash,4) % 6
 
   return {
-    period, i,
+    period, 
+    id : i,
     diff : d,
     sz : sz,
     approach : APPROACHES[a],
-    skill: SKILLGROUPS[s] 
+    skill: SKILLGROUPS[s],
+    skillId : s,
+    approachId: a,
   }
 }
 const planeCPX = (hash) => {
@@ -260,6 +285,19 @@ const planeData = (i) => {
   }
 }
 
+//function to add planes and check for planets 
+const addPlaneData = (i, planets, planes) => {
+  let d = planeData(i)
+  //check for planet 
+  if(!planets.has(d.pi)) {
+    planets.set(d.pi,planetData(d.pi))
+  }
+  let p = planets.get(d.pi)
+  p.planes.push(i)
+
+  planes.set(i,d)
+}
+
 //Initialize with a seed
 const init = (_seed) => {
     seed = _seed
@@ -269,7 +307,8 @@ const init = (_seed) => {
         planeHash,
         planeData,
         heroData,
-        planeTrouble
+        planeTrouble,
+        addPlaneData
     }
 } 
 
