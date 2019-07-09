@@ -19,9 +19,13 @@ const express = require('express');
 //gather ethereum
 const eth = require('./eth');
 
+//functions to resolve blockchain events
+const resolvers = require('./resolvers')(eth)
+//handle ping 
+const ping = require('./ping')(eth, resolvers)
 //handle routes - give provider info
-const heroes = require('./heroes')(eth)
-const trouble = require('./trouble')(eth)
+const heroes = require('./heroes')(eth, ping)
+const trouble = require('./trouble')(eth, ping)
 
 const app = express();
 

@@ -42,16 +42,17 @@ const CPXContracts = {
     ],
     address : "0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8"
   },
-  OutlandsTrouble : {
+  OutlandsTrouble: {
     abi : [
+      "function cooldown(uint256 ti) public view returns(uint256)",
       "function currentPeriod() public view returns(uint256)",
+      "function timeBetweenPeriods() public view returns(uint256)",
+      "function costToChallenge() public view returns(uint256)",
       "function countOfChallenges() public view returns(uint256)",
-      "function activeChallenges(uint256) public view returns (address,uint256,uint256[])",
-      "function nextPeriod() public",
-      "function reward(uint256[] ids, uint256[2][] cpx, uint256[6][] xp, bytes32[] hash) public",
-      "function addCooldown(uint256[] hi, uint256[] cool) public"
+      "function getChallengeById(uint256) public view returns (address,uint256,uint256[])",
+      "function submitChallenge(uint256 ti, uint256[] heroes) public payable"
     ],
-    address : "0x38E24687e779c49FCd0d8e00bEcbea95Dd126C61"
+    address : "0xd524382CA0F6826e078a442DA7092dE3E1460bcB"
   },
 }
 
