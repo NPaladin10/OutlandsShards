@@ -14,6 +14,10 @@ const arrayUnique = (arr) => {
   },[])
 }
 
+const getBaseLog = (x, y) => {
+  return Math.log(y) / Math.log(x);
+}
+
 //Difficulty of a challenge 1 - 10, based off of 1024
 const difficulty = (n) => {
   if(n <= 256) return 1;
@@ -166,7 +170,7 @@ const peopleGen = (seed, r="c") => {
 }
 
 // Hero Data Generator 
-const heroData = (heroId,planeId,baseHash) => {
+const heroData = (heroId,planeId,baseHash,xp) => {
   //unique hash for hero 
   let hash = ethers.utils.solidityKeccak256(['string','uint256','bytes32'], [seed,heroId,baseHash])
   //pull planet id of plane - heroes are from a plane 
@@ -175,6 +179,11 @@ const heroData = (heroId,planeId,baseHash) => {
   let p = people[pi - 1]
   //first hash deterines rarity
   let r = rarityFromHash(hash, 0)
+  //check against xp
+  if(xp) {
+    let xpr = Math.floor(getBaseLog(10,xp[1]))
+    if(xpr > r) r = xpr
+  }
   //second hash determines people
   let ppl = p[rarityFromHash(hash, 1)-1]
   //now the rest is through randomization
@@ -203,7 +212,8 @@ const heroData = (heroId,planeId,baseHash) => {
   return {
     id: heroId, 
     plane: planeId, 
-    r, ppl,
+    r, ppl, 
+    _xp: xp,
     name: "",
     approaches : ac.map(ci => APPROACHES[ci]),
     skills : sr,
@@ -261,9 +271,7 @@ const planeCPX = (hash) => {
   let _cpxI = hashToDecimal(hash,1) % 8
   let nCPX = [1,1,1,1,1,2,2,3][_cpxI]
   //designate array - 6 colors of CPX
-  return d3.range(nCPX).map(i => {
-    return [1 + hashToDecimal(hash,(i*2)+2) % 6, cpxMag[hashToDecimal(hash,(i*2)+3) % 16]]
-  })
+  return Array.from({length: nCPX}, (v, i) => [1 + hashToDecimal(hash,(i*2)+2) % 6, cpxMag[hashToDecimal(hash,(i*2)+3) % 16]])
 }
 const planeHash = (i) => {
   if(i < 0) return ""

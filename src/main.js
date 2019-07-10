@@ -1,5 +1,9 @@
 //chance
 import "../lib/chance.min.js"
+//localforage 
+import "../lib/localforage.1.7.1.min.js";
+//Save db for Indexed DB - localforage
+const DB = localforage.createInstance({ name: "OP", storeName: "OutlandsPlanes" })
 
 //Seed for generation
 const seed = "OutlandsPlanes2019"
@@ -13,13 +17,25 @@ const utils = uInit(seed)
 
 //generic application 
 const app = {
+  DB,
   UIMain : null,
   utils,
   //cross reference tokens 
   tokensPlanes : new Map(),
   tokensHeroes : new Map(),
   heroChallengeCooldown : new Map(),
-  planets : new Map()
+  planets : new Map(),
+  challenges : new Map(),
+  load () {
+    DB.getItem(this.UIMain.address+".challenges").then(c => {
+      this.challenges = new Map(c)
+    })
+  },
+  save () {
+    if(this.UIMain && this.UIMain.address) {
+      DB.setItem(this.UIMain.address+".challenges",this.challenges)
+    }
+  }
 }
 
 //initialize 32 
@@ -206,7 +222,10 @@ app.UIMain = new Vue({
         solveTrouble : false,
         troubleHeroIds : [-1,-1,-1,-1,-1,-1],
         trouble : {},
-        challengeCost : "0.001",
+        challengeCost : "0.005",
+        //Completed Challenges
+        completedChallenges : [],
+        showChallenges : false,
         //
         toCombine: 0,
         toMint: 0,

@@ -4,6 +4,24 @@ const utils = uInit("OutlandsPlanes2019")
 import * as eth from "./eth.js"
 let {outlandsTrouble, outlandsHeroes} = eth.getContracts()
 
+
+const addressFromTopic = (id, topic) => {
+    return ethers.utils.getAddress(ethers.utils.hexStripZeros(topic[id])) 
+}
+
+//log check function - searches log back 256 block for a topic releveant to an address
+const logCheck = (block,cAddress,topic) => {
+    return new Promise((resolve, reject) => {
+        let filter = {
+            address: cAddress,
+            fromBlock: block,
+            toBlock: block,
+            topics: [ topic ]
+        }
+        provider.getLogs(filter).then(resolve)  
+    })
+}
+
 //pull hero data from chain
 const getHeroDataForChallenge = (ids) => {
   return new Promise((resolve, reject) => {
