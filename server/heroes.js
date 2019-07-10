@@ -1,28 +1,36 @@
+const {heroData} = require('./utilities');
 var express = require('express')
 var router = express.Router()
 
-const init = (eth,ping) => {
-  // define the home page route
-  router.get('/:hid', function (req, res) {
-    //run ping 
-    ping()
-    //respond
-    let params = req.params
-    let id = Number(params.hid)
-    let headers = req.headers
+const init = (eth,ping)=>{
+    // define the home page route
+    router.get('/:hid', function(req, res) {
+        //run ping 
+        ping()
+        //respond
+        let params = req.params
+        let id = Number(params.hid)
 
-    eth.outlandsHeroes.ownerOf(id).then((owner) => {
-      eth.outlandsHeroes.Heroes(id).then(data => {
-        res.json({
-          id,
-          owner : owner,
-          pid : data[0].toNumber()
-        })
-      })
+        //provides owner
+        eth.outlandsHeroes.ownerOf(id).then((owner)=>{
+            //pull xp 
+            eth.outlandsXP.activeXP(id).then(xp=>{
+                // xp = [total,available]
+                xp = xp.map(x=>x.toNumber())
+                //now pull heroes 
+                eth.outlandsHeroes.Heroes(id).then(data=>{
+                    let hero = heroData(id, data[0].toNumber(), data[1], xp)
+                    hero.owner = owner
+                    res.json(hero)
+                }
+                )
+            }
+            )
+        }
+        )
     })
-  })  
 
-  return router
+    return router
 }
 
 module.exports = init
