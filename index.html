@@ -25,6 +25,7 @@
                                 Claim New Plane <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
                             </button>
                             <button type="button" class="btn btn-block btn-info" v-if="heroIds.length>0" @click="showHeroes=!showHeroes">View Heroes</button>
+                            <button type="button" class="btn btn-block btn-info" v-if="completedChallenges.length>0" @click="showChallenges=!showChallenges">View Challenges</button>
                             <button type="button" class="btn btn-block btn-success" @click="claimHeroFunds()" v-if="shareToClaim>0">
                                 Claim <span class="font-weight-bold">Ξ</span>
                                 {{shareToClaim}}
@@ -36,6 +37,14 @@
             <!--END MENU---------------------------------------------->
             <!--OVERHEAD---------------------------------------------->
             <div class="overlay m-1" style="top:0;">
+                <!--CHALLENGES---------------------------------------------->
+                <div v-if="showChallenges" v-cloak>
+                    <div v-for="C in completedChallenges">
+                        <h5 class="my-0">Period {{C[1].period}} / Plane {{C[1].plane}}</h5>
+                        <div>Heroes: {{C[1].heroes.join(', ')}}</div>
+                    </div>
+                </div>
+                <!--END CHALLENGES---------------------------------------------->
             <!--TROUBLE---------------------------------------------->
                 <div v-if="solveTrouble" v-cloak>
                     <h5 class="my-0">Plane {{tid}} Trouble</h5>
@@ -80,6 +89,7 @@
                 </div>
              <!--END TROUBLE---------------------------------------------->
                 <div class="mt-2" v-if="showHeroes && !solveTrouble" v-cloak>
+                <!--HEROES---------------------------------------------->
                     <div class="input-group">
                         <div class="input-group-prepend">
                             <span class="input-group-text">Heroes</span>
@@ -90,7 +100,7 @@
                     </div>
                     <div v-if="hid > -1">
                         <input class="form-control" type="text" placeholder="Hero Name" v-model="heroData.name">
-                        <div>Home Plane: {{heroData.tid}}</div>
+                        <div>Home Plane: {{heroData.plane}} XP: {{heroData.xp[1]}}/{{heroData.xp[0]}}</div>
                         <div>People: {{heroData.ppl}}</div>
                         <div>Aspects: {{heroData.approaches.join(', ')}}</div>
                         <h6 class="m-0">Skills</h6>
@@ -104,6 +114,7 @@
                         <button type="button" class="btn btn-info" @click="showHeroes=false">Close</button>
                     </div>
                 </div>
+                <!--END HEROES---------------------------------------------->
             </div>
             <!--END OVERHEAD---------------------------------------------->
             <div id="map">
