@@ -24,11 +24,11 @@
                             <button type="button" class="btn btn-block btn-info" @click="conductSearch()" v-if="address.length>0" :disabled="nextSearchTime>0">
                                 Claim New Plane <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
                             </button>
-                            <button type="button" class="btn btn-block btn-info" v-if="heroIds.length>0" @click="showHeroes=!showHeroes">View Heroes</button>
-                            <button type="button" class="btn btn-block btn-info" v-if="completedChallenges.length>0" @click="showChallenges=!showChallenges">View Challenges</button>
-                            <button type="button" class="btn btn-block btn-success" @click="claimHeroFunds()" v-if="shareToClaim>0">
+                            <button type="button" class="btn btn-block btn-info" v-if="heroIds.length>0" @click="show=1" data-toggle="collapse" href="#menu-list">View Heroes</button>
+                            <button type="button" class="btn btn-block btn-info" v-if="completedChallenges.length>0" @click="show=3" data-toggle="collapse" href="#menu-list">View Challenges</button>
+                            <button type="button" class="btn btn-block btn-success" @click="claimHeroFunds()" v-if="shareToClaim>0" data-toggle="collapse" href="#menu-list">
                                 Claim <span class="font-weight-bold">Ξ</span>
-                                {{shareToClaim}}
+                                {{shareToClaim}}      
                             </button>
                         </div>
                     </div>
@@ -37,16 +37,31 @@
             <!--END MENU---------------------------------------------->
             <!--OVERHEAD---------------------------------------------->
             <div class="overlay m-1" style="top:0;">
+                <!--PLANE INFO---------------------------------------------->
+                <div v-if="tid>-1 && show<1" v-cloak>
+                    <h5 class="m-0">
+                        Plane {{tid}}<button type="button" class="close" @click="tid=-1">&times;</button>
+                    </h5>
+                    <button class="btn btn-success" type="button" v-if="address.length>0" @click="Recruit()" :disabled="nextRecruitTime>0">
+                        Recruit Hero<span v-if="nextRecruitTime>0">({{nextRecruitTime}}s)</span>
+                    </button>
+                    <button class="btn btn-success" type="button" v-if="address.length>0 && trouble.period" @click="show=2">Solve Trouble</button>
+                    <div v-if="trouble.period">
+                        <h6 class="mx-1 my-0">Trouble: {{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
+                    </div>
+                </div>
+                <!--END PLANE INFO---------------------------------------------->
                 <!--CHALLENGES---------------------------------------------->
-                <div v-if="showChallenges" v-cloak>
+                <div v-if="show == 3" v-cloak>
                     <div v-for="C in completedChallenges">
                         <h5 class="my-0">Period {{C[1].period}} / Plane {{C[1].plane}}</h5>
                         <div>Heroes: {{C[1].heroes.join(', ')}}</div>
                     </div>
+                    <button type="button" class="btn btn-info btn-block" @click="show=-1">Close</button>
                 </div>
                 <!--END CHALLENGES---------------------------------------------->
-            <!--TROUBLE---------------------------------------------->
-                <div v-if="solveTrouble" v-cloak>
+                <!--TROUBLE---------------------------------------------->
+                <div v-if="show == 2" v-cloak>
                     <h5 class="my-0">Plane {{tid}} Trouble</h5>
                     <h6 class="mx-1 my-0">{{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
                     <div class="mt-1" v-for="n in 6">
@@ -71,25 +86,13 @@
                         </div>
                     </div>
                     <div class="btn-group btn-block" role="group">
-                        <button type="button" class="btn btn-success btn-block" v-if="canSolveTrouble" @click="commitToSolveTrouble(),solveTrouble=false">Commit</button>
-                        <button type="button" class="btn btn-info" :class="canSolveTrouble ? '' : 'btn-block'" @click="solveTrouble=false">Close</button>
+                        <button type="button" class="btn btn-success btn-block" v-if="canSolveTrouble" @click="commitToSolveTrouble(),show=-1">Commit</button>
+                        <button type="button" class="btn btn-info" :class="canSolveTrouble ? '' : 'btn-block'" @click="show=-1">Close</button>
                     </div>
                 </div>
-                <div v-if="tid>-1 && !solveTrouble" v-cloak>
-                    <h5 class="m-0">
-                        Plane {{tid}}<button type="button" class="close" @click="tid=-1">&times;</button>
-                    </h5>
-                    <button class="btn btn-success" type="button" v-if="address.length>0" @click="Recruit()" :disabled="nextRecruitTime>0">
-                        Recruit Hero<span v-if="nextRecruitTime>0">({{nextRecruitTime}}s)</span>
-                    </button>
-                    <button class="btn btn-success" type="button" v-if="address.length>0 && trouble.period" @click="solveTrouble=true">Solve Trouble</button>
-                    <div v-if="trouble.period">
-                        <h6 class="mx-1 my-0">Trouble: {{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
-                    </div>
-                </div>
-             <!--END TROUBLE---------------------------------------------->
-                <div class="mt-2" v-if="showHeroes && !solveTrouble" v-cloak>
+                <!--END TROUBLE---------------------------------------------->
                 <!--HEROES---------------------------------------------->
+                <div class="mt-2" v-if="show == 1" v-cloak>
                     <div class="input-group">
                         <div class="input-group-prepend">
                             <span class="input-group-text">Heroes</span>
@@ -100,7 +103,7 @@
                     </div>
                     <div v-if="hid > -1">
                         <input class="form-control" type="text" placeholder="Hero Name" v-model="heroData.name">
-                        <div>Home Plane: {{heroData.plane}} XP: {{heroData.xp[1]}}/{{heroData.xp[0]}}</div>
+                        <div>Home Plane: {{heroData.plane}} XP: {{heroData._xp[1]}}/{{heroData._xp[0]}}</div>
                         <div>People: {{heroData.ppl}}</div>
                         <div>Aspects: {{heroData.approaches.join(', ')}}</div>
                         <h6 class="m-0">Skills</h6>
@@ -111,7 +114,7 @@
                     </div>
                     <div class="btn-group btn-block" role="group">
                         <button type="button" class="btn btn-success btn-block" @click="saveHero()">Save</button>
-                        <button type="button" class="btn btn-info" @click="showHeroes=false">Close</button>
+                        <button type="button" class="btn btn-info" @click="show=-1">Close</button>
                     </div>
                 </div>
                 <!--END HEROES---------------------------------------------->
