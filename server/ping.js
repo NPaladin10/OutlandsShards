@@ -1,9 +1,7 @@
 const ethers = require('ethers');
 
-module.exports = (eth,resolvers) => {
+module.exports = (eth) => {
     return ()=>{
-        //check the current trouble period 
-        eth.outlandsTrouble.currentPeriod().then(pd=>{
-        })
+        
     }
 }

@@ -43,25 +43,31 @@ const CPXContracts = {
     ],
     address : "0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8"
   },
+  OutlandsTrouble: {
+    abi : [
+      "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
+      "event CompleteChallenge (bytes32 id, bytes32 hash, uint256[] pxp)",
+      "function cooldown(uint256 ti) public view returns(uint256)",
+      "function currentPeriod() public view returns(uint256)",
+      "function timeBetweenPeriods() public view returns(uint256)",
+      "function costToChallenge() public view returns(uint256)",
+      "function completedChallenges(bytes32) public view returns (bool)",
+      "function complete(bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)",
+      "function submitChallenge(uint256 plane, uint256[] heroes) public payable"
+    ],
+    address : "0x478788C4fCA61190D3fE3147A1844577571220B3",
+  },
   OutlandsXP : {
     abi : [
       "function activeXP(uint256) public view returns(uint256, uint256)"
     ],
     address : "0x58E2671A70F57C1A76362c5269E3b1fD426f43a9"
   },
-  OutlandsTrouble: {
+  OutlandsHeroCooldown : {
     abi : [
-      "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
-      "function cooldown(uint256 ti) public view returns(uint256)",
-      "function currentPeriod() public view returns(uint256)",
-      "function timeBetweenPeriods() public view returns(uint256)",
-      "function costToChallenge() public view returns(uint256)",
-      "function completedChallenges(bytes32) public view returns (bool)",
-      "function setCooldown(uint256[] hi, uint256[] cool) public",
-      "function reward(bytes32 id, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, bytes32 hash)",
-      "function submitChallenge(uint256 plane, uint256[] heroes) public payable"
+      "function cooldown(uint256) public view returns(uint256)"
     ],
-    address : "0x19cbef19f311A28a7407D3e1b52410Fde0739659"
+    address : "0x0152Cf49360eed5B35c170081Ee8aC0e5c1e2e7C"
   },
 }
 

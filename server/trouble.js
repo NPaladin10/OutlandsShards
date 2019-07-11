@@ -16,6 +16,7 @@ const dF = (rng)=>{
     return rng.weighted([-4, -3, -2, -1, 0, 1, 2, 3, 4], [1, 4, 10, 16, 19, 16, 10, 4, 1])
 }
 
+//Challenge Resolution based upon pulled data 
 const resolveChallenge = (data)=>{
     let {challenge, heroes, hash} = data
     //unique hash for resolution
@@ -94,18 +95,28 @@ const resolveChallenge = (data)=>{
         hash,
         points,
         heroes: heroes.all.map(h=>h.id),
+        //previous exp 
+        _xp: heroes.all.map(h=>h._xp[1]),
         //if complete - all skills overcome 
         res: skills.length == 0,
         xp: heroes.all.map(h=>h.xp),
         //base cool is next period - extra for extra stress
-        cool: heroes.all.map(h=>challenge.period + 1 + Math.floor(h.stress / 5)),
+        cool: heroes.all.map(h=>{
+            let c = Date.now() / 1000 + ((1 + h.stress / 5) * challenge.tCool)
+            return c.toFixed()
+        }
+        ),
         reward: skills.length == 0 ? reward : []
     }
 }
 
 const init = (eth,ping)=>{
-    //get contract 
+    //get contracts and functions 
     let {outlandsHeroes, outlandsTrouble, outlandsXP, logCheck} = eth
+
+    /*
+        Functions to pull the data 
+    */
 
     //pull hero data from chain
     const getHeroDataForChallenge = (ids)=>{
@@ -133,7 +144,7 @@ const init = (eth,ping)=>{
             ids.forEach((hid,j)=>{
                 outlandsXP.activeXP(hid).then(xp=>{
                     // xp = [total,available]
-                    xp = xp.map(x => x.toNumber())
+                    xp = xp.map(x=>x.toNumber())
                     //now pull heroes 
                     outlandsHeroes.Heroes(hid).then(data=>{
                         if (heroes.counts[hid])
@@ -160,58 +171,58 @@ const init = (eth,ping)=>{
         )
     }
 
-    const pullChallengeLog = (bn,cid)=>{
+    const pullChallengeLog = (bn,id)=>{
         return new Promise((resolve,reject)=>{
-            //check if completed 
-            outlandsTrouble.completedChallenges(cid).then(isComplete=>{
-                if (isComplete) {
-                    resolve({
-                        id: cid,
-                        completed: isComplete
-                    })
-                } else {
-                    //define log parse function 
-                    const parse = (log)=>{
-                        return outlandsTrouble.interface.parseLog(log)
+            //define log parse function 
+            const parse = (log)=>{
+                return outlandsTrouble.interface.parseLog(log)
+            }
+            //pull log 
+            logCheck(outlandsTrouble.address, ethers.utils.id("NewChallenge(bytes32,uint256,address,uint256,uint256[])"), bn).then(res=>{
+                if (res.length > 0) {
+                    //find specific log 
+                    let log = res.find(log=>{
+                        //now pull data fron log 
+                        return log.blockNumber == bn && id == parse(log).values.id
                     }
-                    //pull log 
-                    logCheck(outlandsTrouble.address, ethers.utils.id("NewChallenge(bytes32,uint256,address,uint256,uint256[])"), bn).then(res=>{
-                        if (res.length > 0) {
-                            //find specific log 
-                            let log = res.find(log=>{
-                                //now pull data fron log 
-                                let id = parse(log).values.id
-                                return log.blockNumber == bn && id == cid
-                            }
-                            )
-                            let vals = parse(log).values
-                            //now get heroes 
-                            getHeroDataForChallenge(vals.heroes.map(hid=>hid.toNumber())).then(heroes=>{
-                                let challenge = planeTrouble(vals.period.toNumber(), vals.plane.toNumber())
-                                challenge.id = cid
-                                challenge.player = vals.player
-                                //resolve with values
-                                resolve({
-                                    challenge,
-                                    heroes
-                                })
-                            }
-                            ).catch(console.log)
-                        } else {
+                    )
+                    //ensure the log exists 
+                    if(!log) reject("No data in block.")
+                    //set values
+                    let vals = parse(log).values
+                    //pull cooldown value 
+                    outlandsTrouble.timeBetweenPeriods().then(t=>{
+                        //now get heroes 
+                        getHeroDataForChallenge(vals.heroes.map(hid=>hid.toNumber())).then(heroes=>{
+                            let challenge = planeTrouble(vals.period.toNumber(), vals.plane.toNumber())
+                            challenge.tCool = t.toNumber()
+                            challenge.id = id
+                            challenge.player = vals.player
+                            //resolve with values
                             resolve({
-                                id: cid,
-                                notSubmitted: true
+                                challenge,
+                                heroes
                             })
                         }
+                        ).catch(console.log)
                     }
-                    ).catch(console.log)
-
+                    )
+                } else {
+                    resolve({
+                        id: id,
+                        notSubmitted: true
+                    })
                 }
             }
             ).catch(console.log)
+
         }
-        )
+        ).catch(console.log)
     }
+
+    /*
+        PAGE ROUTERS
+    */
 
     // define the home page route
     router.get('/:id', function(req, res) {
@@ -220,9 +231,10 @@ const init = (eth,ping)=>{
         //respond
         let id = req.params.id
 
-        //if the plane ide exists 
+        //if the plane id exists 
         eth.outlandsTrouble.currentPeriod().then(pd=>{
             period = pd.toNumber()
+            //provide trouble data
             res.json(planeTrouble(period, id))
         }
         )
@@ -241,45 +253,67 @@ const init = (eth,ping)=>{
             })
         }
 
+        outlandsTrouble.completedChallenges(id).then(isComplete=>{
+            //check if completed 
+            if (isComplete) {
+                return res.json({
+                    id: id,
+                    completed: isComplete
+                })
+            }
+
+            //get the challenge 
+            pullChallengeLog(Number(bn), id).then(data=>{
+                //check for completed
+                if (data.completed)
+                    return res.json(data)
+                //check for not sumbitted
+                if (data.notSubmitted)
+                    return res.json(data)
+                    //work otherwise 
+                else {
+                    let rC = resolveChallenge(data)
+                    //now update with reward 
+                    let overrides = {
+                        // The price (in wei) per unit of gas - makes sure it is transmitted soon
+                        gasPrice: eth.utils.parseUnits('20.0', 'gwei'),
+                    }
+                    //get required data from challenge result 
+                    let {player} = rC.challenge
+                    let {reward, hash, heroes, _xp, xp, cool} = rC
+                    //update reward to eth value 
+                    let reth = reward[1].toFixed(2)
+                    let wei = eth.utils.parseEther(reth)
+                    reward[1] = wei.toString()
+                    //call complete 
+                    //function complete(bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)
+                    outlandsTrouble.complete(id, hash, player, reward, heroes, xp, _xp, cool, overrides).then(tx=>{
+                        console.log("Challenge Reward Sent: " + tx.hash)
+                        //set for short term
+                        submitted.set(id, tx.hash)
+                        rC.tx = tx.hash
+                        //wait for tx - delete submitted 
+                        eth.provider.waitForTransaction(tx.hash).then(data=>submitted.delete(id))
+                        //resolve
+                        res.json(rC)
+                    }
+                    ).catch(console.log)
+                }
+            }
+            ).catch(console.log)
+        }
+        )
+    })
+    // call for test resolution 
+    router.get('/testResolve/:id.:bn', function(req, res) {
+        //respond
+        let {id, bn} = req.params
+
         //get the challenge 
         pullChallengeLog(Number(bn), id).then(data=>{
-            //check for completed
-            if (data.completed)
-                return res.json(data)
-            //check for not sumbitted
-            if (data.notSubmitted)
-                return res.json(data)
-                //work otherwise 
-            else {
-                let rC = resolveChallenge(data)
-                //now update with reward 
-                let overrides = {
-                    // The price (in wei) per unit of gas - makes sure it is transmitted soon
-                    gasPrice: eth.utils.parseUnits('20.0', 'gwei'),
-                }
-                //get required data from challenge result 
-                let {player} = rC.challenge
-                let {reward, hash, heroes, xp, cool} = rC
-                //update reward to eth value 
-                let reth = reward[1] + ".0"
-                console.log(reth)
-                let wei = eth.utils.parseEther(reth)
-                reward[1] = wei.toString()
-                //call reward
-                outlandsTrouble.reward(id, player, reward, heroes, xp, hash, overrides).then(tx=>{
-                    console.log("Challenge Reward Sent: " + tx.hash)
-                    //set for short term
-                    submitted.set(id, tx.hash)
-                    rC.tx = tx.hash
-                    //wait for tx - delete submitted 
-                    eth.provider.waitForTransaction(tx.hash).then(data=>submitted.delete(id))
-                    //resolve
-                    res.json(rC)
-                    //call cooldown 
-                    outlandsTrouble.setCooldown(heroes, cool, overrides).catch(console.log)
-                }
-                ).catch(console.log)
-            }
+            let rC = resolveChallenge(data)
+            //resolve
+            res.json(rC)
         }
         ).catch(console.log)
     })
