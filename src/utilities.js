@@ -213,7 +213,7 @@ const heroData = (heroId,planeId,baseHash,xp) => {
     id: heroId, 
     plane: planeId, 
     r, ppl, 
-    _xp: xp,
+    _xp: xp || [0,0],
     name: "",
     approaches : ac.map(ci => APPROACHES[ci]),
     skills : sr,

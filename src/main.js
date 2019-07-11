@@ -23,7 +23,8 @@ const app = {
   //cross reference tokens 
   tokensPlanes : new Map(),
   tokensHeroes : new Map(),
-  heroChallengeCooldown : new Map(),
+  heroCooldown : new Map(),
+  heroXP : new Map(),
   planets : new Map(),
   challenges : new Map(),
   load () {
@@ -204,6 +205,8 @@ app.UIMain = new Vue({
         skillNames : ["Arcane", "Combat", "Diplomacy", "Exploration", "Science", "Thievery"],
         skillProb : [98.7,93.8,81.5,61.7,38.27,18.52,6.17,1.23],
         CPX : [0,0,0,0,0,0,0],
+        //what we show on the overhead 
+        show: -1,
         //Plane data 
         owns : [],
         tid : -1,
@@ -213,7 +216,6 @@ app.UIMain = new Vue({
         //Hero data 
         hid : -1,
         heroIds : [],
-        showHeroes : false,
         heroName : "",
         recruitCost : "0.003",
         nextRecruit: 0,
@@ -225,7 +227,6 @@ app.UIMain = new Vue({
         challengeCost : "0.005",
         //Completed Challenges
         completedChallenges : [],
-        showChallenges : false,
         //
         toCombine: 0,
         toMint: 0,
@@ -234,9 +235,6 @@ app.UIMain = new Vue({
         shareToClaim : 0,
         nextTap: 0,
         rid : 0,
-        paid : false,
-        madeSearch: false,
-        canTap : false,
     },
     mounted() {
       //Poll the number of planets 

@@ -38,22 +38,28 @@ let CPXContracts = {
    OutlandsTrouble: {
     abi : [
       "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
-      "event CompleteChallenge (bytes32 id, bytes32 hash)",
+      "event CompleteChallenge (bytes32 id, bytes32 hash, uint256[] pxp)",
       "function cooldown(uint256 ti) public view returns(uint256)",
       "function currentPeriod() public view returns(uint256)",
       "function timeBetweenPeriods() public view returns(uint256)",
       "function costToChallenge() public view returns(uint256)",
       "function completedChallenges(bytes32) public view returns (bool)",
-      "function reward(bytes32 id, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, bytes32 hash)",
+      "function complete(bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)",
       "function submitChallenge(uint256 plane, uint256[] heroes) public payable"
     ],
-    address : "0x19cbef19f311A28a7407D3e1b52410Fde0739659",
+    address : "0x478788C4fCA61190D3fE3147A1844577571220B3",
   },
   OutlandsXP : {
     abi : [
       "function activeXP(uint256) public view returns(uint256, uint256)"
     ],
     address : "0x58E2671A70F57C1A76362c5269E3b1fD426f43a9"
+  },
+  OutlandsHeroCooldown : {
+    abi : [
+      "function cooldown(uint256) public view returns(uint256)"
+    ],
+    address : "0x0152Cf49360eed5B35c170081Ee8aC0e5c1e2e7C"
   },
   CPX : {
     abi : [
@@ -77,9 +83,16 @@ let CPXContracts = {
 /*Server 
 */ 
 const server = {
-    url : "http://localhost:8080/",
+    url : "https://outlandsplanes.appspot.com/",
     challengeResolve (id, block) {
         let url = this.url + "trouble/resolve/"+id+"."+block
+
+        return new Promise((resolve,reject)=> {
+            $.get(url, (data, status) => resolve(data))  
+        })
+    },
+    testChallengeResolve (id, block) {
+        let url = this.url + "trouble/testResolve/"+id+"."+block
 
         return new Promise((resolve,reject)=> {
             $.get(url, (data, status) => resolve(data))  
@@ -118,47 +131,95 @@ provider.getNetwork().then(n=> { network = n})
 provider.getBlock ( "latest" ).then(b => { block = b })
 
 //handle the contracts - connect with the signer / provider 
-let whoSends = signer ? signer : provider
-let outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,whoSends)
-let outlandsHeroes = new ethers.Contract(CPXContracts.OutlandsHeroes.address,CPXContracts.OutlandsHeroes.abi,whoSends)
-let outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,whoSends)
-let outlandsXP = new ethers.Contract(CPXContracts.OutlandsXP.address,CPXContracts.OutlandsXP.abi,whoSends)
+let outlandsPlanes, outlandsHeroes, outlandsTrouble, outlandsXP, outlandsCool;
+const setContracts = (whoSends) => {
+    outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,whoSends)
+    outlandsHeroes = new ethers.Contract(CPXContracts.OutlandsHeroes.address,CPXContracts.OutlandsHeroes.abi,whoSends)
+    outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,whoSends)
+    outlandsXP = new ethers.Contract(CPXContracts.OutlandsXP.address,CPXContracts.OutlandsXP.abi,whoSends)    
+    outlandsCool = new ethers.Contract(CPXContracts.OutlandsHeroCooldown.address,CPXContracts.OutlandsHeroCooldown.abi,whoSends)    
+}
+setContracts(signer ? signer : provider)
 
 //log check function - searches log back 256 block for a topic releveant to an address
 const logCheck = (cAddress, topic, bn) => {
     return new Promise((resolve, reject) => {
         let filter = {
             address: cAddress,
-            fromBlock: bn || block.number-256,
-            toBlock: bn || block.number,
+            fromBlock: bn || 0,
+            toBlock: bn || "latest",
             topics: [ topic ]
         }
         provider.getLogs(filter).then(resolve)  
     })
 }
 
-const pullChallengeLog = (bn, cid) => {
-    //check if completed 
-    outlandsTrouble.completedChallenges(cid).then(isComplete => {
-        const parse = (log) => { return outlandsTrouble.interface.parseLog(log)}
-
-        logCheck(outlandsTrouble.address,ethers.utils.id("NewChallenge(bytes32,uint256,address,uint256,uint256[])"),bn).then(res => {
-            if(res.length > 0) {
-                //find specific log 
-                let log = res.find(log => {
-                    //now pull data fron log 
-                    let id = parse(log).values.id
-                    return log.blockNumber == bn && id == cid
-                })
-                let C = parse(log).values
+//Function to check if challenges have been submitted 
+const submittedChallengeCheck = (app, address) => {
+    logCheck(outlandsTrouble.address,outlandsTrouble.interface.events.NewChallenge.topic).then(res => {
+        //roll through each 
+        res.forEach(log => {
+            //now pull data fron log 
+            let data = outlandsTrouble.interface.parseLog(log)
+            //go to next if not the current address / has id loaded 
+            let {player, id} = data.values
+            if(player != address) return;
+            if(app.challenges.has(id)) return;
+            //otherwise pull challenge 
+            let {heroes,plane,period} = data.values
+            //set challenge data
+            let C = {
+                block : log.blockNumber,
+                heroes : heroes.map(hid => hid.toNumber()),
+                plane : plane.toNumber(),
+                period : period.toNumber()
             }
-            else {}
-        })  
+            //submit to server 
+            server.challengeResolve(id,C.block).then(cData => {
+                //set hash
+                C.hash = cData.hash
+                C.R = cData.allR
+                C.uHeroes = cData.heroes
+                C.xp = cData.xp
+                C._xp = cData._xp
+                C.cool = cData.cool
+                C.reward = cData.reward
+                //set in challenges
+                app.challenges.set(id,C) 
+            }) 
+        })
     })
 }
 
+//Function to pull and update hero data 
+const getHeroData = (app, address) => {
+    let {utils,heroCooldown,heroXP,tokensHeroes,UIMain} = app
+
+    outlandsHeroes.tokensOfOwner(address).then(T => {
+        T = T.map(ti => ti.toNumber())
+        T.forEach(ti => {
+          //check for cooldown
+          outlandsCool.cooldown(ti).then(cool => {
+            heroCooldown.set(ti,cool.toNumber())
+          })
+          //check for XP
+          outlandsXP.activeXP(ti).then(xp => {
+            heroXP.set(ti,xp.map(x => x.toNumber()))
+          })
+          //now get hero hash  
+          outlandsHeroes.Heroes(ti).then(res => {
+              //res = [pi,hash]
+              tokensHeroes.set(ti,utils.heroData(ti,res[0].toNumber(),res[1],heroXP.get(ti)))
+              //set data for UIMain
+              UIMain.heroIds = [...tokensHeroes.keys()]
+            })
+        })
+      })
+}
+
+
 const check = (app) => {
-  let {UIMain,utils,tokensPlanes,tokensHeroes,planets,heroChallengeCooldown} = app
+  let {UIMain,utils,tokensPlanes,tokensHeroes,planets} = app
 
   if(network && block) {
     provider.getNetwork().then(n=> { network = n})
@@ -179,12 +240,6 @@ const check = (app) => {
 
     //get challenge period 
     outlandsTrouble.currentPeriod().then(p => UIMain.currentPeriod = p.toNumber()) 
-
-    //get data from tap 
-    if(UIMain.tid > -1) {
-      //outlandsPlanes.nextTapTime(planeHash(UIMain.pid, UIMain.sid)).then(t => UIMain.nextTap = t.toNumber())
-      
-    }
   }
 
   //scan for CPX
@@ -200,10 +255,7 @@ const check = (app) => {
         if(a != UIMain.address) {
           UIMain.address = a  
           //redo contracts 
-          outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,signer)
-          outlandsHeroes = new ethers.Contract(CPXContracts.OutlandsHeroes.address,CPXContracts.OutlandsHeroes.abi,signer)
-          outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,signer)
-          outlandsXP = new ethers.Contract(CPXContracts.OutlandsXP.address,CPXContracts.OutlandsXP.abi,signer)
+          setContracts(signer)
           //load data from db
           app.load()
         }
@@ -219,38 +271,7 @@ const check = (app) => {
       //push challenges 
       UIMain.completedChallenges = [...app.challenges.entries()] 
       //check for submitted challenges
-      logCheck(outlandsTrouble.address,outlandsTrouble.interface.events.NewChallenge.topic).then(res => {
-          //roll through each 
-              res.forEach(log => {
-                  //now pull data fron log 
-                  let data = outlandsTrouble.interface.parseLog(log)
-                  let {id,player,heroes,plane,period} = data.values
-                  if(player == address) {
-                      //check if the challenge exists
-                      if(!app.challenges.has(id)) {
-                          let C = {
-                              block : log.blockNumber,
-                              heroes : heroes.map(hid => hid.toNumber()),
-                              plane : plane.toNumber(),
-                              period : period.toNumber()
-                          }
-                          //submit to server 
-                          //else - submit and resolve 
-                          server.challengeResolve(id,C.block).then(cData => {
-                              //set hash
-                              C.hash = cData.hash
-                              C.R = cData.allR
-                              C.uHeroes = cData.heroes
-                              C.xp = cData.xp
-                              C.cool = cData.cool
-                              C.reward = cData.reward
-                              //set in challenges
-                              app.challenges.set(id,C) 
-                          }) 
-                      }
-                  }
-              })
-      })
+      submittedChallengeCheck(app, address) 
       //get tokens 
       outlandsPlanes.tokensOfOwner(address).then(T => {
         //log of Token ids 
@@ -258,30 +279,7 @@ const check = (app) => {
       })
 
       //pull hero data 
-      outlandsHeroes.tokensOfOwner(address).then(T => {
-        T = T.map(ti => ti.toNumber())
-        //check for challenge cooldown
-        T.forEach(ti => {
-          outlandsTrouble.cooldown(ti).then(cool => {
-            heroChallengeCooldown.set(ti,cool.toNumber())
-          })
-        })
-        //log of Token ids 
-        let owns = T.filter(i => !tokensHeroes.has(i))
-        //now get data 
-        owns.forEach(i => {
-          //res = [pi,hash]
-          outlandsXP.activeXP(i).then(xp=>{
-              // xp = [total,available]
-              xp = xp.map(x => x.toNumber())
-              outlandsHeroes.Heroes(i).then(res => {
-                tokensHeroes.set(i,utils.heroData(i,res[0].toNumber(),res[1],xp))
-                //set data for UIMain
-                UIMain.heroIds = [...tokensHeroes.keys()]
-              })
-          })
-        })
-      })
+      getHeroData(app,address)
 
       //look if there is shares to claim 
       outlandsHeroes.fundsReceived(address).then(s => UIMain.shareToClaim = ethers.utils.formatEther(s))
