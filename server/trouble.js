@@ -67,12 +67,20 @@ const resolveChallenge = (data)=>{
         //check for result 
         if (R < 0) {
             h.stress += -R
-            //give xp 
-            h.xp += Math.pow(10, D) / 10
+            //give xp - compare D to hero rank 
+            let xpr = D - (h.r - 1)
+            if (xpr >= 0) {
+                //get hp at rank - round up 
+                h.xp += Math.ceil((xpr+1)*Math.pow(10, h.r) / 25)
+            }
         } else if (R == 0) {
             h.stress += 1
-            //give xp 
-            h.xp += Math.pow(10, D) / 10
+            //give xp - compare D to hero rank 
+            let xpr = D - (h.r - 1)
+            if (xpr >= 0) {
+                //get hp at rank - round up 
+                h.xp += Math.ceil((xpr+1)*Math.pow(10, h.r) / 25)
+            }
             //remove the skill - it is complete 
             skills.shift()
             approaches.shift()
@@ -106,13 +114,13 @@ const resolveChallenge = (data)=>{
             return c.toFixed()
         }
         ),
-        reward: skills.length == 0 ? reward : []
+        reward: skills.length == 0 ? reward : [0, 0]
     }
 }
 
 const init = (eth,ping)=>{
     //get contracts and functions 
-    let {outlandsHeroes, outlandsTrouble, outlandsXP, logCheck} = eth
+    let {utils, outlandsHeroes, outlandsTrouble, outlandsXP, logCheck, signData} = eth
 
     /*
         Functions to pull the data 
@@ -187,7 +195,8 @@ const init = (eth,ping)=>{
                     }
                     )
                     //ensure the log exists 
-                    if(!log) reject("No data in block.")
+                    if (!log)
+                        reject("No data in block.")
                     //set values
                     let vals = parse(log).values
                     //pull cooldown value 
@@ -295,7 +304,12 @@ const init = (eth,ping)=>{
                         //wait for tx - delete submitted 
                         eth.provider.waitForTransaction(tx.hash).then(data=>submitted.delete(id))
                         //resolve
-                        res.json(rC)
+                        res.json({
+                            hash,
+                            reward,
+                            //notify of xp - consolation for fail
+                            xp : heroes.map((hi,i) => [hi,xp[i]])
+                        })
                     }
                     ).catch(console.log)
                 }
@@ -306,16 +320,29 @@ const init = (eth,ping)=>{
     })
     // call for test resolution 
     router.get('/testResolve/:id.:bn', function(req, res) {
-        //respond
+        //pulldata
         let {id, bn} = req.params
-
         //get the challenge 
         pullChallengeLog(Number(bn), id).then(data=>{
             let rC = resolveChallenge(data)
-            //resolve
+            //respond
             res.json(rC)
         }
-        ).catch(console.log)
+        )
+    })
+    // call for test resolution 
+    router.get('/testData/:data', function(req, res) {
+        //respond
+        //reverse the - ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(data)))
+        let data = JSON.parse(utils.toUtf8String(req.params.data))
+        let {address, msgHash, sig} = data
+        //validate 
+        let valid = address == eth.validateMessage(msgHash, sig)
+        //respond
+        res.json({
+            address,
+            valid
+        })
     })
 
     return router

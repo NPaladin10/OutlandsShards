@@ -91,8 +91,31 @@ const logCheck = (cAddress, topic, bn) => {
     })
 }
 
+//Sign data and then send the sig - hash will be re-created in Solidity for security
+const signData = (types,data) => {
+    return new Promise((res,reject) => {
+        let msgHash = ethers.utils.solidityKeccak256(types, data)
+        //add Reqd ethereum signing stamp - mod msg to get correct hash 
+        let ethHash = ethers.utils.solidityKeccak256(['string','bytes32'],["\x19Ethereum Signed Message:\n32",msgHash])
+        //But sign the original msg - The 66 character hex string MUST be converted to a 32-byte array first!
+        let binaryData = ethers.utils.arrayify(msgHash);    
+        //sign 
+        signer.getAddress().then(address => {
+            signer.signMessage(binaryData).then(sig => res({address,msgHash,ethHash,sig}))  
+        })
+    }) 
+}
+
+//validate a message
+const validateMessage = (hash, sig) => {
+  //correct representation of hash 
+  //The 66 character hex string MUST be converted to a 32-byte array first!
+  let binaryData = ethers.utils.arrayify(hash)    
+  return ethers.utils.verifyMessage(binaryData,sig)
+}
+
 module.exports = {
-  provider, outlandsPlanes, outlandsHeroes, outlandsTrouble, outlandsXP,
+  provider, validateMessage, signData, outlandsPlanes, outlandsHeroes, outlandsTrouble, outlandsXP,
   logCheck,
   utils : ethers.utils
 }
