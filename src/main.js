@@ -28,19 +28,49 @@ const app = {
   planets : new Map(),
   challenges : new Map(),
   load () {
-    DB.getItem(this.UIMain.address+".challenges").then(c => {
-      this.challenges = new Map(c)
+    DB.getItem(this.UIMain.address+".challenges").then(c => this.challenges = new Map(c))
+    DB.getItem(this.UIMain.address+".heroXP").then(c => this.heroXP = new Map(c))
+    DB.getItem(this.UIMain.address+".heroCooldown").then(c => this.heroCooldown = new Map(c))
+    DB.getItem(this.UIMain.address+".ownedPlanes").then(op => this.UIMain.owns = op.slice())
+    DB.getItem(this.UIMain.address+".heroes").then(heroes => {
+      //load heroes
+      heroes.forEach(h => {
+        this.tokensHeroes.set(h.id,utils.heroData(h.id,h.plane,h.hash,h.xp))
+      })
+      //set UIMain
+      this.UIMain.heroIds = [...this.tokensHeroes.keys()]
     })
   },
   save () {
     if(this.UIMain && this.UIMain.address) {
       DB.setItem(this.UIMain.address+".challenges",this.challenges)
+      DB.setItem(this.UIMain.address+".heroXP",this.heroXP)
+      DB.setItem(this.UIMain.address+".heroCooldown",this.heroCooldown)
+      DB.setItem(this.UIMain.address+".ownedPlanes",this.UIMain.owns.slice())
+      //set heroes 
+      let heroes = this.UIMain.heroIds.map(hid => {
+        let h = this.tokensHeroes.get(hid)
+        return {
+          id : h.id,
+          plane : h.plane,
+          hash : h.baseHash,
+          xp : h._xp
+        }
+      })
+      DB.setItem(this.UIMain.address+".heroes",heroes)
     }
-  }
+  },
+  notify (text,opts) {
+    let {layout="bottomCenter",type="info",timeout=1000} = opts
+    new Noty({text,layout,type,timeout,theme:"relax"}).show()
+  },
+  simpleNotify (text,type="info") {
+    this.notify(text,{type,timeout:2500})
+  },
 }
 
-//initialize 32 
-d3.range(32).map(i => utils.addPlaneData(i,app.planets,app.tokensPlanes))
+//initialize - plane map 
+d3.range(localStorage.getItem("nPlanes")||32).map(i => utils.addPlaneData(i,app.planets,app.tokensPlanes))
 
 //TESTING
 //challengeCheck(0)
@@ -268,10 +298,20 @@ app.UIMain = new Vue({
         canSolveTrouble () {
           return this.troubleHeroIds.reduce((state,id) => state && id > -1,true)
         },
-        //
+        //Hero data
         heroData () {
           return this.hid == -1 ? {} : app.tokensHeroes.get(this.hid)
         },
+        cooldown () {
+          let cool = this.hid == -1 ? 0 : this.heroData.cool
+          //convert to hours
+          let dt = (cool - this.now)/(60*60)
+          return dt < 0 ? "" : dt.toFixed(2)
+        },
+        canAct () {
+          return this.heroIds.map(hi => app.tokensHeroes.get(hi).cool < this.now)
+        },
+        //
         maxCPX () {
           return this.CPX.slice(1).reduce((min,val)=>{
             return val < min ? val : min

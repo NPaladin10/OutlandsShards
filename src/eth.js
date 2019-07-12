@@ -2,6 +2,9 @@ const addressFromTopic = (id, topic) => {
     return ethers.utils.getAddress(ethers.utils.hexStripZeros(topic[id])) 
 }
 
+const toHexString = (obj) => {
+    return ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(obj)))
+}
 
 /* Contract Data 
 */
@@ -80,27 +83,6 @@ let CPXContracts = {
   }
 }
 
-/*Server 
-*/ 
-const server = {
-    url : "https://outlandsplanes.appspot.com/",
-    challengeResolve (id, block) {
-        let url = this.url + "trouble/resolve/"+id+"."+block
-
-        return new Promise((resolve,reject)=> {
-            $.get(url, (data, status) => resolve(data))  
-        })
-    },
-    testChallengeResolve (id, block) {
-        let url = this.url + "trouble/testResolve/"+id+"."+block
-
-        return new Promise((resolve,reject)=> {
-            $.get(url, (data, status) => resolve(data))  
-        })
-    }
-}
-
-
 /* Ethers Provider
 */
 let block = null, network = null;
@@ -141,6 +123,45 @@ const setContracts = (whoSends) => {
 }
 setContracts(signer ? signer : provider)
 
+/*Server 
+*/ 
+const server = {
+    url : "https://outlandsplanes.appspot.com/",
+    challengeResolve (id, block) {
+        let url = this.url + "trouble/resolve/"+id+"."+block
+
+        return new Promise((resolve,reject)=> {
+            $.get(url, (data, status) => resolve(data))  
+        })
+    },
+    testChallengeResolve (id, block) {
+        let url = "http://localhost:8080/trouble/resolve/"+id+"."+block
+
+        return new Promise((resolve,reject)=> {
+            $.get(url, (data, status) => resolve(data))  
+        })
+    },
+    testResolve (text) {
+        return new Promise((resolve,reject)=> {
+            //sign the data 
+            signData(["string"],[text]).then((sigData) => {
+                let {address,msgHash,ethHash,sig} = sigData
+                //convert the whole mesage to hex 
+                let pkg = {
+                    txt : text,
+                    address,msgHash,ethHash,sig
+                }
+                //ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(data)))
+                let hexString = toHexString(pkg)
+                let url = "http://localhost:8080/" + "trouble/testResolve/"+hexString
+                //call
+                $.get(url, (data, status) => resolve(data))  
+            })  
+        })
+    }
+}
+const challengeResolve = server.testChallengeResolve 
+
 //log check function - searches log back 256 block for a topic releveant to an address
 const logCheck = (cAddress, topic, bn) => {
     return new Promise((resolve, reject) => {
@@ -152,6 +173,21 @@ const logCheck = (cAddress, topic, bn) => {
         }
         provider.getLogs(filter).then(resolve)  
     })
+}
+
+//Sign data and then send the sig - hash will be re-created in Solidity for security
+const signData = (types,data) => {
+    return new Promise((res,reject) => {
+        let msgHash = ethers.utils.solidityKeccak256(types, data)
+        //add Reqd ethereum signing stamp - mod msg to get correct hash 
+        let ethHash = ethers.utils.solidityKeccak256(['string','bytes32'],["\x19Ethereum Signed Message:\n32",msgHash])
+        //But sign the original msg - The 66 character hex string MUST be converted to a 32-byte array first!
+        let binaryData = ethers.utils.arrayify(msgHash);    
+        //sign 
+        signer.getAddress().then(address => {
+            signer.signMessage(binaryData).then(sig => res({address,msgHash,ethHash,sig}))  
+        })
+    }) 
 }
 
 //Function to check if challenges have been submitted 
@@ -167,10 +203,12 @@ const submittedChallengeCheck = (app, address) => {
             if(app.challenges.has(id)) return;
             //otherwise pull challenge 
             let {heroes,plane,period} = data.values
+            let hids = heroes.map(hid => hid.toNumber())
             //set challenge data
             let C = {
                 block : log.blockNumber,
-                heroes : heroes.map(hid => hid.toNumber()),
+                heroes : hids,
+                _xp : hids.map(hi => app.heroXP.get(hi)[1]),
                 plane : plane.toNumber(),
                 period : period.toNumber()
             }
@@ -178,15 +216,22 @@ const submittedChallengeCheck = (app, address) => {
             server.challengeResolve(id,C.block).then(cData => {
                 //set hash
                 C.hash = cData.hash
-                C.R = cData.allR
-                C.uHeroes = cData.heroes
-                C.xp = cData.xp
-                C._xp = cData._xp
-                C.cool = cData.cool
                 C.reward = cData.reward
                 //set in challenges
                 app.challenges.set(id,C) 
-            }) 
+                //notify
+                if(C.reward[1] != "0") {
+                    let cpx = " You got "+ethers.utils.formatEther(C.reward[1])+" "+ app.UIMain.cpxNames[C.reward[0]]+"!" 
+                    app.simpleNotify("You completed the challenge!"+cpx,"success")
+                }
+                else {
+                    app.simpleNotify("You failed the challenge.","error")
+                    //notify of hero xp 
+                    cData.xp.forEach(val => {
+                        app.simpleNotify("Hero #"+val[0]+" earned "+val[1]+" XP.","success")
+                    })
+                }
+            })
         })
     })
 }
@@ -197,26 +242,56 @@ const getHeroData = (app, address) => {
 
     outlandsHeroes.tokensOfOwner(address).then(T => {
         T = T.map(ti => ti.toNumber())
+        //check for differences 
+        UIMain.heroIds.filter(ti => !T.includes(ti))
+            .forEach(ti => {
+                //now remove them 
+                tokensHeroes.delete(ti)
+            })
+        //check for new heroes 
+        if(T.length > UIMain.heroIds.length){
+            let n = T.length - UIMain.heroIds.length
+            app.simpleNotify("You now have "+n+" new heroes!","success")
+        }
+
         T.forEach(ti => {
           //check for cooldown
           outlandsCool.cooldown(ti).then(cool => {
-            heroCooldown.set(ti,cool.toNumber())
+              cool = cool.toNumber()
+              let _cool = heroCooldown.get(ti) || 0
+              let now = Date.now() / 1000
+              //seconds to hours 
+              let when = (cool - now)/(60*60)  
+              //notify
+              if(_cool != cool && cool > 0 && when > 0) {
+                  app.simpleNotify("Hero #"+ti+" has a cooldown of "+when.toFixed(2)+"hrs","warning")
+              }
+              heroCooldown.set(ti,cool)
           })
           //check for XP
           outlandsXP.activeXP(ti).then(xp => {
-            heroXP.set(ti,xp.map(x => x.toNumber()))
+              xp = xp.map(x => x.toNumber())
+              let _xp = heroXP.get(ti) || [0,0]
+              //difference
+              let diff = xp.map((x,xi) => x-_xp[xi])
+              //notify
+              if(diff[1] > 0) {
+                  app.simpleNotify("Hero #"+ti+" now has "+xp[1]+" XP!","success")
+              }
+              heroXP.set(ti,xp)
           })
           //now get hero hash  
           outlandsHeroes.Heroes(ti).then(res => {
               //res = [pi,hash]
-              tokensHeroes.set(ti,utils.heroData(ti,res[0].toNumber(),res[1],heroXP.get(ti)))
+              let hero = utils.heroData(ti,res[0].toNumber(),res[1],heroXP.get(ti))
+              hero.cool = heroCooldown.get(ti)
+              tokensHeroes.set(ti,hero)
               //set data for UIMain
               UIMain.heroIds = [...tokensHeroes.keys()]
             })
         })
       })
 }
-
 
 const check = (app) => {
   let {UIMain,utils,tokensPlanes,tokensHeroes,planets} = app
@@ -233,6 +308,9 @@ const check = (app) => {
     //get range of tokens 
     outlandsPlanes.totalSupply().then(n => {
       n = n.toNumber()
+      //set storage 
+      localStorage.setItem("nPlanes", n)
+      //find new planes 
       let pids = d3.range(n).map(i => i).filter(i => !tokensPlanes.has(i))
       //now pull data 
       pids.forEach(i => utils.addPlaneData(i, planets, tokensPlanes))
@@ -274,8 +352,15 @@ const check = (app) => {
       submittedChallengeCheck(app, address) 
       //get tokens 
       outlandsPlanes.tokensOfOwner(address).then(T => {
-        //log of Token ids 
-        UIMain.owns = T.map(ti => ti.toNumber())
+          T = T.map(ti => ti.toNumber())
+          //check for new planes 
+          if(T.length != UIMain.owns.length){
+              let n = T.length - UIMain.owns.length
+              let dT = T.filter(ti => !UIMain.owns.includes(ti))
+              app.simpleNotify("You now have "+n+" new planes!","success")
+          }
+          //log of Token ids 
+          UIMain.owns = T.slice()
       })
 
       //pull hero data 
@@ -299,5 +384,7 @@ const getContracts = () => {
 export {
     provider,
     check,
-    getContracts
+    getContracts,
+    signData,
+    challengeResolve
 }

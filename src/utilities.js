@@ -212,6 +212,7 @@ const heroData = (heroId,planeId,baseHash,xp) => {
   return {
     id: heroId, 
     plane: planeId, 
+    baseHash,
     r, ppl, 
     _xp: xp || [0,0],
     name: "",
