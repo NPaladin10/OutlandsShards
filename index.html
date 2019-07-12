@@ -73,7 +73,7 @@
                                         <span class="input-group-text">Hero</span>
                                     </div>
                                     <select class="custom-select" v-model="troubleHeroIds[n-1]" @change="drawArc()">
-                                        <option v-for="id in heroIds" :value="id">{{id}}</option>
+                                        <option v-for="(id,j) in heroIds" v-if="canAct[j]" :value="id">{{id}}</option>
                                     </select>
                                     <div class="input-group-append" v-if="troubleHeroIds[n-1] != -1">
                                         <span class="input-group-text">{{troubleHeroes[n-1].skillsById[n-1]}} / {{skillDiff(n-1).p}}%</span>
@@ -111,6 +111,7 @@
                             <div>[{{s[0]}}]</div>
                             <div>{{s.slice(1).join(", ")}}</div>
                         </div>
+                        <h6 v-if="cooldown!=''" v-cloak>Cooldown: {{cooldown}}hrs</h6>
                     </div>
                     <div class="btn-group btn-block" role="group">
                         <button type="button" class="btn btn-success btn-block" @click="saveHero()">Save</button>
