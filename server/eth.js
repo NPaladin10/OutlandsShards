@@ -47,15 +47,15 @@ const CPXContracts = {
     abi : [
       "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
       "event CompleteChallenge (bytes32 id, bytes32 hash, uint256[] pxp)",
-      "function cooldown(uint256 ti) public view returns(uint256)",
       "function currentPeriod() public view returns(uint256)",
+      "function coolPerStress() public view returns(uint256)",
       "function timeBetweenPeriods() public view returns(uint256)",
       "function costToChallenge() public view returns(uint256)",
       "function completedChallenges(bytes32) public view returns (bool)",
-      "function complete(bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)",
+      "function complete(uint256 plane, bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)",
       "function submitChallenge(uint256 plane, uint256[] heroes) public payable"
     ],
-    address : "0x478788C4fCA61190D3fE3147A1844577571220B3",
+    address : "0x78a4f476a44aa74829a967a80a1c9443a8dffa2e",
   },
   OutlandsXP : {
     abi : [

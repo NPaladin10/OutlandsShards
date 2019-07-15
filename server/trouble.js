@@ -48,6 +48,13 @@ const resolveChallenge = (data)=>{
         }
         , [])
     }
+    //check to give xp 
+    const giveXP = (h, D) => {
+        if(D >= h.r && h.xp == 0) {
+            //get hp at rank - round up 
+            h.xp = Math.ceil(Math.pow(10, h.r) / 20)
+        }
+    }
     //repeat until finished or no one can challenge
     let points = 0
       , allR = [];
@@ -68,19 +75,11 @@ const resolveChallenge = (data)=>{
         if (R < 0) {
             h.stress += -R
             //give xp - compare D to hero rank 
-            let xpr = D - (h.r - 1)
-            if (xpr >= 0) {
-                //get hp at rank - round up 
-                h.xp += Math.ceil((xpr+1)*Math.pow(10, h.r) / 25)
-            }
+            giveXP(h,D)
         } else if (R == 0) {
             h.stress += 1
             //give xp - compare D to hero rank 
-            let xpr = D - (h.r - 1)
-            if (xpr >= 0) {
-                //get hp at rank - round up 
-                h.xp += Math.ceil((xpr+1)*Math.pow(10, h.r) / 25)
-            }
+            giveXP(h,D)
             //remove the skill - it is complete 
             skills.shift()
             approaches.shift()
@@ -108,10 +107,11 @@ const resolveChallenge = (data)=>{
         //if complete - all skills overcome 
         res: skills.length == 0,
         xp: heroes.all.map(h=>h.xp),
-        //base cool is next period - extra for extra stress
+        //no cool for no stress - every stress gives another 
         cool: heroes.all.map(h=>{
-            let c = Date.now() / 1000 + ((1 + h.stress / 5) * challenge.tCool)
-            return c.toFixed()
+            let now = Date.now() / 1000
+            let nc = now + (h.stress * challenge.sCool)
+            return nc.toFixed()
         }
         ),
         reward: skills.length == 0 ? reward : [0, 0]
@@ -199,12 +199,12 @@ const init = (eth,ping)=>{
                         reject("No data in block.")
                     //set values
                     let vals = parse(log).values
-                    //pull cooldown value 
-                    outlandsTrouble.timeBetweenPeriods().then(t=>{
+                    //pull cooldown value - time required between points of stress 
+                    outlandsTrouble.coolPerStress().then(sCool => {
                         //now get heroes 
                         getHeroDataForChallenge(vals.heroes.map(hid=>hid.toNumber())).then(heroes=>{
                             let challenge = planeTrouble(vals.period.toNumber(), vals.plane.toNumber())
-                            challenge.tCool = t.toNumber()
+                            challenge.sCool = sCool.toNumber()
                             challenge.id = id
                             challenge.player = vals.player
                             //resolve with values
@@ -214,8 +214,7 @@ const init = (eth,ping)=>{
                             })
                         }
                         ).catch(console.log)
-                    }
-                    )
+                    })
                 } else {
                     resolve({
                         id: id,
@@ -288,7 +287,7 @@ const init = (eth,ping)=>{
                         gasPrice: eth.utils.parseUnits('20.0', 'gwei'),
                     }
                     //get required data from challenge result 
-                    let {player} = rC.challenge
+                    let {player, plane} = rC.challenge
                     let {reward, hash, heroes, _xp, xp, cool} = rC
                     //update reward to eth value 
                     let reth = reward[1].toFixed(2)
@@ -296,7 +295,7 @@ const init = (eth,ping)=>{
                     reward[1] = wei.toString()
                     //call complete 
                     //function complete(bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)
-                    outlandsTrouble.complete(id, hash, player, reward, heroes, xp, _xp, cool, overrides).then(tx=>{
+                    outlandsTrouble.complete(plane, id, hash, player, reward, heroes, xp, _xp, cool, overrides).then(tx=>{
                         console.log("Challenge Reward Sent: " + tx.hash)
                         //set for short term
                         submitted.set(id, tx.hash)
