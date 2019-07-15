@@ -343,7 +343,7 @@ app.UIMain = new Vue({
           }
           
           eC().outlandsPlanes.Search(pay).then(t => {
-            console.log("Transaction sent: "+t.hash)
+            app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },
         Recruit () {
@@ -351,7 +351,7 @@ app.UIMain = new Vue({
             value: ethers.utils.parseUnits(this.recruitCost,"ether")
           }
           eC().outlandsHeroes.Recruit(this.tid, pay).then(t => {
-            console.log("Transaction sent: "+t.hash)
+            app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },
         claimHeroFunds() {
@@ -360,13 +360,13 @@ app.UIMain = new Vue({
         tap(){
           //<button class="btn btn-outline-success btn-sm" type="button" v-if="tid>-1" @click="tap()" :disabled="nextTapTime>0">{{tid}} Tap</button>
           eC().outlandsPlanes.Tap(Number(this.pid), Number(this.sid)).then(t => {
-              console.log("Transaction sent: "+t.hash)
+              app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },
         combineCPX() {
           let val = ethers.utils.parseUnits(this.toCombine,'ether')
           eC().cpxRegistry.makeDiamond(val.toString()).then(t => {
-              console.log("Transaction sent: "+t.hash)
+              app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },
         saveHero () {
@@ -380,7 +380,7 @@ app.UIMain = new Vue({
           }
           let hids = this.troubleHeroIds.slice()
           eC().outlandsTrouble.submitChallenge(this.tid, hids, pay).then(t => {
-              console.log("Transaction sent: "+t.hash)
+              app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         }
     }

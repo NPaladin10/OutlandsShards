@@ -264,6 +264,7 @@ const planeTrouble = (period, i) => {
     skill: SKILLGROUPS[s],
     skillId : s,
     approachId: a,
+    simpleHash : ethers.utils.solidityKeccak256(['uint256','uint256'], [period, i])
   }
 }
 const planeCPX = (hash) => {

@@ -47,10 +47,11 @@ let CPXContracts = {
       "function timeBetweenPeriods() public view returns(uint256)",
       "function costToChallenge() public view returns(uint256)",
       "function completedChallenges(bytes32) public view returns (bool)",
+      "function completedTrouble(bytes32) public view returns (bool)",
       "function complete(bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)",
       "function submitChallenge(uint256 plane, uint256[] heroes) public payable"
     ],
-    address : "0x478788C4fCA61190D3fE3147A1844577571220B3",
+    address : "0x78a4f476a44aa74829a967a80a1c9443a8dffa2e",
   },
   OutlandsXP : {
     abi : [
@@ -318,6 +319,13 @@ const check = (app) => {
 
     //get challenge period 
     outlandsTrouble.currentPeriod().then(p => UIMain.currentPeriod = p.toNumber()) 
+    //check for toruble 
+    if(UIMain.tid != -1) {
+      let T = UIMain.trouble
+      outlandsTrouble.completedTrouble(T.simpleHash).then(isComplete => {
+        
+      }) 
+    }
   }
 
   //scan for CPX
