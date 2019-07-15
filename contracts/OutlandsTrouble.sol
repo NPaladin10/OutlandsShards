@@ -2,40 +2,36 @@ pragma solidity ^0.5.0;
 
 import "github.com/NPaladin10/OutlandsShards/contracts/CosmicTokenOperator.sol";
 import "github.com/NPaladin10/OutlandsShards/contracts/OutlandsHeroes721.sol";
+import "github.com/NPaladin10/OutlandsShards/contracts/OutlandsHeroCooldown.sol";
 import "github.com/NPaladin10/OutlandsShards/contracts/OutlandsXP.sol";
 
 /**
- * ropsten - 0x38E24687e779c49FCd0d8e00bEcbea95Dd126C61
+ * ropsten - 0x478788C4fCA61190D3fE3147A1844577571220B3
  */
 
 contract OutlandsTrouble is MinterRole{
-    event NewChallenge (uint256 indexed period, address indexed player, uint256 indexed plane);
-    event CompleteChallenge (uint256 indexed period, uint256 cid, bytes32 hash);
+    event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes);
+    event CompleteChallenge (bytes32 id, bytes32 hash, uint256[] pxp);
     //link to other contracts 
     //Hero NFT
     CosmicTokenOperator CPX;
     OutlandsHero721 OH;
     OutlandsXP XP;
-    //map when heroes were last committed
-    mapping (uint256 => uint256) public cooldown;
+    OutlandsHeroCooldown HC;
+    //stress time cost 
+    uint256 public coolPerStress = 60 * 12;
     //track period 
     uint256 public currentPeriod;
     uint256 public timeBetweenPeriods = 60*60*24;
     uint256 public lastReset;
 
-    //structure of challenge
-    struct Challenge {
-        address player;
-        uint256 tid;
-        uint256[] heroes;
-    }
-    //listing of active challenges 
-    Challenge[] internal _activeChallenges;
+    //listing of activecompleted challenges 
+    mapping (bytes32 => bool) public completedChallenges;
     
     //core data 
     address admin;
     address payable bank;
-    uint256 public costToChallenge = 1 finney;
+    uint256 public costToChallenge = 4 finney;
     
     constructor() public {
         admin = msg.sender;
@@ -47,6 +43,7 @@ contract OutlandsTrouble is MinterRole{
         XP = OutlandsXP(0x58E2671A70F57C1A76362c5269E3b1fD426f43a9);
         OH = OutlandsHero721(0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8);
         CPX = CosmicTokenOperator(0x61a89f29cDeEBd7fdBC8c2d84Cd21f2c8aAd88e4);
+        HC = OutlandsHeroCooldown(0x0152Cf49360eed5B35c170081Ee8aC0e5c1e2e7C);
         //add MinterRole
         addMinter(0xB62cCa4D5982D52dff6043fCab8DEBe2bbaBf6AA);
     }
@@ -62,7 +59,7 @@ contract OutlandsTrouble is MinterRole{
         for(uint256 i = 0; i < n; i++){
             hi = heroes[i];
             require(player == OH.ownerOf(hi));
-            require(cooldown[hi] <= currentPeriod);
+            require(HC.cooldown(hi) <= now);
         }
         return true;
     }
@@ -97,6 +94,14 @@ contract OutlandsTrouble is MinterRole{
     }
     
     /**
+     * @dev Set Stress Cost in  Time 
+     */
+    function setStressTimeCost(uint256 time) public {
+        require(msg.sender == admin);
+        coolPerStress = time;
+    }
+    
+    /**
      * @dev Set Time 
      */
     function setTimeBetweenPeriods(uint256 time) public {
@@ -105,27 +110,10 @@ contract OutlandsTrouble is MinterRole{
     }
     
     /**
-     * @dev View the number of Challenges 
-     */
-    function countOfChallenges() public view returns (uint256){
-        return _activeChallenges.length;
-    }
-    
-    /**
-     * @dev View a particular challenge
-     */
-    function getChallengeById(uint256 id) public view returns (address, uint256, uint256[] memory){
-        require(id < _activeChallenges.length);
-        Challenge memory aC = _activeChallenges[id];
-        return (aC.player, aC.tid, aC.heroes);
-    }
-
-    /**
      * @dev Pushes next period 
      * Resets challenges and updates current period 
      */
     function nextPeriod() public onlyMinter {
-        delete _activeChallenges;
         currentPeriod = currentPeriod+1;
         lastReset = now;
     }
@@ -136,41 +124,35 @@ contract OutlandsTrouble is MinterRole{
      * Gives cpx to player 
      * Reports that the challenge is complete 
      */
-    function reward(uint256[] memory ids, uint256[2][] memory cpx, uint256[6][] memory xp, bytes32[] memory hash) public onlyMinter {
-        require(ids.length == cpx.length && ids.length == xp.length && ids.length == hash.length);
-        uint256 n = ids.length;
-        Challenge memory C;
-        for(uint256 i = 0 ; i < n; i++){
-            C = _activeChallenges[ids[i]];
-            //give xp
-            for(uint256 j = 0 ; j < n; j++){
-                if(xp[i][j] > 0) {
-                    XP.giveXPSingle(C.heroes[j], xp[i][j]);
-                }
+    function complete(bytes32 id, bytes32 hash, address player, uint256[2] memory cpx, uint256[] memory heroes, uint256[] memory xp, uint256[] memory pxp, uint256[] memory cool) public onlyMinter {
+        require(!completedChallenges[id]);
+        require(heroes.length == xp.length && heroes.length == pxp.length && heroes.length == cool.length);
+        uint256 n = heroes.length;
+        //give xp
+        for(uint256 j = 0 ; j < n; j++){
+            if(xp[j] > 0) {
+                //give xp 
+                XP.giveXPSingle(heroes[j], xp[j]);
             }
-            //give cpx
-            CPX.simpleMint(cpx[i][0], C.player, cpx[i][1]);
-            //report the challenge is complete 
-            emit CompleteChallenge(currentPeriod, ids[i], hash[i]);
+            if(cool[j] > 0) {
+                //set cool 
+                HC.setSingle(heroes[j], cool[j]);
+            }
         }
-    }
-
-    /**
-     * @dev Adds extra cooldown phases to a hero 
-     */
-    function setCooldown(uint256[] memory hi, uint256[] memory cool) public onlyMinter {
-        require(hi.length == cool.length);
-        uint256 n = hi.length;
-        for(uint256 i = 0; i < n; i++){
-            cooldown[hi[i]] = cool[i];
+        //give cpx
+        if(cpx[1] > 0) {
+            CPX.simpleMint(cpx[0], player, cpx[1]);
         }
+        //report the challenge is complete 
+        completedChallenges[id] = true;
+        emit CompleteChallenge(id, hash, pxp);
     }
 
     /**
      * @dev public call to submit heroes to Challenge
      * Heroes can only be used in one challenge per period
      */
-    function submitChallenge(uint256 ti, uint256[] memory heroes) public payable {
+    function submitChallenge(uint256 plane, uint256[] memory heroes) public payable {
         uint256 n = 6;
         require(msg.value >= costToChallenge);
         require(heroes.length == n);
@@ -178,14 +160,9 @@ contract OutlandsTrouble is MinterRole{
         bank.transfer(address(this).balance);
         //validates heroes 
         _canChallenge(msg.sender, heroes);
-        //update cooldown
-        for(uint256 i = 0; i < n; i++){
-            cooldown[heroes[i]] = currentPeriod + 1;
-        }
         //creates a new challenge 
-        Challenge memory tC = Challenge(msg.sender, ti, heroes);
-        _activeChallenges.push(tC);
+        bytes32 cid = keccak256(abi.encodePacked(currentPeriod,msg.sender,plane,heroes,now));
         //Challenge made
-        emit NewChallenge(currentPeriod, msg.sender, ti);
+        emit NewChallenge(cid, currentPeriod, msg.sender, plane, heroes);
     }
 }
