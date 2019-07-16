@@ -36,12 +36,14 @@
             </div>
             <!--END MENU---------------------------------------------->
             <!--OVERHEAD---------------------------------------------->
-            <div class="overlay m-1 p-1" style="top:0;">
+            <div class="overlay m-1 p-1" style="top:0;" v-if="show>-1" v-cloak>
                 <!--PLANE INFO---------------------------------------------->
                 <div v-if="tid>-1 && show<1" v-cloak>
                     <h5 class="m-0">
-                        Plane {{tid}}<button type="button" class="close" @click="tid=-1">&times;</button>
+                        {{planeData.name}} (#{{tid}})<button type="button" class="close" @click="tid=-1,show=-1">&times;</button>
                     </h5>
+                    <div>People: {{planeData.people.slice(0,2).join(" // ")}}</div>
+                    <a class="btn btn-info btn-block mb-1" role="button" :href="'shards.html?tid='+tid">View {{planeData.name}}</a>
                     <button class="btn btn-success" type="button" v-if="address.length>0" @click="Recruit()" :disabled="nextRecruitTime>0">
                         Recruit Hero<span v-if="nextRecruitTime>0">({{nextRecruitTime}}s)</span>
                     </button>
@@ -98,7 +100,7 @@
                             <span class="input-group-text">Heroes</span>
                         </div>
                         <select class="custom-select" v-model="hid">
-                            <option v-for="id in heroIds" :value="id">{{id}}</option>
+                            <option v-for="(id,i) in heroIds" :value="id">{{allHeroes[i].name}} #{{id}}</option>
                         </select>
                     </div>
                     <div v-if="hid > -1">
@@ -150,6 +152,7 @@
             </div>
         </div>
     </body>
+    <script src="src/nameGenerate.js"></script>
     <script src="lib/ethers-v4.min.js"></script>
     <script src="lib/d3.v5.min.js"></script>
     <script src="lib/vue.2.5.16.min.js"></script>
