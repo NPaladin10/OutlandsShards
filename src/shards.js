@@ -5,73 +5,12 @@ import {plateMap} from "./terrain.js"
 //chance
 import "../lib/chance.min.js"
 let chance = new Chance()
-
-/* Utilities 
-*/
-const hashToDecimal = (_hash, _id) => {
-  //0x ofset
-  let id = _id+1
-  return parseInt(_hash.slice(id*2,(id*2)+2),16)
-}
-
-/* Hash Functions 
-  Used for seeding and random generation  
-*/
-const seed = "OutlandsPlanes2019"
-const planetHash = (_planet) => {
-  return ethers.utils.solidityKeccak256(['string', 'uint256'], [seed, _planet]) 
-}
-const planeHash = (_planet, _shard) => {
-  return ethers.utils.solidityKeccak256(['bytes32', 'uint256'], [planetHash(_planet), _shard]) 
-}
-
-/* Contract Data 
-
-*/
-let CPXContracts = {
-  OutlandsPlanes : {
-    abi : [
-      "function tokenToPlane(uint256 ti) public view returns(uint256,uint256)", 
-    ],
-    address : "0xF4fB24395C346916C27b1E3B3b3FDaC1E2c79664"
-  },
-}
-
-/* Ethers Provider
-*/
-let block = null, network = null;
-let provider = null, signer = null, wallet = null;
-if (typeof web3 !== 'undefined') {
-    provider = new ethers.providers.Web3Provider(web3.currentProvider)
-    signer = provider.getSigner()
-} else {
-    provider = ethers.getDefaultProvider('ropsten')
-}
-//handle the contracts - connect with the signer / provider 
-let whoSends = signer ? signer : provider
-let outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,whoSends)
-
+//Utilities
+import {init as uInit} from "./utilities.js"
+const utils = uInit("OutlandsPlanes2019")
 
 //look for parameters
 let params = (new URL(document.location)).searchParams
-let tid = Number(params.get('tid')) // token id 
-tid = tid || 0 
-//get token data 
-outlandsPlanes.tokenToPlane(tid).then(p => {
-  p = p.map(pi => pi.toNumber())
-  let hash = planeHash(...p)
-
-  worker.postMessage({
-      f: "generate",
-      data : {
-        opts : {
-          what : "L",
-          npts : 8000,
-          seed: hash
-        }
-      }
-    });
-})
 
 //setup data for current map 
 let display = null
@@ -80,9 +19,25 @@ let display = null
 const UIMain = new Vue({
   el: '#ui-main',
   data: {
+    tid : 0 || Number(params.get('tid')),
   },
-  mounted() {},
-  computed: {},
+  mounted() {
+    worker.postMessage({
+      f: "generate",
+      data : {
+        opts : {
+          what : "L",
+          npts : 8000,
+          seed: this.planeData.hash
+        }
+      }
+    });
+  },
+  computed: {
+    planeData () {
+      return this.tid > -1 ? utils.planeData(this.tid) : {}
+    }
+  },
   methods: {}
 })
 

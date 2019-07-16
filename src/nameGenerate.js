@@ -1,6 +1,8 @@
 //modular Names from AzgaarMaps   
 (function(global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() : typeof define === 'function' && define.amd ? define(factory) : (global.NameGen = factory());
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() : 
+  typeof define === 'function' && define.amd ? define(factory) : 
+  (global.NameGen = factory());
 }(this, (function() {
   'use strict';
 
@@ -441,10 +443,14 @@
     return getCulture(base, min, max, "", 0);
   }
 
+  let getStateFromBase = (base) => {
+    return getState(getTown(base),base)
+  }
+
   //defaults
   applyDefaultNamesData()
 
-  return {setRandom, nameBases, getBase, getTown, getState, updateChain, updateChains};
+  return {setRandom, nameBases, getBase, getTown, getState, getStateFromBase, updateChain, updateChains};
 
 }
 )));

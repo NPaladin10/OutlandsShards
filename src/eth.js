@@ -286,6 +286,10 @@ const getHeroData = (app, address) => {
               //res = [pi,hash]
               let hero = utils.heroData(ti,res[0].toNumber(),res[1],heroXP.get(ti))
               hero.cool = heroCooldown.get(ti)
+              //don't overwrite name 
+              let _h = tokensHeroes.get(ti)
+              hero.name = _h.name || ""
+              //set 
               tokensHeroes.set(ti,hero)
               //set data for UIMain
               UIMain.heroIds = [...tokensHeroes.keys()]

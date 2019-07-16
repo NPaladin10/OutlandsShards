@@ -532,6 +532,7 @@ importScripts('../lib/priority-queue.min.js');
   }
 
   function TerrainGenerate(params) {
+    console.time("TerrainGenerate");
     params.extent = defaultExtent
 
     //initialize random before points
@@ -586,6 +587,7 @@ importScripts('../lib/priority-queue.min.js');
     //kill the mesh map function
     render.h.mesh.map = null
 
+    console.timeEnd("TerrainGenerate");
     return render;
   }
 

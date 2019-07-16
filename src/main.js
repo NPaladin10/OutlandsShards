@@ -27,6 +27,9 @@ const app = {
   heroXP : new Map(),
   planets : new Map(),
   challenges : new Map(),
+  get heroes() {
+    return [...this.tokensHeroes.values()]
+  },
   load () {
     DB.getItem(this.UIMain.address+".challenges").then(c => this.challenges = new Map(c))
     DB.getItem(this.UIMain.address+".heroXP").then(c => this.heroXP = new Map(c))
@@ -35,7 +38,9 @@ const app = {
     DB.getItem(this.UIMain.address+".heroes").then(heroes => {
       //load heroes
       heroes.forEach(h => {
-        this.tokensHeroes.set(h.id,utils.heroData(h.id,h.plane,h.hash,h.xp))
+        let H = utils.heroData(h.id,h.plane,h.hash,h.xp)
+        H.name = h.name || ""
+        this.tokensHeroes.set(h.id,H)
       })
       //set UIMain
       this.UIMain.heroIds = [...this.tokensHeroes.keys()]
@@ -52,6 +57,7 @@ const app = {
         let h = this.tokensHeroes.get(hid)
         return {
           id : h.id,
+          name : h.name,
           plane : h.plane,
           hash : h.baseHash,
           xp : h._xp
@@ -215,6 +221,7 @@ const drawCircleMap = ()=>{
       
       app.UIMain.tid = cp.data.i
       app.UIMain.trouble = utils.planeTrouble(app.UIMain.currentPeriod ,app.UIMain.tid)
+      app.UIMain.show = 0
       //set planet 
       eth.check(app)
       drawCircleMap()
@@ -290,6 +297,16 @@ app.UIMain = new Vue({
           let dt = Math.ceil(this.nextTap - this.now)
           return dt < 0 ? 0 : dt
         },
+        //Plane data 
+        planeData () {
+          let plane = {} 
+          if (this.tid > -1) {
+            plane = app.tokensPlanes.get(this.tid)
+            let planet = app.planets.get(plane.pi)
+            plane.people = planet.people
+          } 
+          return plane
+        },
         //Handle Trouble 
         troubleHeroes () {
           let h = this.troubleHeroIds.map(id => id > -1 ? app.tokensHeroes.get(id) : {})
@@ -299,6 +316,7 @@ app.UIMain = new Vue({
           return this.troubleHeroIds.reduce((state,id) => state && id > -1,true)
         },
         //Hero data
+        allHeroes () { return app.heroes },
         heroData () {
           return this.hid == -1 ? {} : app.tokensHeroes.get(this.hid)
         },
@@ -371,7 +389,8 @@ app.UIMain = new Vue({
         },
         saveHero () {
           let h = this.heroData
-          tokensHeroes.set(this.hid,h)
+          app.tokensHeroes.set(this.hid,h)
+          app.save()
         },
         commitToSolveTrouble () {
           //pay 

@@ -1,4 +1,4 @@
-import {people} from "./peoples.js"
+import {people, nameBases} from "./peoples.js"
 let seed = "OutlandsPlanes2019"
 
 const cpxColors = ["Ruby","Citrine","Topaz","Emerald","Sapphire","Amethyst"]
@@ -86,7 +86,7 @@ const peopleGen = (seed, r="c") => {
       let what = null
       if(r == "c") {
         let types = [["Human"],["Bugbear","Drow","Dwarf","Elf","Gnoll","Gnome","Goblin",
-          "Halfling","Hobgoblin","Human","Kobold","Lizardfolk","Minotaur",
+          "Halfling","Hobgoblin","Kobold","Lizardfolk","Minotaur",
           "Orc","Sahuagin"]]
         what = rng.weighted(types,[20,40])
       }
@@ -149,7 +149,7 @@ const peopleGen = (seed, r="c") => {
         return this[what]("c") + (what == "animal" ? "-people" : "")
     },
     u () {
-        let what = rng.weighted(["ppl","plant","droid","lna","genasi","wilder"],[30,15,15,15,15,10])
+        let what = rng.weighted(["ppl","plant","droid","lna","genasi","wilder"],[15,15,15,15,30,10])
         return this[what]("u")
     },
     r () {
@@ -287,11 +287,18 @@ const planeData = (i) => {
     pi = 1 + hashToDecimal(hash,0) % 32
   }
 
+  //generate names 
+  let rng = new Chance(hash)
+  NameGen.setRandom(rng)
+  let base = nameBases[pi-1]
+
   return {
     i : i, 
     pi : pi,
     hash : hash,
-    cpx : planeCPX(hash)
+    cpx : planeCPX(hash),
+    name : NameGen.getStateFromBase(base),
+    sites : Array.from({length: 10}, (v, i) => NameGen.getTown(base)),
   }
 }
 
