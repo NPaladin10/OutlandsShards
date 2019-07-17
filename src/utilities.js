@@ -5,7 +5,8 @@ const cpxColors = ["Ruby","Citrine","Topaz","Emerald","Sapphire","Amethyst"]
 const APPROACHES = ["Careful", "Clever", "Flashy", "Forceful", "Quick", "Sneaky"]
 const SKILLGROUPS = ["Arcane", "Combat", "Diplomacy", "Exploration", "Science", "Thievery"]
 
-/* Utilities 
+/* 
+  Utilities 
 */
 const arrayUnique = (arr) => {
   return arr.reduce((unq,v) => {
@@ -18,6 +19,25 @@ const getBaseLog = (x, y) => {
   return Math.log(y) / Math.log(x);
 }
 
+/* Hash Functions 
+  Used for seeding and random generation  
+*/
+
+const hashToDecimal = (_hash, _id) => {1
+  //0x ofset
+  let id = _id+1
+  return parseInt(_hash.slice(id*2,(id*2)+2),16)
+}
+
+//For Vyper formatting
+const uintToBytes = (i) => {
+  return ethers.utils.hexZeroPad(ethers.utils.bigNumberify(i).toHexString(),32)
+}
+
+
+/* 
+  Difficulty and Rarity 
+*/
 //Difficulty of a challenge 1 - 10, based off of 1024
 const difficulty = (n) => {
   if(n <= 256) return 1;
@@ -39,23 +59,13 @@ const rarity = (n) => {
   else if(n <= 254) return 4;
   else return 5;
 }
-const hashToDecimal = (_hash, _id) => {
-  //0x ofset
-  let id = _id+1
-  return parseInt(_hash.slice(id*2,(id*2)+2),16)
-}
 const rarityFromHash = (hash, i) => {
   return rarity(hashToDecimal(hash,i))
 }
-//For Vyper formatting
-const uintToBytes = (i) => {
-  return ethers.utils.hexZeroPad(ethers.utils.bigNumberify(i).toHexString(),32)
-}
 
-/* Hash Functions 
-  Used for seeding and random generation  
+/* 
+  People - not used in production - used for setup 
 */
-
 //Generate people for a world - not used in production
 const peopleGen = (seed, r="c") => {
   let rng = new Chance(seed)
@@ -169,6 +179,87 @@ const peopleGen = (seed, r="c") => {
   return gen[r]()
 }
 
+/*
+  Ruins 
+*/
+const ruinData = (periodId, ruinId) => {
+  //unique hash
+  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"ruin",periodId,ruinId])
+  //size 
+  let baseSize = 0, n;
+  //based on 1024 probability
+  let szp = (hashToDecimal(hash,0)*256 + hashToDecimal(hash,1)) % 1024
+  if(szp <= 512) n = 1;
+  else if(szp <= 768) n = 2;
+  else if(szp <= 970) n = 3;
+  else if(szp <= 1022) n = 4;
+  else n = 5;
+  //now roll 1d4+1 per size 
+  for(let i = 0; i < n; i++) {
+    baseSize += 2 + hashToDecimal(hash,i+2)%4
+  }
+  //now determine structure - sub-ruins and depth 
+  let subHash = Array.from({length: 3}, (_,i) => ethers.utils.solidityKeccak256(['bytes32','string','uint256'], [hash,"subsize",i]))
+  let range = [2,3,4,5,3,4,5,6,4,5,6,7,5,6,7,8]
+  let step = 0, j;
+  let structure = Array.from({length: baseSize}, (_,i) => {
+    step = Math.floor(i/32)
+    j = i-(step*32)
+    return {
+      depth : rarityFromHash(subHash[step],j),
+      zones : range[hashToDecimal(subHash[step],j)%16]
+    }
+  })
+  //get a depth chart - sub-ruins by depth 
+  let depthChart = structure.reduce((dC,sub,i)=> {
+    dC[sub.depth-1].add(i)
+    return dC
+  },Array.from({length: 5},_ => new Set()))
+  //determine lins
+  let outside = new Set()
+  let links = depthChart.reduce((l,lv,i)=> {
+    let level = [...lv.values()]
+    level.forEach((li,j) => { 
+      //link to outside
+      if(i == 0 || (i > 0 && outside.length == 0)) {
+        outside.add(li)
+      }
+      //chain 
+      if(j >= 1) {
+        l.push([level[j-1],li])
+      }
+      //stairs 
+      if(i > 0 && !outside.has(li) && j == 0) {
+        let uLevel = -1, tLv = -1;
+        //find the closest upper level 
+        while(uLevel == -1 && i+tLv > -1) {
+          if(depthChart[i+tLv].size > 0) uLevel = i+tLv;
+          else tLv--;
+        }
+        if(uLevel == -1) outside.add(li);
+        else {
+          uLevel = [...depthChart[uLevel].values()]
+          l.push([li,uLevel[uLevel.length-1]])
+        }
+      }
+    })
+    return l 
+  },[])
+
+  return {
+    period : periodId,
+    id : ruinId,
+    hash,
+    structure,
+    depthChart,
+    outside,
+    links
+  }
+}
+
+/*
+  Hero
+*/
 // Hero Data Generator 
 const heroData = (heroId,planeId,baseHash,xp) => {
   //unique hash for hero 
@@ -222,7 +313,9 @@ const heroData = (heroId,planeId,baseHash,xp) => {
   }   
 }
 
-// Planet Data 
+/* 
+  Planet Data 
+*/
 const planetHash = (i) => {
   return ethers.utils.solidityKeccak256(['string','string', 'uint256'], [seed, "planet",i]) 
 }
@@ -242,7 +335,9 @@ const planetData = (i) => {
   }
 }
 
-//Plane Data 
+/*
+  Trouble 
+*/
 const planeTrouble = (period, i) => {
   let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(i), "trouble", period])
   //determine difficulty 
@@ -267,6 +362,10 @@ const planeTrouble = (period, i) => {
     simpleHash : ethers.utils.solidityKeccak256(['uint256','uint256'], [period, i])
   }
 }
+
+/*
+  Plane Data 
+*/
 const planeCPX = (hash) => {
   let cpxMag = [5,5,6,6,7,7,8,9,9,10,11,11,12,13,14,15]
   //number of CPX
@@ -302,6 +401,57 @@ const planeData = (i) => {
   }
 }
 
+/* 
+  Crew Data 
+*/
+const peopleSkills = (planetId) => {
+  let {people, hash} = planetData(planetId)
+  let pHash = ethers.utils.solidityKeccak256(['string','bytes32'], ["people",hash]) 
+  //hash the primary skill for every people 
+  return people.map((ppl,i) => hashToDecimal(pHash,i) % 6)
+}
+const crewData = (planeId, i) => {
+  let plane = planeData(planeId)
+  let {people} = planetData(plane.pi)
+  let pplSkills = peopleSkills(plane.pi)
+  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"people",planeId,i])
+  //people 
+  let pr = rarityFromHash(hash,0)
+  pr = pr > 3 ? 2 : pr-1
+  //actual rank 
+  let r = rarityFromHash(hash,1)
+  r = r >= 4 ? 3 : r
+  //skill - 50% primary / 50% random 
+  let ps = hashToDecimal(hash,2) % 2
+  let skill = -1
+  if(ps == 0) {
+    skill = pplSkills[pr]
+  }
+  else {
+    skill = pplSkills[pr] + hashToDecimal(hash,3) % 5
+    skill = skill > 5 ? skill - 5 : skill 
+  }
+  //cpx to approach - 50% based on plane cpx / 50% random 
+  let pa = hashToDecimal(hash,4) % 2
+  let approach = -1
+  if(pa == 0) {
+    approach = plane.cpx.length == 1 ? plane.cpx[0][0] - 1 : plane.cpx[hashToDecimal(hash,5)%plane.cpx.length][0]-1
+  }
+  else {
+    approach = hashToDecimal(hash,6) % 6
+  }
+  //data 
+  return {
+    plane : planeId,
+    i, hash, r, 
+    people : people[pr],
+    approach,
+    skill 
+  }
+}
+
+console.log(d3.range(32).map(v => ruinData(chance.d20(),chance.d20())))
+
 //function to add planes and check for planets 
 const addPlaneData = (i, planets, planes) => {
   let d = planeData(i)
@@ -324,6 +474,7 @@ const init = (_seed) => {
         planeHash,
         planeData,
         heroData,
+        crewData,
         planeTrouble,
         addPlaneData
     }

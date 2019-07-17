@@ -38,7 +38,26 @@ let CPXContracts = {
     ],
     address : "0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8"
   },
-   OutlandsTrouble: {
+  OutlandsCrew : {
+    abi : [
+      "event NewCrew (address indexed finder, uint256 id, uint256 indexed plane, uint256 i)",
+      "function costToRecruit() public view returns(uint256)",
+      "function timeBetweenRecruit() public view returns(uint256)",
+      "function nextRecruitTime(uint256) public view returns(uint256)",
+      "function fundsReceived(address) public view returns(uint256)",
+      "function totalSupply() public view returns(uint256)",
+      "function tokensOfOwner(address owner) external view returns (uint256[])",
+      "function withdrawFundsReceived() public",
+      "function withdrawToBank() public",
+      "function getCrewClaimed(uint256 plane) public view returns(bool[7] isClaimed)",
+      "function getCrewData(uint256 id) public view returns(address, uint256[2])",
+      "function Recruit(uint256 plane, uint256 i) public payable",
+      "function increaseIndex(uint256 plane) public payable",
+      "function planeCrewIndex(uint256) public view returns(uint256)"
+    ],
+    address : "0x124100394DA21da560722F9E9E895a2E72bfB170"
+  },
+  OutlandsTrouble: {
     abi : [
       "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
       "event CompleteChallenge (bytes32 id, bytes32 hash, uint256[] pxp)",
@@ -114,10 +133,11 @@ provider.getNetwork().then(n=> { network = n})
 provider.getBlock ( "latest" ).then(b => { block = b })
 
 //handle the contracts - connect with the signer / provider 
-let outlandsPlanes, outlandsHeroes, outlandsTrouble, outlandsXP, outlandsCool;
+let outlandsPlanes, outlandsHeroes, outlandsCrew, outlandsTrouble, outlandsXP, outlandsCool;
 const setContracts = (whoSends) => {
     outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,whoSends)
     outlandsHeroes = new ethers.Contract(CPXContracts.OutlandsHeroes.address,CPXContracts.OutlandsHeroes.abi,whoSends)
+    outlandsCrew = new ethers.Contract(CPXContracts.OutlandsCrew.address,CPXContracts.OutlandsCrew.abi,whoSends)
     outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,whoSends)
     outlandsXP = new ethers.Contract(CPXContracts.OutlandsXP.address,CPXContracts.OutlandsXP.abi,whoSends)    
     outlandsCool = new ethers.Contract(CPXContracts.OutlandsHeroCooldown.address,CPXContracts.OutlandsHeroCooldown.abi,whoSends)    
@@ -237,6 +257,27 @@ const submittedChallengeCheck = (app, address) => {
     })
 }
 
+//Function to pull and update crew data
+const getPlaneCrewData = (app, planeId) => {
+  let {planeCrew} = app.UIMain 
+  //first pull plaine crew index 
+  outlandsCrew.planeCrewIndex(planeId).then(cid => {
+    cid = cid.toNumber()
+    //get timer 
+    outlandsCrew.nextRecruitTime(planeId).then(time => {
+      planeCrew.time = time.toNumber()
+      //now find out who is available 
+      outlandsCrew.getCrewClaimed(planeId).then(isClaimed => {
+        planeCrew.crew = isClaimed.map((av,i) => {
+          let C = app.utils.crewData(planeId,cid+i)
+          C.available = !av 
+          return C 
+        })
+      })
+    })
+  })
+} 
+
 //Function to pull and update hero data 
 const getHeroData = (app, address) => {
     let {utils,heroCooldown,heroXP,tokensHeroes,UIMain} = app
@@ -339,6 +380,7 @@ const check = (app) => {
     //cost 
     outlandsPlanes.costToSearch().then(c => UIMain.searchCost = ethers.utils.formatEther(c))
     outlandsHeroes.costToRecruit().then(c => UIMain.recruitCost = ethers.utils.formatEther(c))
+    outlandsCrew.costToRecruit().then(c => UIMain.recruitCrewCost = ethers.utils.formatEther(c))
     outlandsTrouble.costToChallenge().then(c => UIMain.challengeCost = ethers.utils.formatEther(c))
 
     signer.getAddress().then(a => {
@@ -383,14 +425,19 @@ const check = (app) => {
 
       //time 
       outlandsPlanes.nextSearchTime(address).then(t => UIMain.nextSearch = t.toNumber())
-      //pull recruit time
-      if(UIMain.tid>-1) outlandsHeroes.nextRecruitTime(UIMain.tid).then(t => UIMain.nextRecruit = t.toNumber())
+      //check if plane selected
+      if(UIMain.tid>-1) {
+        //get available crew 
+        getPlaneCrewData(app, UIMain.tid)
+        //check for time 
+        outlandsHeroes.nextRecruitTime(UIMain.tid).then(t => UIMain.nextRecruit = t.toNumber())
+      }
     }
   }  
 }
 
 const getContracts = () => {
-    return {outlandsPlanes,outlandsHeroes,outlandsTrouble}
+    return {outlandsPlanes,outlandsHeroes,outlandsTrouble,outlandsCrew}
 }
 
 export {

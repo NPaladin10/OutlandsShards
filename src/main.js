@@ -264,6 +264,9 @@ app.UIMain = new Vue({
         challengeCost : "0.005",
         //Completed Challenges
         completedChallenges : [],
+        //Crew
+        recruitCrewCost : "0.001",
+        planeCrew : {},
         //
         toCombine: 0,
         toMint: 0,
@@ -288,6 +291,10 @@ app.UIMain = new Vue({
         nextSearchTime() {
           let dt = Math.ceil(this.nextSearch - this.now)
           return dt < 0 ? 0 : dt
+        },
+        nextCrewRecruitTime() {
+          let dt = Math.ceil(this.planeCrew.time - this.now)
+          return dt < 0 ? 0 : Math.round(dt/60)
         },
         nextRecruitTime() {
           let dt = Math.ceil(this.nextRecruit - this.now)
@@ -369,6 +376,14 @@ app.UIMain = new Vue({
             value: ethers.utils.parseUnits(this.recruitCost,"ether")
           }
           eC().outlandsHeroes.Recruit(this.tid, pay).then(t => {
+            app.simpleNotify("Transaction sent: "+t.hash,"info")
+          })
+        },
+        recruitCrew (i) {
+          let pay = {
+            value: ethers.utils.parseUnits(this.recruitCrewCost,"ether")
+          }
+          eC().outlandsCrew.Recruit(this.tid, i, pay).then(t => {
             app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },
