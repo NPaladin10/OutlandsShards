@@ -40,19 +40,33 @@
                 <!--PLANE INFO---------------------------------------------->
                 <div v-if="tid>-1 && show<1" v-cloak>
                     <h5 class="m-0">
-                        {{planeData.name}} (#{{tid}})<button type="button" class="close" @click="tid=-1,show=-1">&times;</button>
+                        {{planeData.name}} (#{{tid}})
+                        <a class="btn btn-info btn-sm" role="button" :href="'shards.html?tid='+tid">View</a>
+                        <button type="button" class="close" @click="tid=-1,show=-1">&times;</button>
                     </h5>
                     <div>People: {{planeData.people.slice(0,2).join(" // ")}}</div>
-                    <a class="btn btn-info btn-block mb-1" role="button" :href="'shards.html?tid='+tid">View {{planeData.name}}</a>
-                    <button class="btn btn-success" type="button" v-if="address.length>0" @click="Recruit()" :disabled="nextRecruitTime>0">
-                        Recruit Hero<span v-if="nextRecruitTime>0">({{nextRecruitTime}}s)</span>
-                    </button>
-                    <button class="btn btn-success" type="button" v-if="address.length>0 && trouble.period" @click="show=2">Solve Trouble</button>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-success" type="button" v-if="address.length>0" @click="Recruit()" :disabled="nextRecruitTime>0">
+                            Recruit Hero<span v-if="nextRecruitTime>0">({{nextRecruitTime}}s)</span>
+                        </button>
+                        <button class="btn btn-success" type="button" v-if="address.length>0 && planeCrew.crew" @click="show=4">Recruit Crew</button>
+                        <button class="btn btn-success" type="button" v-if="address.length>0 && trouble.period" @click="show=2">Solve Trouble</button>
+                    </div>
                     <div v-if="trouble.period">
                         <h6 class="mx-1 my-0">Trouble: {{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
                     </div>
                 </div>
                 <!--END PLANE INFO---------------------------------------------->
+                <!--RECRUIT CREW---------------------------------------------->
+                <div class="p-1" v-if="show == 4" v-cloak>
+                    <h5 class="m-0">Select New Crew Recruit</h5>
+                    <div v-if="nextCrewRecruitTime>0">Time Until Next Recruit: {{nextCrewRecruitTime}} min</div>
+                    <div v-for="(C,i) in planeCrew.crew" v-if="i < 5 && C.available">
+                        <button class="btn btn-success btn-block my-1" type="button" @click="recruitCrew(C.i)" :disabled="nextCrewRecruitTime > 0">{{C.people}} {{approachNames[C.approach]}} {{skillNames[C.skill]}} {{C.r}}</button>
+                    </div>
+                    <button type="button" class="btn btn-info btn-block" @click="show=-1">Close</button>
+                </div>
+                <!--END RECRUIT CREW---------------------------------------------->
                 <!--CHALLENGES---------------------------------------------->
                 <div v-if="show == 3" v-cloak>
                     <div v-for="C in completedChallenges">
