@@ -21,6 +21,7 @@ const app = {
   UIMain : null,
   utils,
   //cross reference tokens 
+  tokens : new Map(),
   tokensPlanes : new Map(),
   tokensHeroes : new Map(),
   heroCooldown : new Map(),
@@ -34,7 +35,7 @@ const app = {
     DB.getItem(this.UIMain.address+".challenges").then(c => this.challenges = new Map(c))
     DB.getItem(this.UIMain.address+".heroXP").then(c => this.heroXP = new Map(c))
     DB.getItem(this.UIMain.address+".heroCooldown").then(c => this.heroCooldown = new Map(c))
-    DB.getItem(this.UIMain.address+".ownedPlanes").then(op => this.UIMain.owns = op.slice())
+    DB.getItem(this.UIMain.address+".ownedPlanes").then(op => this.UIMain.planes = op.slice())
     DB.getItem(this.UIMain.address+".heroes").then(heroes => {
       //load heroes
       heroes.forEach(h => {
@@ -51,7 +52,7 @@ const app = {
       DB.setItem(this.UIMain.address+".challenges",this.challenges)
       DB.setItem(this.UIMain.address+".heroXP",this.heroXP)
       DB.setItem(this.UIMain.address+".heroCooldown",this.heroCooldown)
-      DB.setItem(this.UIMain.address+".ownedPlanes",this.UIMain.owns.slice())
+      DB.setItem(this.UIMain.address+".ownedPlanes",this.UIMain.planes.slice())
       //set heroes 
       let heroes = this.UIMain.heroIds.map(hid => {
         let h = this.tokensHeroes.get(hid)
@@ -76,7 +77,7 @@ const app = {
 }
 
 //initialize - plane map 
-d3.range(localStorage.getItem("nPlanes")||32).map(i => utils.addPlaneData(i,app.planets,app.tokensPlanes))
+d3.range(localStorage.getItem("nPlanes")||32).map(i => utils.addPlaneData(i+1,app.planets,app.tokensPlanes))
 
 //TESTING
 //challengeCheck(0)
@@ -170,7 +171,7 @@ const drawCircleMap = ()=>{
         selected = d 
       }
       //get owned 
-      if(app.UIMain && app.UIMain.owns.includes(d.data.i)) {
+      if(app.UIMain && app.UIMain.planes.includes(d.data._id)) {
         owned.push(d)
       }
       ctx.beginPath()
@@ -245,7 +246,7 @@ app.UIMain = new Vue({
         //what we show on the overhead 
         show: -1,
         //Plane data 
-        owns : [],
+        planes : [],
         tid : -1,
         maySearch: false,
         searchCost : "0.01",
@@ -265,6 +266,7 @@ app.UIMain = new Vue({
         //Completed Challenges
         completedChallenges : [],
         //Crew
+        day : "0",
         recruitCrewCost : "0.001",
         planeCrew : {},
         //
@@ -367,7 +369,7 @@ app.UIMain = new Vue({
             value: ethers.utils.parseUnits(this.searchCost,"ether"),
           }
           
-          eC().outlandsPlanes.Search(pay).then(t => {
+          eC().OutlandsRegistry.create(0,0,0,pay).then(t => {
             app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },
@@ -375,7 +377,7 @@ app.UIMain = new Vue({
           let pay = {
             value: ethers.utils.parseUnits(this.recruitCost,"ether")
           }
-          eC().outlandsHeroes.Recruit(this.tid, pay).then(t => {
+          eC().OutlandsRegistry.create(1,this.planeData._id,0,pay).then(t => {
             app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },
@@ -383,7 +385,7 @@ app.UIMain = new Vue({
           let pay = {
             value: ethers.utils.parseUnits(this.recruitCrewCost,"ether")
           }
-          eC().outlandsCrew.Recruit(this.tid, i, pay).then(t => {
+          eC().OutlandsRegistry.create(2,this.planeData._id, i, pay).then(t => {
             app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
         },

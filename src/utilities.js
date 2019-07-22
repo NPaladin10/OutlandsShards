@@ -376,11 +376,17 @@ const planeCPX = (hash) => {
 }
 const planeHash = (i) => {
   if(i < 0) return ""
+  //base nft 
   //Vyper formatting for hash 
   return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id(seed), uintToBytes(i)])
 }
 const planeData = (i) => {
   let hash = planeHash(i)
+  //get the long eth token id 
+  let hex = "0x"+i.toString(16) 
+  hex = "0x80000000000000000000000000000001" + ethers.utils.hexZeroPad(hex,16).slice(2)
+  let _id = ethers.utils.bigNumberify(hex).toString()
+
   let pi = 0
   if(i < 256){
     pi = 1 + hashToDecimal(hash,0) % 32
@@ -392,7 +398,8 @@ const planeData = (i) => {
   let base = nameBases[pi-1]
 
   return {
-    i : i, 
+    i : i,
+    _id, 
     pi : pi,
     hash : hash,
     cpx : planeCPX(hash),
@@ -410,11 +417,11 @@ const peopleSkills = (planetId) => {
   //hash the primary skill for every people 
   return people.map((ppl,i) => hashToDecimal(pHash,i) % 6)
 }
-const crewData = (planeId, i) => {
-  let plane = planeData(planeId)
+const crewData = (day,pData,i) => {
+  let plane = pData
   let {people} = planetData(plane.pi)
   let pplSkills = peopleSkills(plane.pi)
-  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"people",planeId,i])
+  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256','uint256'], [seed,"crew",day,plane._id,i])
   //people 
   let pr = rarityFromHash(hash,0)
   pr = pr > 3 ? 2 : pr-1
@@ -442,7 +449,7 @@ const crewData = (planeId, i) => {
   }
   //data 
   return {
-    plane : planeId,
+    plane : plane._id,
     i, hash, r, 
     people : people[pr],
     approach,

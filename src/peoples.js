@@ -33,6 +33,6 @@ const people = [
     ["Human", "Flower-people", "Human Transmutation/Fire Axial", "Sand Giant", "Storm Dragon"],
 ]
 
-const nameBases = [9, 29, 17, 32, 6, 22, 16, 0, 11, 17, 1, 6, 12, 24, 3, 15, 17, 0, 31, 5, 5, 12, 25, 11, 14, 9, 18, 10, 14, 17, 6, 23]
+const nameBases = [9, 29, 17, 31, 6, 22, 16, 0, 11, 17, 1, 6, 12, 24, 3, 15, 17, 0, 31, 5, 5, 12, 25, 11, 14, 9, 18, 10, 14, 17, 6, 23]
 
 export {people,nameBases}
