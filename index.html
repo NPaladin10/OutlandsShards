@@ -25,6 +25,7 @@
                                 Claim New Plane <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
                             </button>
                             <button type="button" class="btn btn-block btn-info" v-if="heroIds.length>0" @click="show=1" data-toggle="collapse" href="#menu-list">View Heroes</button>
+                            <button type="button" class="btn btn-block btn-info" v-if="crewIds.length>0" @click="show=5" data-toggle="collapse" href="#menu-list">View Crew</button>
                             <button type="button" class="btn btn-block btn-info" v-if="completedChallenges.length>0" @click="show=3" data-toggle="collapse" href="#menu-list">View Challenges</button>
                             <button type="button" class="btn btn-block btn-success" @click="claimHeroFunds()" v-if="shareToClaim>0" data-toggle="collapse" href="#menu-list">
                                 Claim <span class="font-weight-bold">Ξ</span>
@@ -45,11 +46,10 @@
                         <button type="button" class="close" @click="tid=-1,show=-1">&times;</button>
                     </h5>
                     <div>People: {{planeData.people.slice(0,2).join(" // ")}}</div>
+                    <div v-if="nextRecruitTime>0" v-cloak>Next Recruit in {{nextRecruitTime+1}} min</div>
                     <div class="btn-group" role="group">
-                        <button class="btn btn-success" type="button" v-if="address.length>0" @click="Recruit()" :disabled="nextRecruitTime>0">
-                            Recruit Hero<span v-if="nextRecruitTime>0">({{nextRecruitTime}}s)</span>
-                        </button>
-                        <button class="btn btn-success" type="button" v-if="address.length>0 && planeCrew.crew" @click="show=4">Recruit Crew</button>
+                        <button class="btn btn-success" type="button" v-if="address.length>0" @click="Recruit()" :disabled="nextRecruitTime>0">Recruit Hero</button>
+                        <button class="btn btn-success" type="button" v-if="address.length>0 && planeCrew.crew" @click="show=4" :disabled="nextRecruitTime>0">Recruit Crew</button>
                         <button class="btn btn-success" type="button" v-if="address.length>0 && trouble.period" @click="show=2">Solve Trouble</button>
                     </div>
                     <div v-if="trouble.period">
@@ -60,9 +60,9 @@
                 <!--RECRUIT CREW---------------------------------------------->
                 <div class="p-1" v-if="show == 4" v-cloak>
                     <h5 class="m-0">Select New Crew Recruit</h5>
-                    <div v-if="nextCrewRecruitTime>0">Time Until Next Recruit: {{nextCrewRecruitTime}} min</div>
+                    <div v-if="nextRecruitTime>0">Time Until Next Recruit: {{nextRecruitTime}} min</div>
                     <div v-for="(C,i) in planeCrew.crew" v-if="i < 5 && C.available">
-                        <button class="btn btn-success btn-block my-1" type="button" @click="recruitCrew(C.i)" :disabled="nextCrewRecruitTime > 0">{{C.people}} {{approachNames[C.approach]}} {{skillNames[C.skill]}} {{C.r}}</button>
+                        <button class="btn btn-success btn-block my-1" type="button" @click="recruitCrew(i)" :disabled="nextRecruitTime > 0">{{C.people}} {{approachNames[C.approach]}} {{skillNames[C.skill]}} {{C.r}}</button>
                     </div>
                     <button type="button" class="btn btn-info btn-block" @click="show=-1">Close</button>
                 </div>
@@ -89,7 +89,7 @@
                                         <span class="input-group-text">Hero</span>
                                     </div>
                                     <select class="custom-select" v-model="troubleHeroIds[n-1]" @change="drawArc()">
-                                        <option v-for="(id,j) in heroIds" v-if="canAct[j]" :value="id">{{id}}</option>
+                                        <option v-for="(id,j) in heroIds" v-if="canAct[j]" :value="id">{{id.slice(0,5)+'...'+id.slice(-5)}}</option>
                                     </select>
                                     <div class="input-group-append" v-if="troubleHeroIds[n-1] != -1">
                                         <span class="input-group-text">{{troubleHeroes[n-1].skillsById[n-1]}} / {{skillDiff(n-1).p}}%</span>
@@ -107,6 +107,27 @@
                     </div>
                 </div>
                 <!--END TROUBLE---------------------------------------------->
+                <!--CREW 5---------------------------------------------->
+                <div class="mt-2" v-if="show == 5" v-cloak>
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Crew</span>
+                        </div>
+                        <select class="custom-select" v-model="crid">
+                            <option v-for="(id,i) in crewIds" :value="id">{{allCrew[i].name}} #{{id.slice(0,5)+'...'+id.slice(-5)}}</option>
+                        </select>
+                    </div>
+                    <div v-if="crid != ''">
+                        <input class="form-control" type="text" placeholder="Crew Name" v-model="crewData.name">
+                        <div>A {{crewData.people}} from {{crewData.planeName}}</div>
+                        <div>{{approachNames[crewData.approach]}} {{skillNames[crewData.skill]}} {{crewData.r}}</div>
+                    </div>
+                    <div class="btn-group btn-block" role="group">
+                        <button type="button" class="btn btn-success btn-block">Save</button>
+                        <button type="button" class="btn btn-info" @click="show=-1">Close</button>
+                    </div>
+                </div>
+                <!--END HEROES---------------------------------------------->
                 <!--HEROES---------------------------------------------->
                 <div class="mt-2" v-if="show == 1" v-cloak>
                     <div class="input-group">
@@ -114,12 +135,40 @@
                             <span class="input-group-text">Heroes</span>
                         </div>
                         <select class="custom-select" v-model="hid">
-                            <option v-for="(id,i) in heroIds" :value="id">{{allHeroes[i].name}} #{{id}}</option>
+                            <option v-for="(id,i) in heroIds" :value="id">{{allHeroes[i].name}} #{{id.slice(0,5)+'...'+id.slice(-5)}}</option>
                         </select>
                     </div>
-                    <div v-if="hid > -1">
+                    <div v-if="hid != ''">
                         <input class="form-control" type="text" placeholder="Hero Name" v-model="heroData.name">
-                        <div>Home Plane: {{heroData.plane}} XP: {{heroData._xp[1]}}/{{heroData._xp[0]}}</div>
+                        <div>Home Plane: {{heroData.planeName}} XP: {{heroData._xp[1]}}/{{heroData._xp[0]}}</div>
+                        <div>People: {{heroData.ppl}}</div>
+                        <div>Aspects: {{heroData.approaches.join(', ')}}</div>
+                        <h6 class="m-0">Skills</h6>
+                        <div class="d-flex justify-content-between mx-1" v-for="s in heroData.skills">
+                            <div>[{{s[0]}}]</div>
+                            <div>{{s.slice(1).join(", ")}}</div>
+                        </div>
+                        <h6 v-if="cooldown!=''" v-cloak>Cooldown: {{cooldown}}hrs</h6>
+                    </div>
+                    <div class="btn-group btn-block" role="group">
+                        <button type="button" class="btn btn-success btn-block" @click="saveHero()">Save</button>
+                        <button type="button" class="btn btn-info" @click="show=-1">Close</button>
+                    </div>
+                </div>
+                <!--END HEROES---------------------------------------------->
+                <!--HEROES---------------------------------------------->
+                <div class="mt-2" v-if="show == 1" v-cloak>
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Heroes</span>
+                        </div>
+                        <select class="custom-select" v-model="hid">
+                            <option v-for="(id,i) in heroIds" :value="id">{{allHeroes[i].name}} #{{id.slice(0,5)+'...'+id.slice(-5)}}</option>
+                        </select>
+                    </div>
+                    <div v-if="hid != ''">
+                        <input class="form-control" type="text" placeholder="Hero Name" v-model="heroData.name">
+                        <div>Home Plane: {{heroData.planeName}} XP: {{heroData._xp[1]}}/{{heroData._xp[0]}}</div>
                         <div>People: {{heroData.ppl}}</div>
                         <div>Aspects: {{heroData.approaches.join(', ')}}</div>
                         <h6 class="m-0">Skills</h6>
