@@ -14,48 +14,46 @@ wallet.getBalance().then(b => {
 */
 
 const CPXContracts = {
-  OutlandsPlanes : {
+  OutlandsToken : {
     abi : [
-      "event NewPlane (address indexed finder, uint256 i)",
-      "function costToSearch() public view returns(uint256)",
-      "function timeBetweenSearches() public view returns(uint256)",
-      "function nextSearchTime(address) public view returns(uint256)",
-      "function totalSupply() public view returns(uint256)",
-      "function tokensOfOwner(address owner) external view returns (uint256[])",
-      "function Search() public payable", 
+      "event TransferSingle(address indexed _operator, address indexed _from, address indexed _to, uint256 _id, uint256 _value)",
+      "event URI(string _value, uint256 indexed _id)",
+      "function ownerOf(uint256 _id) public view returns (address)",
+      "function balanceOf(address _owner, uint256 _id) external view returns (uint256)",
+      "function isApprovedForAll(address _owner, address _operator) external view returns (bool)",
+      "function getNonFungibleIndex(uint256 _id) public pure returns(uint256)",
+      "function getNonFungibleBaseType(uint256 _id) public pure returns(uint256)"
     ],
-    address : "0xa8Af2e26488a02A4653687f71EFA212a2001e7a2"
+    address : "0x20a2F9E30bdecAFfdc7B9571FF7CAC585D054014",
+    tokenTypeIds : {
+      "57896044618658097711785492504343953926975274699741220483192166611388333031424" : "plane",
+      "plane" : "57896044618658097711785492504343953926975274699741220483192166611388333031424",
+      "hero" : "57896044618658097711785492504343953927315557066662158946655541218820101242880",
+      "57896044618658097711785492504343953927315557066662158946655541218820101242880" : "hero",
+      "crew" : "57896044618658097711785492504343953927655839433583097410118915826251869454336",
+      "57896044618658097711785492504343953927655839433583097410118915826251869454336" : "crew"            
+    }
   },
-  OutlandsHeroes : {
+  OutlandsRegistry : {
     abi : [
-      "event NewHero (address indexed finder, uint256 indexed plane, uint256 i)",
-      "function costToRecruit() public view returns(uint256)",
-      "function timeBetweenRecruit() public view returns(uint256)",
-      "function nextRecruitTime(uint256) public view returns(uint256)",
+      "event NewPlane (address indexed player, uint256 i)",
+      "event NewHero (address indexed player, uint256 i, uint256 plane)",
+      "event NewUnit (address indexed player, uint256 i, uint256 plane, bytes32 hash)",
+      "event FundsWithdrawn (address indexed who, uint256 amt)",
+      "function cost(uint256) public view returns(uint256)",
+      "function shareToOwner(uint256) public view returns(uint256)",
+      "function timeBetween(uint256) public view returns(uint256)",
+      "function nextTimePlayer(address) public view returns(uint256)",
+      "function nextTimePlane(uint256) public view returns(uint256)",
       "function fundsReceived(address) public view returns(uint256)",
-      "function ownerOf(uint256 id) public view returns(address)",
-      "function Heroes(uint256) public view returns(uint256,bytes32)",
-      "function totalSupply() public view returns(uint256)",
-      "function tokensOfOwner(address owner) external view returns (uint256[])",
-      "function Recruit(uint256 pi) public payable",
+      "function getTokenData() public view returns (uint256[3] ids, uint256[3] count)",
+      "function ownerOfBatch(uint256[] ids) public view returns (address[] owners)",
       "function withdrawFundsReceived() public",
-      "function withdrawToBank() public"
+      "function day() public view returns(uint256)",
+      "function getClaimedCrew(uint256 plane) public view returns(bool[5] isClaimed)",
+      "function create(uint256 _type, uint256 plane, uint256 ci) public payable"
     ],
-    address : "0xeBEF6F1ffc0c97a83FB136F9D45f81a6E471B4B8"
-  },
-  OutlandsTrouble: {
-    abi : [
-      "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
-      "event CompleteChallenge (bytes32 id, bytes32 hash, uint256[] pxp)",
-      "function currentPeriod() public view returns(uint256)",
-      "function coolPerStress() public view returns(uint256)",
-      "function timeBetweenPeriods() public view returns(uint256)",
-      "function costToChallenge() public view returns(uint256)",
-      "function completedChallenges(bytes32) public view returns (bool)",
-      "function complete(uint256 plane, bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)",
-      "function submitChallenge(uint256 plane, uint256[] heroes) public payable"
-    ],
-    address : "0x78a4f476a44aa74829a967a80a1c9443a8dffa2e",
+    address : "0x6D6EF96EFD4E354d63682cBC165f8ddB1cA52dC7",
   },
   OutlandsXP : {
     abi : [
@@ -71,9 +69,9 @@ const CPXContracts = {
   },
 }
 
-const outlandsPlanes = new ethers.Contract(CPXContracts.OutlandsPlanes.address,CPXContracts.OutlandsPlanes.abi,wallet)
-const outlandsHeroes = new ethers.Contract(CPXContracts.OutlandsHeroes.address,CPXContracts.OutlandsHeroes.abi,wallet)
-const outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,wallet)
+const OutlandsToken = new ethers.Contract(CPXContracts.OutlandsToken.address,CPXContracts.OutlandsToken.abi,wallet)
+const OutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,wallet)
+const outlandsTrouble = null
 const outlandsXP = new ethers.Contract(CPXContracts.OutlandsXP.address,CPXContracts.OutlandsXP.abi,wallet)
 
 //log check function - searches log back 256 block for a topic releveant to an address
@@ -115,7 +113,7 @@ const validateMessage = (hash, sig) => {
 }
 
 module.exports = {
-  provider, validateMessage, signData, outlandsPlanes, outlandsHeroes, outlandsTrouble, outlandsXP,
+  provider, validateMessage, signData, OutlandsToken, OutlandsRegistry, outlandsTrouble, outlandsXP,
   logCheck,
   utils : ethers.utils
 }

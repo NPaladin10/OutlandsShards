@@ -120,7 +120,7 @@ const resolveChallenge = (data)=>{
 
 const init = (eth,ping)=>{
     //get contracts and functions 
-    let {utils, outlandsHeroes, outlandsTrouble, outlandsXP, logCheck, signData} = eth
+    let {utils, OutlandsToken, OutlandsRegistry, outlandsTrouble, outlandsXP, logCheck, signData} = eth
 
     /*
         Functions to pull the data 
@@ -318,29 +318,24 @@ const init = (eth,ping)=>{
         )
     })
     // call for test resolution 
-    router.get('/testResolve/:id.:bn', function(req, res) {
-        //pulldata
-        let {id, bn} = req.params
-        //get the challenge 
-        pullChallengeLog(Number(bn), id).then(data=>{
-            let rC = resolveChallenge(data)
-            //respond
-            res.json(rC)
-        }
-        )
-    })
-    // call for test resolution 
-    router.get('/testData/:data', function(req, res) {
-        //respond
+    router.get('/testResolve/:hex', function(req, res) {
         //reverse the - ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(data)))
-        let data = JSON.parse(utils.toUtf8String(req.params.data))
-        let {address, msgHash, sig} = data
+        let payload = JSON.parse(utils.toUtf8String(req.params.hex))
+        let {address,data,sig} = payload 
         //validate 
-        let valid = address == eth.validateMessage(msgHash, sig)
-        //respond
-        res.json({
-            address,
-            valid
+        if(address != ethers.utils.verifyMessage(JSON.stringify(data),sig)) {
+            return res.json({err:'Invalid Signature'})
+        }
+        //check valid ownership
+        OutlandsRegistry.ownerOfBatch(data.heroIds).then(owners => {
+            let mayContinue = owners.reduce((mayC,id) => mayC && address == id,true)
+            //ensure ownership
+            if(!mayContinue) return res.json({err:'Does not own all tokens'})
+            //check cooldown
+            //run result 
+            res.json({
+                data,owners
+            })
         })
     })
 
