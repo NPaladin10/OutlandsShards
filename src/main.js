@@ -11,7 +11,6 @@ const seed = "OutlandsPlanes2019"
 import * as eth from "./eth.js"
 let eC = eth.getContracts
 //pull utility functions like hash and data generation
-import {challengeCheck} from "./resolvers.js"
 import {init as uInit} from "./utilities.js"
 const utils = uInit(seed)
 
@@ -20,17 +19,16 @@ const app = {
   DB,
   UIMain : null,
   utils,
+  //specific token data 
+  planets : new Map(),
+  planes : new Map(),
+  heroes : new Map(),
+  crew : new Map(),
   //cross reference tokens 
   tokens : new Map(),
-  tokensPlanes : new Map(),
-  tokensHeroes : new Map(),
   heroCooldown : new Map(),
   heroXP : new Map(),
-  planets : new Map(),
   challenges : new Map(),
-  get heroes() {
-    return [...this.tokensHeroes.values()]
-  },
   load () {
     DB.getItem(this.UIMain.address+".challenges").then(c => this.challenges = new Map(c))
     DB.getItem(this.UIMain.address+".heroXP").then(c => this.heroXP = new Map(c))
@@ -39,12 +37,13 @@ const app = {
     DB.getItem(this.UIMain.address+".heroes").then(heroes => {
       //load heroes
       heroes.forEach(h => {
-        let H = utils.heroData(h.id,h.plane,h.hash,h.xp)
+        let H = utils.heroData(h.id,h.plane,h.block,h.xp)
         H.name = h.name || ""
-        this.tokensHeroes.set(h.id,H)
+        //set 
+        this.heroes.set(h.id,H)
       })
       //set UIMain
-      this.UIMain.heroIds = [...this.tokensHeroes.keys()]
+      this.UIMain.heroIds = [...this.heroes.keys()]
     })
   },
   save () {
@@ -54,15 +53,8 @@ const app = {
       DB.setItem(this.UIMain.address+".heroCooldown",this.heroCooldown)
       DB.setItem(this.UIMain.address+".ownedPlanes",this.UIMain.planes.slice())
       //set heroes 
-      let heroes = this.UIMain.heroIds.map(hid => {
-        let h = this.tokensHeroes.get(hid)
-        return {
-          id : h.id,
-          name : h.name,
-          plane : h.plane,
-          hash : h.baseHash,
-          xp : h._xp
-        }
+      let heroes = [...this.heroes.values()].map(h => {
+        return h.save 
       })
       DB.setItem(this.UIMain.address+".heroes",heroes)
     }
@@ -77,7 +69,7 @@ const app = {
 }
 
 //initialize - plane map 
-d3.range(localStorage.getItem("nPlanes")||32).map(i => utils.addPlaneData(i+1,app.planets,app.tokensPlanes))
+d3.range(localStorage.getItem("nPlanes")||32).map(i => utils.addPlaneData(i+1,app))
 
 //TESTING
 //challengeCheck(0)
@@ -122,7 +114,7 @@ const circlePack = () => {
   let RNG = new Chance(seed)
 
   //get data 
-  let planes = [...app.tokensPlanes.values()]
+  let planes = [...app.planes.values()]
   let h = d3.hierarchy({
     //once for each plane 
     "children" : planes.map(p => {
@@ -252,7 +244,7 @@ app.UIMain = new Vue({
         searchCost : "0.01",
         nextSearch: 0,
         //Hero data 
-        hid : -1,
+        hid : "",
         heroIds : [],
         heroName : "",
         recruitCost : "0.003",
@@ -268,6 +260,8 @@ app.UIMain = new Vue({
         //Crew
         day : "0",
         recruitCrewCost : "0.001",
+        crewIds : [],
+        crid: "",
         planeCrew : {},
         //
         toCombine: 0,
@@ -294,13 +288,9 @@ app.UIMain = new Vue({
           let dt = Math.ceil(this.nextSearch - this.now)
           return dt < 0 ? 0 : dt
         },
-        nextCrewRecruitTime() {
-          let dt = Math.ceil(this.planeCrew.time - this.now)
-          return dt < 0 ? 0 : Math.round(dt/60)
-        },
         nextRecruitTime() {
           let dt = Math.ceil(this.nextRecruit - this.now)
-          return dt < 0 ? 0 : dt
+          return dt < 0 ? 0 : Math.round(dt/60)
         },
         nextTapTime() {
           let dt = Math.ceil(this.nextTap - this.now)
@@ -310,7 +300,7 @@ app.UIMain = new Vue({
         planeData () {
           let plane = {} 
           if (this.tid > -1) {
-            plane = app.tokensPlanes.get(this.tid)
+            plane = app.utils.planeData(this.tid)
             let planet = app.planets.get(plane.pi)
             plane.people = planet.people
           } 
@@ -318,25 +308,31 @@ app.UIMain = new Vue({
         },
         //Handle Trouble 
         troubleHeroes () {
-          let h = this.troubleHeroIds.map(id => id > -1 ? app.tokensHeroes.get(id) : {})
+          let h = this.troubleHeroIds.map(id => id > -1 ? app.heroes.get(id) : {})
           return h 
         },
         canSolveTrouble () {
           return this.troubleHeroIds.reduce((state,id) => state && id > -1,true)
         },
         //Hero data
-        allHeroes () { return app.heroes },
+        allHeroes () { return [...app.heroes.values()] },
         heroData () {
-          return this.hid == -1 ? {} : app.tokensHeroes.get(this.hid)
+          return this.hid == "" ? {} : app.heroes.get(this.hid)
         },
         cooldown () {
-          let cool = this.hid == -1 ? 0 : this.heroData.cool
+          let cool = this.hid == "" ? 0 : this.heroData.cool
           //convert to hours
           let dt = (cool - this.now)/(60*60)
           return dt < 0 ? "" : dt.toFixed(2)
         },
+        //Crew data
+        allCrew () { return [...app.crew.values()] },
+        crewData () {
+          return this.crid == "" ? {} : app.crew.get(this.crid)
+        },
+        //
         canAct () {
-          return this.heroIds.map(hi => app.tokensHeroes.get(hi).cool < this.now)
+          return this.heroIds.map(hi => app.heroes.get(hi).cool < this.now)
         },
         //
         maxCPX () {
@@ -410,14 +406,8 @@ app.UIMain = new Vue({
           app.save()
         },
         commitToSolveTrouble () {
-          //pay 
-          let pay = {
-            value: ethers.utils.parseUnits(this.challengeCost,"ether"),
-          }
           let hids = this.troubleHeroIds.slice()
-          eC().outlandsTrouble.submitChallenge(this.tid, hids, pay).then(t => {
-              app.simpleNotify("Transaction sent: "+t.hash,"info")
-          })
+          eth.submitChallenge(app, this.planeData._id, hids, [])
         }
     }
 })

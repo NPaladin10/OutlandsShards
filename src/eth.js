@@ -1,3 +1,13 @@
+//get the new data in Set B 
+const setCheckForNewData = (A,B) => {
+  if(!B) return []
+  let bArr = [...B.values()]
+  return bArr.reduce((newIds,id)=>{
+    if(!A.has(id)) newIds.push(id);
+    return newIds
+  },[])
+} 
+
 const addressFromTopic = (id, topic) => {
     return ethers.utils.getAddress(ethers.utils.hexStripZeros(topic[id])) 
 }
@@ -81,7 +91,7 @@ let CPXContracts = {
 
 /* Ethers Provider
 */
-let block = null, network = null;
+let block = null, lastPoll = 0, network = null;
 let provider = null, signer = null, wallet = null;
 if (typeof web3 !== 'undefined') {
     provider = new ethers.providers.Web3Provider(web3.currentProvider)
@@ -137,34 +147,22 @@ const server = {
             $.get(url, (data, status) => resolve(data))  
         })
     },
-    testResolve (text) {
+    testResolve (payload) {
+      let url = "http://localhost:8080/trouble/testResolve/"+payload
         return new Promise((resolve,reject)=> {
-            //sign the data 
-            signData(["string"],[text]).then((sigData) => {
-                let {address,msgHash,ethHash,sig} = sigData
-                //convert the whole mesage to hex 
-                let pkg = {
-                    txt : text,
-                    address,msgHash,ethHash,sig
-                }
-                //ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(data)))
-                let hexString = toHexString(pkg)
-                let url = "http://localhost:8080/" + "trouble/testResolve/"+hexString
-                //call
-                $.get(url, (data, status) => resolve(data))  
-            })  
+            //call
+            $.get(url, (data, status) => resolve(data))  
         })
     }
 }
-const challengeResolve = server.testChallengeResolve 
 
 //log check function - searches log back 256 block for a topic releveant to an address
-const logCheck = (cAddress, topic, bn) => {
+const logCheck = (cAddress, topic, bStart, bStop) => {
     return new Promise((resolve, reject) => {
         let filter = {
             address: cAddress,
-            fromBlock: bn || 0,
-            toBlock: bn || "latest",
+            fromBlock: bStart || 0,
+            toBlock: bStop || "latest",
             topics: [ topic ]
         }
         provider.getLogs(filter).then(resolve)  
@@ -187,71 +185,43 @@ const signData = (types,data) => {
 }
 
 //Function to check if challenges have been submitted 
-const submittedChallengeCheck = (app, address) => {
-    logCheck(outlandsTrouble.address,outlandsTrouble.interface.events.NewChallenge.topic).then(res => {
-        return
-        //roll through each 
-        res.forEach(log => {
-            //now pull data fron log 
-            let data = outlandsTrouble.interface.parseLog(log)
-            //go to next if not the current address / has id loaded 
-            let {player, id} = data.values
-            if(player != address) return;
-            if(app.challenges.has(id)) return;
-            //otherwise pull challenge 
-            let {heroes,plane,period} = data.values
-            let hids = heroes.map(hid => hid.toNumber())
-            //set challenge data
-            let C = {
-                block : log.blockNumber,
-                heroes : hids,
-                _xp : hids.map(hi => app.heroXP.get(hi)[1]),
-                plane : plane.toNumber(),
-                period : period.toNumber()
-            }
-            //submit to server 
-            server.challengeResolve(id,C.block).then(cData => {
-                //set hash
-                C.hash = cData.hash
-                C.reward = cData.reward
-                //set in challenges
-                app.challenges.set(id,C) 
-                //notify
-                if(C.reward[1] != "0") {
-                    let cpx = " You got "+ethers.utils.formatEther(C.reward[1])+" "+ app.UIMain.cpxNames[C.reward[0]]+"!" 
-                    app.simpleNotify("You completed the challenge!"+cpx,"success")
-                }
-                else {
-                    app.simpleNotify("You failed the challenge.","error")
-                    //notify of hero xp 
-                    cData.xp.forEach(val => {
-                        app.simpleNotify("Hero #"+val[0]+" earned "+val[1]+" XP.","success")
-                    })
-                }
-            })
-        })
-    })
-}
-
-//Function to pull and update crew data
-const getPlaneCrewData = (app, plane) => {
-  let {planeCrew, day} = app.UIMain 
-  //first pull plaine crew index 
-  OutlandsRegistry.getClaimedCrew(plane._id).then(isClaimed => {
-    planeCrew.crew = isClaimed.map((av,i) => {
-      let C = app.utils.crewData(day,plane,i)
-      C.available = !av 
-      return C 
+const submitChallenge = (app, planeId, heroIds, crewIds) => {
+  let {tokens, UIMain} = app 
+  //ensure ownership
+  let mayContinue = heroIds.concat(crewIds).reduce((mayC,id) => mayC && tokens.has(id),true)
+  if(!mayContinue) return 
+  //submit to server 
+  let data = {planeId, heroIds, crewIds}
+  signer.signMessage(JSON.stringify(data)).then(sig => {
+    //turn it into hex 
+    let payload = {
+      address : UIMain.address,
+      data,
+      sig 
+    }
+    let hex = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(payload)))
+    //submit to server 
+    server.testResolve(hex).then(res => {
+      console.log(res)
     })
   })
-} 
+}
+
+/*
+  Token Functions 
+*/
 
 //Function to pull and update Token Data 
 const getTokensOfAddress = (app, address) => {
+    let cBlock = block.number
+    //check if poll is needed 
+    if(lastPoll == cBlock) return 
+        
     let {utils,heroCooldown,heroXP,tokensHeroes,UIMain,tokens} = app
     let {tokenTypeIds} = CPXContracts.OutlandsToken
+    let topic = OutlandsToken.interface.events.TransferSingle.topic
     
-    logCheck(OutlandsToken.address,OutlandsToken.interface.events.TransferSingle.topic).then(res => {
+    logCheck(OutlandsToken.address,topic,lastPoll).then(res => {
       //roll through each 
         res.forEach(log => {
             //now pull data fron log 
@@ -261,22 +231,22 @@ const getTokensOfAddress = (app, address) => {
             if(address != _to && address != _from) return;
             //check for nft 
             let _hex = _id.toHexString()
-            let tData = {}
+            let tData = {block:log.blockNumber}
             //it is nft 
             if(_hex.charAt(2) == 8) {
-              let nftType = ethers.utils.hexDataSlice(_hex,0,16)
-              let _typeId = ethers.utils.bigNumberify(nftType+"00000000000000000000000000000000").toString()
+              let nftType = _hex.slice(0,35).padEnd(66,"0")
+              let _typeId = ethers.utils.bigNumberify(nftType).toString()
               //set data 
               tData.nft = true 
               tData._typeId = _typeId
               //check id 
-              tData.typeName = tokenTypeIds[_typeId]
-              tData.type = "0x0" + nftType.slice(3)
-              tData.id = ethers.utils.hexDataSlice(_hex,16) 
+              let typeName = tokenTypeIds[_typeId]
+              tData.typeName = typeName
+              tData.i = parseInt(_hex.slice(34), 16)
               tData._hex = _hex
               //check if it exists 
-              if(!tokens.has(_typeId)) {
-                tokens.set(_typeId,new Set())
+              if(!tokens.has(typeName)) {
+                tokens.set(typeName,new Set())
               }
             }
             else {
@@ -286,7 +256,7 @@ const getTokensOfAddress = (app, address) => {
               tokens.set(_id.toString(),tData)
               //add new nft to set 
               if(tData.nft) {
-                let nft = tokens.get(tData._typeId)
+                let nft = tokens.get(tData.typeName)
                 nft.add(_id.toString())
               }
             }
@@ -294,25 +264,35 @@ const getTokensOfAddress = (app, address) => {
               tokens.delete(_id.toString())
               //add new nft to set 
               if(tData.nft) {
-                let nft = tokens.get(tData._typeId)
+                let nft = tokens.get(tData.typeName)
                 nft.delete(_id.toString())
               }
             }
         })
         //now push updates 
-        UIMain.planes = [...tokens.get(tokenTypeIds.plane).values()]
-        //heroes
-        let hids = [...tokens.get(tokenTypeIds.hero).values()]
-        //crew 
-        //UIMain.planes = [...tokens.get(tokenTypeIds.plane).values()]
+        UIMain.planes = [...tokens.get("plane").values()]
+        UIMain.heroIds = [...tokens.get("hero").values()]
+        UIMain.crewIds = [...tokens.get("crew").values()]
+        //now pull new hero data
+        getHeroData(UIMain.heroIds,app,lastPoll)
+        //pull crew data  
+        getCrewData(UIMain.crewIds,app,lastPoll)
+        //now set new last poll 
+        lastPoll = cBlock
     })
 }
 
-const rawHeroData = (app) => {
-  let {UIMain,tokens} = app
-  let {tokenTypeIds} = CPXContracts.OutlandsToken
+/*
+  Hero Functions 
+*/
 
-  logCheck(OutlandsRegistry.address,OutlandsRegistry.interface.events.NewHero.topic).then(res => {
+//initial pull of hero data 
+const getHeroData = (ids,app,start) => {
+  if(ids.length == 0) return 
+  let {UIMain,tokens,utils,heroes} = app
+  let topic = OutlandsRegistry.interface.events.NewHero.topic
+
+  logCheck(OutlandsRegistry.address,topic,start).then(res => {
     //roll through each 
         res.forEach(log => {
             //now pull data fron log 
@@ -320,21 +300,68 @@ const rawHeroData = (app) => {
             //go to next if not loaded
             let {player, i, plane} = data.values
             //get the long eth token id 
-            let hex = "0x80000000000000000000000000000002" + ethers.utils.hexZeroPad(i.toHexString(),16).slice(2)
+            let hex =  "0x80000000000000000000000000000002" + i.toNumber().toString(16).padStart(32,"0")
             let _id = ethers.utils.bigNumberify(hex).toString()
-            let tData = tokens.get(_id)
-            if(tData) {
-              tData.block = log.blockNumber
-              tData.plane = plane.toString()
-              //update 
-              tokens.set(_id,tData)
-            }
+            if(!ids.includes(_id)) return 
+            //get hero data 
+            let hero = utils.heroData(_id, plane.toString(), log.blockNumber)
+            heroes.set(_id,hero)
+        })
+  })
+}
+//polls looking for updates 
+const pollHeroes = (app) => {
+  app.heroes.forEach(h => {
+    h.cool = 0
+  })
+}
+
+/*
+  Crew Functions 
+*/
+
+//Function to pull and update crew data
+const getPlaneCrewData = (app, plane) => {
+  let {planeCrew, day} = app.UIMain 
+  //first pull plaine crew index 
+  OutlandsRegistry.getClaimedCrew(plane._id).then(isClaimed => {
+    planeCrew.crew = isClaimed.map((av,i) => {
+      let C = app.utils.crewDataFromDay(day,plane,i)
+      C.available = !av 
+      return C 
+    })
+  })
+}
+
+//initial pull of crew data 
+const getCrewData = (ids,app,start) => {
+  if(ids.length == 0) return 
+  let {UIMain,tokens,utils,planes,crew} = app
+  let topic = OutlandsRegistry.interface.events.NewUnit.topic
+
+  logCheck(OutlandsRegistry.address,topic,start).then(res => {
+    //roll through each 
+        res.forEach(log => {
+            //now pull data fron log 
+            let data = OutlandsRegistry.interface.parseLog(log)
+            //go to next if not loaded
+            let {player, i, plane, hash} = data.values
+            //get the long eth token id 
+            let hex =  "0x80000000000000000000000000000003" + i.toNumber().toString(16).padStart(32,"0")
+            let _id = ethers.utils.bigNumberify(hex).toString()
+            if(!ids.includes(_id)) return 
+            //get plane 
+            plane = planes.get(plane.toString())
+            //get hero data 
+            let cD = utils.crewData(_id,plane,hash)
+            //update 
+            crew.set(_id,cD)
         })
   })
 }
 
 const check = (app) => {
-  let {UIMain,utils,tokensPlanes,tokensHeroes,planets,tokens} = app
+  let {UIMain,utils,planes,planets,tokens} = app
 
   if(network && block) {
     provider.getNetwork().then(n=> { network = n})
@@ -345,9 +372,6 @@ const check = (app) => {
       signer = provider.getSigner()
     }
 
-    //start polling 
-    rawHeroData(app)
-
     //get range of tokens 
     OutlandsRegistry.getTokenData().then(data => {
       let {count} = data 
@@ -355,9 +379,9 @@ const check = (app) => {
       //set storage 
       localStorage.setItem("nPlanes", count[0])
       //find new planes 
-      let pids = d3.range(count[0]).map(i => i).filter(i => !tokensPlanes.has(i))
+      let pids = d3.range(count[0]).map(i => i).filter(i => !planes.has(i))
       //now pull data 
-      pids.forEach(i => utils.addPlaneData(i, planets, tokensPlanes))
+      pids.forEach(i => utils.addPlaneData(i, app))
     })
 
     //get challenge period 
@@ -387,8 +411,9 @@ const check = (app) => {
           setContracts(signer)
           //load data from db
           app.load()
-          //
+          //reset poll 
           tokens = new Map()
+          lastPoll = 0 
         }
       })
       //get the eth balance  
@@ -399,12 +424,10 @@ const check = (app) => {
     if(address !="") {
       //save state 
       app.save()
-      //push challenges 
-      UIMain.completedChallenges = [...app.challenges.entries()] 
-      //check for submitted challenges
-      submittedChallengeCheck(app, address) 
       //get tokens 
       getTokensOfAddress(app,address)
+      //poll hero data 
+      pollHeroes(app,address)
 
       //look if there is shares to claim 
       OutlandsRegistry.fundsReceived(address).then(s => UIMain.shareToClaim = ethers.utils.formatEther(s))
@@ -431,5 +454,5 @@ export {
     check,
     getContracts,
     signData,
-    challengeResolve
+    submitChallenge
 }

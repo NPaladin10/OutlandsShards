@@ -261,11 +261,12 @@ const ruinData = (periodId, ruinId) => {
   Hero
 */
 // Hero Data Generator 
-const heroData = (heroId,planeId,baseHash,xp) => {
+const heroData = (heroId,planeId,block,xp) => {
   //unique hash for hero 
-  let hash = ethers.utils.solidityKeccak256(['string','uint256','bytes32'], [seed,heroId,baseHash])
+  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"hero",heroId,block])
   //pull planet id of plane - heroes are from a plane 
-  let pi = planeData(planeId).pi
+  let plane = planeData(parseInt(ethers.utils.bigNumberify(planeId).toHexString().slice(34), 16))
+  let pi = plane.pi 
   //pull people data 
   let p = people[pi - 1]
   //first hash deterines rarity
@@ -303,13 +304,23 @@ const heroData = (heroId,planeId,baseHash,xp) => {
   return {
     id: heroId, 
     plane: planeId, 
-    baseHash,
+    planeName : plane.name,
+    block,
     r, ppl, 
     _xp: xp || [0,0],
     name: "",
     approaches : ac.map(ci => APPROACHES[ci]),
     skills : sr,
-    skillsById : skillsById
+    skillsById : skillsById,
+    get save() {
+      return {
+        id : this.id,
+        name : this.name,
+        plane : this.plane,
+        block : this.block,
+        xp : this._xp
+      }
+    }
   }   
 }
 
@@ -374,23 +385,34 @@ const planeCPX = (hash) => {
   //designate array - 6 colors of CPX
   return Array.from({length: nCPX}, (v, i) => [1 + hashToDecimal(hash,(i*2)+2) % 6, cpxMag[hashToDecimal(hash,(i*2)+3) % 16]])
 }
-const planeHash = (i) => {
-  if(i < 0) return ""
-  //base nft 
+const planePlanetId = (hex) => {
+  let hash = planeHash(hex)
+  let i = parseInt(hex.slice(34), 16)
+  //for less than 265 
+  let pi = 1 + hashToDecimal(hash,0) % 32
+  if(i > 256){}
+  return pi 
+}
+const planeHash = (hex) => {
+  if(hex == -1) return ""
+  if(typeof hex != "string") hex = planeHex(hex)
   //Vyper formatting for hash 
-  return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id(seed), uintToBytes(i)])
+  return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id(seed), hex])
+}
+const planeHex = (i) => {
+  //get the long eth token id 
+  let hexPre = "0x80000000000000000000000000000001"
+  let hexPost = i.toString(16).padStart(32,"0") 
+  return  hexPre + hexPost
 }
 const planeData = (i) => {
-  let hash = planeHash(i)
-  //get the long eth token id 
-  let hex = "0x"+i.toString(16) 
-  hex = "0x80000000000000000000000000000001" + ethers.utils.hexZeroPad(hex,16).slice(2)
+  let hex = planeHex(i)
   let _id = ethers.utils.bigNumberify(hex).toString()
+  //now hash 
+  let hash = planeHash(hex)
 
-  let pi = 0
-  if(i < 256){
-    pi = 1 + hashToDecimal(hash,0) % 32
-  }
+  //planet 
+  let pi = planePlanetId(hex)  
 
   //generate names 
   let rng = new Chance(hash)
@@ -417,11 +439,14 @@ const peopleSkills = (planetId) => {
   //hash the primary skill for every people 
   return people.map((ppl,i) => hashToDecimal(pHash,i) % 6)
 }
-const crewData = (day,pData,i) => {
-  let plane = pData
+const crewDataFromDay = (day,plane,i) => {
+  let baseHash = ethers.utils.solidityKeccak256(['uint256','uint256','uint256'], [day,plane._id,i])  
+  return crewData(-1,plane,baseHash)
+}
+const crewData = (crewId,plane,baseHash) => {
   let {people} = planetData(plane.pi)
   let pplSkills = peopleSkills(plane.pi)
-  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256','uint256'], [seed,"crew",day,plane._id,i])
+  let hash = ethers.utils.solidityKeccak256(['string','string','bytes32'], [seed,"crew",baseHash])
   //people 
   let pr = rarityFromHash(hash,0)
   pr = pr > 3 ? 2 : pr-1
@@ -449,8 +474,11 @@ const crewData = (day,pData,i) => {
   }
   //data 
   return {
+    _id : crewId,
+    name : '',
     plane : plane._id,
-    i, hash, r, 
+    planeName : plane.name,
+    baseHash, r, 
     people : people[pr],
     approach,
     skill 
@@ -460,7 +488,8 @@ const crewData = (day,pData,i) => {
 console.log(d3.range(32).map(v => ruinData(chance.d20(),chance.d20())))
 
 //function to add planes and check for planets 
-const addPlaneData = (i, planets, planes) => {
+const addPlaneData = (i, app) => {
+  let {planets,planes} = app 
   let d = planeData(i)
   //check for planet 
   if(!planets.has(d.pi)) {
@@ -469,7 +498,7 @@ const addPlaneData = (i, planets, planes) => {
   let p = planets.get(d.pi)
   p.planes.push(i)
 
-  planes.set(i,d)
+  planes.set(d._id,d)
 }
 
 //Initialize with a seed
@@ -482,6 +511,7 @@ const init = (_seed) => {
         planeData,
         heroData,
         crewData,
+        crewDataFromDay,
         planeTrouble,
         addPlaneData
     }
