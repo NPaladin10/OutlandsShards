@@ -1,4 +1,5 @@
-const people = require('./peoples');
+const NameGen = require('./nameGenerate');
+const {people,nameBases} = require('./peoples');
 const Chance = require('chance');
 const ethers = require('ethers');
 //Seed for generation
@@ -172,19 +173,23 @@ const peopleGen = (seed, r="c") => {
   return gen[r]()
 }
 
+/*
+  Hero
+*/
 // Hero Data Generator 
-const heroData = (heroId,planeId,baseHash,xp) => {
+const heroData = (heroId,planeId,block,xp) => {
   //unique hash for hero 
-  let hash = ethers.utils.solidityKeccak256(['string','uint256','bytes32'], [seed,heroId,baseHash])
+  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"hero",heroId,block])
   //pull planet id of plane - heroes are from a plane 
-  let pi = planeData(planeId).pi
+  let plane = planeData(parseInt(ethers.utils.bigNumberify(planeId).toHexString().slice(34), 16))
+  let pi = plane.pi 
   //pull people data 
   let p = people[pi - 1]
   //first hash deterines rarity
   let r = rarityFromHash(hash, 0)
   //check against xp
   if(xp) {
-    let xpr = Math.floor(getBaseLog(10,xp[1]))
+    let xpr = Math.floor(getBaseLog(10,xp))
     if(xpr > r) r = xpr
   }
   //second hash determines people
@@ -215,16 +220,29 @@ const heroData = (heroId,planeId,baseHash,xp) => {
   return {
     id: heroId, 
     plane: planeId, 
+    planeName : plane.name,
+    block,
     r, ppl, 
-    _xp : xp,
+    _xp: xp || 0,
     name: "",
     approaches : ac.map(ci => APPROACHES[ci]),
     skills : sr,
-    skillsById : skillsById
+    skillsById : skillsById,
+    get save() {
+      return {
+        id : this.id,
+        name : this.name,
+        plane : this.plane,
+        block : this.block,
+        xp : this._xp
+      }
+    }
   }   
 }
 
-// Planet Data 
+/* 
+  Planet Data 
+*/
 const planetHash = (i) => {
   return ethers.utils.solidityKeccak256(['string','string', 'uint256'], [seed, "planet",i]) 
 }
@@ -244,7 +262,9 @@ const planetData = (i) => {
   }
 }
 
-//Plane Data 
+/*
+  Trouble 
+*/
 const planeTrouble = (period, i) => {
   let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(i), "trouble", period])
   //determine difficulty 
@@ -259,15 +279,20 @@ const planeTrouble = (period, i) => {
 
   return {
     period, 
-    plane : i,
+    id : i,
     diff : d,
     sz : sz,
     approach : APPROACHES[a],
     skill: SKILLGROUPS[s],
     skillId : s,
     approachId: a,
+    simpleHash : ethers.utils.solidityKeccak256(['uint256','uint256'], [period, i])
   }
 }
+
+/*
+  Plane Data 
+*/
 const planeCPX = (hash) => {
   let cpxMag = [5,5,6,6,7,7,8,9,9,10,11,11,12,13,14,15]
   //number of CPX
@@ -276,27 +301,107 @@ const planeCPX = (hash) => {
   //designate array - 6 colors of CPX
   return Array.from({length: nCPX}, (v, i) => [1 + hashToDecimal(hash,(i*2)+2) % 6, cpxMag[hashToDecimal(hash,(i*2)+3) % 16]])
 }
-const planeHash = (i) => {
-  if(i < 0) return ""
+const planePlanetId = (hex) => {
+  let hash = planeHash(hex)
+  let i = parseInt(hex.slice(34), 16)
+  //for less than 265 
+  let pi = 1 + hashToDecimal(hash,0) % 32
+  if(i > 256){}
+  return pi 
+}
+const planeHash = (hex) => {
+  if(hex == -1) return ""
+  if(typeof hex != "string") hex = planeHex(hex)
   //Vyper formatting for hash 
-  return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id(seed), uintToBytes(i)])
+  return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [ ethers.utils.id(seed), hex])
+}
+const planeHex = (i) => {
+  //get the long eth token id 
+  let hexPre = "0x80000000000000000000000000000001"
+  let hexPost = i.toString(16).padStart(32,"0") 
+  return  hexPre + hexPost
 }
 const planeData = (i) => {
-  let hash = planeHash(i)
-  let pi = 0
-  if(i < 256){
-    pi = 1 + hashToDecimal(hash,0) % 32
-  }
+  let hex = planeHex(i)
+  let _id = ethers.utils.bigNumberify(hex).toString()
+  //now hash 
+  let hash = planeHash(hex)
+
+  //planet 
+  let pi = planePlanetId(hex)  
+
+  //generate names 
+  let rng = new Chance(hash)
+  NameGen.setRandom(rng)
+  let base = nameBases[pi-1]
 
   return {
-    i : i, 
+    i : i,
+    _id, 
     pi : pi,
     hash : hash,
-    cpx : planeCPX(hash)
+    cpx : planeCPX(hash),
+    name : NameGen.getStateFromBase(base),
+    sites : Array.from({length: 10}, (v, i) => NameGen.getTown(base)),
+  }
+}
+
+/* 
+  Crew Data 
+*/
+const peopleSkills = (planetId) => {
+  let {people, hash} = planetData(planetId)
+  let pHash = ethers.utils.solidityKeccak256(['string','bytes32'], ["people",hash]) 
+  //hash the primary skill for every people 
+  return people.map((ppl,i) => hashToDecimal(pHash,i) % 6)
+}
+const crewDataFromDay = (day,plane,i) => {
+  let baseHash = ethers.utils.solidityKeccak256(['uint256','uint256','uint256'], [day,plane._id,i])  
+  return crewData(-1,plane,baseHash)
+}
+const crewData = (crewId,plane,baseHash) => {
+  let {people} = planetData(plane.pi)
+  let pplSkills = peopleSkills(plane.pi)
+  let hash = ethers.utils.solidityKeccak256(['string','string','bytes32'], [seed,"crew",baseHash])
+  //people 
+  let pr = rarityFromHash(hash,0)
+  pr = pr > 3 ? 2 : pr-1
+  //actual rank 
+  let r = rarityFromHash(hash,1)
+  r = r >= 4 ? 3 : r
+  //skill - 50% primary / 50% random 
+  let ps = hashToDecimal(hash,2) % 2
+  let skill = -1
+  if(ps == 0) {
+    skill = pplSkills[pr]
+  }
+  else {
+    skill = pplSkills[pr] + hashToDecimal(hash,3) % 5
+    skill = skill > 5 ? skill - 5 : skill 
+  }
+  //cpx to approach - 50% based on plane cpx / 50% random 
+  let pa = hashToDecimal(hash,4) % 2
+  let approach = -1
+  if(pa == 0) {
+    approach = plane.cpx.length == 1 ? plane.cpx[0][0] - 1 : plane.cpx[hashToDecimal(hash,5)%plane.cpx.length][0]-1
+  }
+  else {
+    approach = hashToDecimal(hash,6) % 6
+  }
+  //data 
+  return {
+    _id : crewId,
+    name : '',
+    plane : plane._id,
+    planeName : plane.name,
+    baseHash, r, 
+    people : people[pr],
+    approach,
+    skill 
   }
 }
 
 module.exports = {
-  planeHash, planeData, planeTrouble, 
+  arrayUnique, planeHash, planeData, planeTrouble, 
   heroData
 }

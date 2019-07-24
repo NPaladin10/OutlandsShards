@@ -1,4 +1,4 @@
-const {planeTrouble, heroData} = require('./utilities');
+const {planeTrouble, heroData, arrayUnique} = require('./utilities');
 const Chance = require('chance');
 const ethers = require('ethers');
 const express = require('express');
@@ -14,6 +14,35 @@ let submitted = new Map()
 
 const dF = (rng)=>{
     return rng.weighted([-4, -3, -2, -1, 0, 1, 2, 3, 4], [1, 4, 10, 16, 19, 16, 10, 4, 1])
+}
+
+//pull hero data from chain
+const getHeroDataForChallenge = async(ids,getHeroData)=>{
+    let uids = arrayUnique(ids)
+    let data = await getHeroData(uids)
+    //setup return 
+    let heroes = {
+        _all: {},
+        //ids are based on which hero will respond to a certain skill
+        skillCross: ids,
+        //return all unique as an array 
+        get all() {
+            return Object.values(this._all)
+        },
+        get bySkill() {
+            return this.skillCross.map(v=>this._all[v])
+        }
+    }
+    //build 
+    uids.forEach((hid,i)=>{
+        heroes._all[hid] = Object.assign({
+            stress: 0,
+            cool: data.cool[i]
+        }, heroData(hid, data.planes[i], data.blocks[i], data.xp[i]))
+    }
+    )
+    //return heroes
+    return heroes
 }
 
 //Challenge Resolution based upon pulled data 
@@ -49,8 +78,8 @@ const resolveChallenge = (data)=>{
         , [])
     }
     //check to give xp 
-    const giveXP = (h, D) => {
-        if(D >= h.r && h.xp == 0) {
+    const giveXP = (h,D)=>{
+        if (D >= h.r && h.xp == 0) {
             //get hp at rank - round up 
             h.xp = Math.ceil(Math.pow(10, h.r) / 20)
         }
@@ -75,11 +104,11 @@ const resolveChallenge = (data)=>{
         if (R < 0) {
             h.stress += -R
             //give xp - compare D to hero rank 
-            giveXP(h,D)
+            giveXP(h, D)
         } else if (R == 0) {
             h.stress += 1
             //give xp - compare D to hero rank 
-            giveXP(h,D)
+            giveXP(h, D)
             //remove the skill - it is complete 
             skills.shift()
             approaches.shift()
@@ -120,64 +149,11 @@ const resolveChallenge = (data)=>{
 
 const init = (eth,ping)=>{
     //get contracts and functions 
-    let {utils, OutlandsToken, OutlandsRegistry, outlandsTrouble, outlandsXP, logCheck, signData} = eth
+    let {utils, getHeroData, OutlandsToken, OutlandsRegistry, OutlandsUnitStatus, logCheck, signData} = eth
 
     /*
         Functions to pull the data 
     */
-
-    //pull hero data from chain
-    const getHeroDataForChallenge = (ids)=>{
-        return new Promise((resolve,reject)=>{
-            let heroes = {
-                counts: {},
-                _all: {},
-                //ids are based on which hero will respond to a certain skill
-                skillCross: ids,
-                //return all unique as an array 
-                get all() {
-                    return Object.values(this._all)
-                },
-                get bySkill() {
-                    return this.skillCross.map(v=>this._all[v])
-                }
-            }
-            //check which heroes are complete 
-            let hC = ids.map(v=>false)
-            const isComplete = ()=>{
-                return hC.reduce((all,v)=>v && all, true)
-            }
-
-            //now get hero data 
-            ids.forEach((hid,j)=>{
-                outlandsXP.activeXP(hid).then(xp=>{
-                    // xp = [total,available]
-                    xp = xp.map(x=>x.toNumber())
-                    //now pull heroes 
-                    outlandsHeroes.Heroes(hid).then(data=>{
-                        if (heroes.counts[hid])
-                            heroes.counts[hid]++;
-                        else
-                            heroes.counts[hid] = 0;
-                        //data = [planeId,hash]
-                        heroes._all[hid] = Object.assign({
-                            stress: 0,
-                            xp: 0
-                        }, heroData(hid, data[0].toNumber(), data[1], xp))
-                        hC[j] = true
-                        //check for complete
-                        if (isComplete()) {
-                            resolve(heroes)
-                        }
-                    }
-                    )
-                }
-                )
-            }
-            )
-        }
-        )
-    }
 
     const pullChallengeLog = (bn,id)=>{
         return new Promise((resolve,reject)=>{
@@ -200,7 +176,7 @@ const init = (eth,ping)=>{
                     //set values
                     let vals = parse(log).values
                     //pull cooldown value - time required between points of stress 
-                    outlandsTrouble.coolPerStress().then(sCool => {
+                    outlandsTrouble.coolPerStress().then(sCool=>{
                         //now get heroes 
                         getHeroDataForChallenge(vals.heroes.map(hid=>hid.toNumber())).then(heroes=>{
                             let challenge = planeTrouble(vals.period.toNumber(), vals.plane.toNumber())
@@ -214,7 +190,8 @@ const init = (eth,ping)=>{
                             })
                         }
                         ).catch(console.log)
-                    })
+                    }
+                    )
                 } else {
                     resolve({
                         id: id,
@@ -307,7 +284,7 @@ const init = (eth,ping)=>{
                             hash,
                             reward,
                             //notify of xp - consolation for fail
-                            xp : heroes.map((hi,i) => [hi,xp[i]])
+                            xp: heroes.map((hi,i)=>[hi, xp[i]])
                         })
                     }
                     ).catch(console.log)
@@ -321,22 +298,31 @@ const init = (eth,ping)=>{
     router.get('/testResolve/:hex', function(req, res) {
         //reverse the - ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(data)))
         let payload = JSON.parse(utils.toUtf8String(req.params.hex))
-        let {address,data,sig} = payload 
+        let {address, data, sig} = payload
         //validate 
-        if(address != ethers.utils.verifyMessage(JSON.stringify(data),sig)) {
-            return res.json({err:'Invalid Signature'})
+        if (address != ethers.utils.verifyMessage(JSON.stringify(data), sig)) {
+            return res.json({
+                err: 'Invalid Signature'
+            })
         }
         //check valid ownership
-        OutlandsRegistry.ownerOfBatch(data.heroIds).then(owners => {
-            let mayContinue = owners.reduce((mayC,id) => mayC && address == id,true)
+        OutlandsRegistry.ownerOfBatch(data.heroIds).then(owners=>{
+            let mayContinue = owners.reduce((mayC,id)=>mayC && address == id, true)
             //ensure ownership
-            if(!mayContinue) return res.json({err:'Does not own all tokens'})
-            //check cooldown
-            //run result 
-            res.json({
-                data,owners
-            })
-        })
+            if (!mayContinue)
+                return res.json({
+                    err: 'Does not own all tokens'
+                })
+            //check check status
+            getHeroDataForChallenge(data.heroIds, getHeroData).then(heroes=>{
+                //run result 
+                res.json({
+                    heroes
+                })
+            }
+            )
+        }
+        )
     })
 
     return router
