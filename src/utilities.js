@@ -273,7 +273,7 @@ const heroData = (heroId,planeId,block,xp) => {
   let r = rarityFromHash(hash, 0)
   //check against xp
   if(xp) {
-    let xpr = Math.floor(getBaseLog(10,xp[1]))
+    let xpr = Math.floor(getBaseLog(10,xp))
     if(xpr > r) r = xpr
   }
   //second hash determines people
@@ -307,7 +307,7 @@ const heroData = (heroId,planeId,block,xp) => {
     planeName : plane.name,
     block,
     r, ppl, 
-    _xp: xp || [0,0],
+    _xp: xp || 0,
     name: "",
     approaches : ac.map(ci => APPROACHES[ci]),
     skills : sr,
@@ -485,7 +485,7 @@ const crewData = (crewId,plane,baseHash) => {
   }
 }
 
-console.log(d3.range(32).map(v => ruinData(chance.d20(),chance.d20())))
+//console.log(d3.range(32).map(v => ruinData(chance.d20(),chance.d20())))
 
 //function to add planes and check for planets 
 const addPlaneData = (i, app) => {

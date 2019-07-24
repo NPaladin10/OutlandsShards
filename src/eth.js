@@ -61,6 +61,21 @@ let CPXContracts = {
     ],
     address : "0x6D6EF96EFD4E354d63682cBC165f8ddB1cA52dC7",
   },
+  OutlandsUnitStatus : {
+    abi : [
+      "function getXP(uint256[] ids) public view returns(uint256[] total, uint256[] available)",
+      "function getAvailableXP(uint256[] ids) public view returns(uint256[] xp)",
+      "function giveXP(uint256[] ids, uint256[] xp) public",
+      "function useXP(uint256[] ids, uint256[] xp) public",
+      "function getCool(uint256[] ids) public view returns(uint256[] cCool)",
+      "function setCool(uint256[] ids, uint256[] _cool) public",
+      "function getStatus(uint256[] ids) public view returns(uint16[12][] cStatus)",
+      "function setStatus(uint256[] ids, uint8[] i, uint16[] _status) public",
+      "function getUnitData(uint256[] ids) public view returns(uint256[] xp, uint256[] cCool, uint16[12][] cStatus)"
+    ],
+    //Kovan 
+    address : "0x246e9084e0a8572FDAc05d2029CDe383c54A830c",
+  },
   OutlandsTrouble: {
     abi : [
       "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
@@ -75,18 +90,6 @@ let CPXContracts = {
     ],
     address : "0x78a4f476a44aa74829a967a80a1c9443a8dffa2e",
   },
-  OutlandsXP : {
-    abi : [
-      "function activeXP(uint256) public view returns(uint256, uint256)"
-    ],
-    address : "0x58E2671A70F57C1A76362c5269E3b1fD426f43a9"
-  },
-  OutlandsHeroCooldown : {
-    abi : [
-      "function cooldown(uint256) public view returns(uint256)"
-    ],
-    address : "0x0152Cf49360eed5B35c170081Ee8aC0e5c1e2e7C"
-  },
 }
 
 /* Ethers Provider
@@ -96,8 +99,7 @@ let provider = null, signer = null, wallet = null;
 if (typeof web3 !== 'undefined') {
     provider = new ethers.providers.Web3Provider(web3.currentProvider)
     signer = provider.getSigner()
-} else {
-    provider = ethers.getDefaultProvider('ropsten')
+} else {    
     /*
     //find a signer if stored 
     let lastSigner = localStorage.getItem("lastSigner")
@@ -117,15 +119,20 @@ if (typeof web3 !== 'undefined') {
 }
 provider.getNetwork().then(n=> { network = n})
 provider.getBlock ( "latest" ).then(b => { block = b })
+//always set up basic Ropsten and Kovan provider 
+const rProvider = ethers.getDefaultProvider('ropsten')
+const kProvider = ethers.getDefaultProvider('kovan') 
+//set ropsten contacts for view only 
+const viewOutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,rProvider)
+//always set kovan contracts
+const OutlandsUnitStatus = new ethers.Contract(CPXContracts.OutlandsUnitStatus.address,CPXContracts.OutlandsUnitStatus.abi,kProvider)
 
 //handle the contracts - connect with the signer / provider 
-let OutlandsToken, OutlandsRegistry, outlandsTrouble, outlandsXP, outlandsCool;
+let OutlandsToken, OutlandsRegistry, outlandsTrouble;
 const setContracts = (whoSends) => {
     OutlandsToken = new ethers.Contract(CPXContracts.OutlandsToken.address,CPXContracts.OutlandsToken.abi,whoSends)
     OutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,whoSends)
     outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,whoSends)
-    outlandsXP = new ethers.Contract(CPXContracts.OutlandsXP.address,CPXContracts.OutlandsXP.abi,whoSends)    
-    outlandsCool = new ethers.Contract(CPXContracts.OutlandsHeroCooldown.address,CPXContracts.OutlandsHeroCooldown.abi,whoSends)    
 }
 setContracts(signer ? signer : provider)
 
@@ -215,7 +222,7 @@ const submitChallenge = (app, planeId, heroIds, crewIds) => {
 const getTokensOfAddress = (app, address) => {
     let cBlock = block.number
     //check if poll is needed 
-    if(lastPoll == cBlock) return 
+    if(lastPoll == cBlock || network.name != "ropsten") return 
         
     let {utils,heroCooldown,heroXP,tokensHeroes,UIMain,tokens} = app
     let {tokenTypeIds} = CPXContracts.OutlandsToken
@@ -311,8 +318,16 @@ const getHeroData = (ids,app,start) => {
 }
 //polls looking for updates 
 const pollHeroes = (app) => {
-  app.heroes.forEach(h => {
-    h.cool = 0
+  //get array of ids 
+  let ids = app.UIMain.heroIds
+  //pull unit data 
+  OutlandsUnitStatus.getUnitData(ids).then(res => {
+    app.heroes.forEach((h,id) => {
+      let i = ids.indexOf(id)
+      h._xp = res.xp[i].toNumber()
+      h.cool = res.cCool[i].toNumber()
+      h.status = res.cStatus[i]
+    })
   })
 }
 
@@ -372,8 +387,10 @@ const check = (app) => {
       signer = provider.getSigner()
     }
 
+    //get day 
+    viewOutlandsRegistry.day().then(d => UIMain.day = d.toNumber())
     //get range of tokens 
-    OutlandsRegistry.getTokenData().then(data => {
+    viewOutlandsRegistry.getTokenData().then(data => {
       let {count} = data 
       count = count.map(c => c.toNumber())
       //set storage 
@@ -383,26 +400,16 @@ const check = (app) => {
       //now pull data 
       pids.forEach(i => utils.addPlaneData(i, app))
     })
-
-    //get challenge period 
-    outlandsTrouble.currentPeriod().then(p => UIMain.currentPeriod = p.toNumber()) 
-    //get day 
-    OutlandsRegistry.day().then(d => UIMain.day = d.toNumber())
-    //check for toruble 
-    if(UIMain.tid != -1) {
-      let T = UIMain.trouble
-    }
+    //cost 
+    viewOutlandsRegistry.cost(0).then(c => UIMain.searchCost = ethers.utils.formatEther(c))
+    viewOutlandsRegistry.cost(1).then(c => UIMain.recruitCost = ethers.utils.formatEther(c))
+    viewOutlandsRegistry.cost(2).then(c => UIMain.recruitCrewCost = ethers.utils.formatEther(c))
+    //outlandsTrouble.costToChallenge().then(c => UIMain.challengeCost = ethers.utils.formatEther(c))
   }
 
   //scan for CPX
   if(UIMain && signer) {
     let address = UIMain.address
-
-    //cost 
-    OutlandsRegistry.cost(0).then(c => UIMain.searchCost = ethers.utils.formatEther(c))
-    OutlandsRegistry.cost(1).then(c => UIMain.recruitCost = ethers.utils.formatEther(c))
-    OutlandsRegistry.cost(2).then(c => UIMain.recruitCrewCost = ethers.utils.formatEther(c))
-    outlandsTrouble.costToChallenge().then(c => UIMain.challengeCost = ethers.utils.formatEther(c))
 
     signer.getAddress().then(a => {
         if(a != UIMain.address) {
@@ -421,26 +428,25 @@ const check = (app) => {
         UIMain.balance = ethers.utils.formatEther(b).slice(0,5)
       }) 
 
-    if(address !="") {
-      //save state 
-      app.save()
-      //get tokens 
-      getTokensOfAddress(app,address)
-      //poll hero data 
-      pollHeroes(app,address)
+    if(address == "" || network.name != "ropsten") return 
+    //save state 
+    app.save()
+    //get tokens 
+    getTokensOfAddress(app,address)
+    //poll hero data 
+    pollHeroes(app,address)
 
-      //look if there is shares to claim 
-      OutlandsRegistry.fundsReceived(address).then(s => UIMain.shareToClaim = ethers.utils.formatEther(s))
+    //look if there is shares to claim 
+    OutlandsRegistry.fundsReceived(address).then(s => UIMain.shareToClaim = ethers.utils.formatEther(s))
 
-      //time 
-      OutlandsRegistry.nextTimePlayer(address).then(t => UIMain.nextSearch = t.toNumber())
-      //check if plane selected
-      if(UIMain.tid>-1) {
-        //get available crew 
-        getPlaneCrewData(app, UIMain.planeData)
-        //check for time 
-        OutlandsRegistry.nextTimePlane(UIMain.planeData._id).then(t => UIMain.nextRecruit = t.toNumber())
-      }
+    //time 
+    OutlandsRegistry.nextTimePlayer(address).then(t => UIMain.nextSearch = t.toNumber())
+    //check if plane selected
+    if(UIMain.tid>-1) {
+      //get available crew 
+      getPlaneCrewData(app, UIMain.planeData)
+      //check for time 
+      OutlandsRegistry.nextTimePlane(UIMain.planeData._id).then(t => UIMain.nextRecruit = t.toNumber())
     }
   }  
 }

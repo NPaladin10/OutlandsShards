@@ -250,7 +250,7 @@ app.UIMain = new Vue({
         recruitCost : "0.003",
         nextRecruit: 0,
         //Trouble
-        currentPeriod : 0,
+        currentPeriod : 1,
         solveTrouble : false,
         troubleHeroIds : [-1,-1,-1,-1,-1,-1],
         trouble : {},
