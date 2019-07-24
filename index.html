@@ -156,34 +156,6 @@
                     </div>
                 </div>
                 <!--END HEROES---------------------------------------------->
-                <!--HEROES---------------------------------------------->
-                <div class="mt-2" v-if="show == 1" v-cloak>
-                    <div class="input-group">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text">Heroes</span>
-                        </div>
-                        <select class="custom-select" v-model="hid">
-                            <option v-for="(id,i) in heroIds" :value="id">{{allHeroes[i].name}} #{{id.slice(0,5)+'...'+id.slice(-5)}}</option>
-                        </select>
-                    </div>
-                    <div v-if="hid != ''">
-                        <input class="form-control" type="text" placeholder="Hero Name" v-model="heroData.name">
-                        <div>Home Plane: {{heroData.planeName}} XP: {{heroData._xp[1]}}/{{heroData._xp[0]}}</div>
-                        <div>People: {{heroData.ppl}}</div>
-                        <div>Aspects: {{heroData.approaches.join(', ')}}</div>
-                        <h6 class="m-0">Skills</h6>
-                        <div class="d-flex justify-content-between mx-1" v-for="s in heroData.skills">
-                            <div>[{{s[0]}}]</div>
-                            <div>{{s.slice(1).join(", ")}}</div>
-                        </div>
-                        <h6 v-if="cooldown!=''" v-cloak>Cooldown: {{cooldown}}hrs</h6>
-                    </div>
-                    <div class="btn-group btn-block" role="group">
-                        <button type="button" class="btn btn-success btn-block" @click="saveHero()">Save</button>
-                        <button type="button" class="btn btn-info" @click="show=-1">Close</button>
-                    </div>
-                </div>
-                <!--END HEROES---------------------------------------------->
             </div>
             <!--END OVERHEAD---------------------------------------------->
             <div id="map">
