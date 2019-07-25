@@ -8,6 +8,7 @@ import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/Min
     https://github.com/enjin/erc-1155/blob/master/contracts/ERC1155MixedFungibleMintable.sol
     Added URI mutability 
     NOTE: A minter has full control over the tokens - this is for strong dev control of certain game items 
+    kovan - 0x303435cf43478b61F25D6fa8909a7418E1b6E3Ec
 */
 contract MinterControlToken1155 is ERC1155MixedFungible, MinterRole {
 
