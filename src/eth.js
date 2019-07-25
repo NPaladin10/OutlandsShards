@@ -30,6 +30,7 @@ let CPXContracts = {
       "function getNonFungibleIndex(uint256 _id) public pure returns(uint256)",
       "function getNonFungibleBaseType(uint256 _id) public pure returns(uint256)"
     ],
+    //kovan - 0x303435cf43478b61F25D6fa8909a7418E1b6E3Ec
     address : "0x20a2F9E30bdecAFfdc7B9571FF7CAC585D054014",
     tokenTypeIds : {
       "57896044618658097711785492504343953926975274699741220483192166611388333031424" : "plane",
@@ -61,6 +62,18 @@ let CPXContracts = {
     ],
     address : "0x6D6EF96EFD4E354d63682cBC165f8ddB1cA52dC7",
   },
+  CosmicRegistry : {
+    abi : [
+      "function tokenId(uint256) public view returns(uint256)",
+      "function getCPX(address account) public view returns(uint256[7] cpx)",
+      "function getBatchCPX(address[] account) public view returns(uint256[7][] cpx) ",
+      "function mint(uint256 _i, address[] _who, uint256[] _amt) public",
+      "function burn(address _from, uint256[] _ids, uint256[] _values) public",
+      "function makeDiamond(uint256 _amt) public",
+    ],
+    //Kovan 
+    address : "0x1083F9E5Df0Debdf7Ec0a52580ad612F41465A04",
+  },
   OutlandsUnitStatus : {
     abi : [
       "function getXP(uint256[] ids) public view returns(uint256[] total, uint256[] available)",
@@ -78,17 +91,14 @@ let CPXContracts = {
   },
   OutlandsTrouble: {
     abi : [
-      "event NewChallenge (bytes32 id, uint256 period, address indexed player, uint256 indexed plane, uint256[] heroes)",
-      "event CompleteChallenge (bytes32 id, bytes32 hash, uint256[] pxp)",
+      "event ChallengeRecord (uint256 indexed period, address indexed player, uint256 planeId, uint256 points, bytes res)",
       "function currentPeriod() public view returns(uint256)",
       "function coolPerStress() public view returns(uint256)",
-      "function timeBetweenPeriods() public view returns(uint256)",
-      "function costToChallenge() public view returns(uint256)",
-      "function completedChallenges(bytes32) public view returns (bool)",
-      "function complete(uint256 plane, bytes32 id, bytes32 hash, address player, uint256[2] cpx, uint256[] heroes, uint256[] xp, uint256[] pxp, uint256[] cool)",
-      "function submitChallenge(uint256 plane, uint256[] heroes) public payable"
+      "function mayCompleteCheck(uint256 planeId, address player) public view returns (bool mayComplete, uint256 period, uint256 cool)",
+      "function complete(address player, uint256 period, uint256 planeId, uint256 points, uint256[] ids, uint256[] xp, uint256[] cool, bytes res) public"
     ],
-    address : "0x78a4f476a44aa74829a967a80a1c9443a8dffa2e",
+    //Kovan
+    address : "0x402980511D1e0BAc23810B1c1B5ce99e56d867aA",
   },
 }
 
@@ -100,6 +110,7 @@ if (typeof web3 !== 'undefined') {
     provider = new ethers.providers.Web3Provider(web3.currentProvider)
     signer = provider.getSigner()
 } else {    
+  provider = ethers.getDefaultProvider('ropsten')
     /*
     //find a signer if stored 
     let lastSigner = localStorage.getItem("lastSigner")
@@ -126,13 +137,14 @@ const kProvider = ethers.getDefaultProvider('kovan')
 const viewOutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,rProvider)
 //always set kovan contracts
 const OutlandsUnitStatus = new ethers.Contract(CPXContracts.OutlandsUnitStatus.address,CPXContracts.OutlandsUnitStatus.abi,kProvider)
+const CosmicRegistry = new ethers.Contract(CPXContracts.CosmicRegistry.address,CPXContracts.CosmicRegistry.abi,kProvider)
+const OutlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,kProvider)
 
 //handle the contracts - connect with the signer / provider 
 let OutlandsToken, OutlandsRegistry, outlandsTrouble;
 const setContracts = (whoSends) => {
     OutlandsToken = new ethers.Contract(CPXContracts.OutlandsToken.address,CPXContracts.OutlandsToken.abi,whoSends)
     OutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,whoSends)
-    outlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,whoSends)
 }
 setContracts(signer ? signer : provider)
 
@@ -387,6 +399,8 @@ const check = (app) => {
       signer = provider.getSigner()
     }
 
+    //trouble period
+    OutlandsTrouble.currentPeriod().then(d => UIMain.currentPeriod = d.toNumber())
     //get day 
     viewOutlandsRegistry.day().then(d => UIMain.day = d.toNumber())
     //get range of tokens 
@@ -404,7 +418,6 @@ const check = (app) => {
     viewOutlandsRegistry.cost(0).then(c => UIMain.searchCost = ethers.utils.formatEther(c))
     viewOutlandsRegistry.cost(1).then(c => UIMain.recruitCost = ethers.utils.formatEther(c))
     viewOutlandsRegistry.cost(2).then(c => UIMain.recruitCrewCost = ethers.utils.formatEther(c))
-    //outlandsTrouble.costToChallenge().then(c => UIMain.challengeCost = ethers.utils.formatEther(c))
   }
 
   //scan for CPX
@@ -433,6 +446,8 @@ const check = (app) => {
     app.save()
     //get tokens 
     getTokensOfAddress(app,address)
+    //get cpx 
+    CosmicRegistry.getCPX(address).then(res => UIMain.CPX = res.map(c => ethers.utils.formatEther(c)))
     //poll hero data 
     pollHeroes(app,address)
 

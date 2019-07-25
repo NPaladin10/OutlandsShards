@@ -213,7 +213,7 @@ const drawCircleMap = ()=>{
       })  
       
       app.UIMain.tid = cp.data.i
-      app.UIMain.trouble = utils.planeTrouble(app.UIMain.currentPeriod ,app.UIMain.tid)
+      app.UIMain.trouble = utils.planeTrouble(app.UIMain.currentPeriod, app.UIMain.planeData._id)
       app.UIMain.show = 0
       //set planet 
       eth.check(app)
@@ -408,6 +408,7 @@ app.UIMain = new Vue({
         commitToSolveTrouble () {
           let hids = this.troubleHeroIds.slice()
           eth.submitChallenge(app, this.planeData._id, hids, [])
+          this.troubleHeroIds=["","","","","",""]
         }
     }
 })

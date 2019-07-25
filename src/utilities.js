@@ -349,8 +349,9 @@ const planetData = (i) => {
 /*
   Trouble 
 */
-const planeTrouble = (period, i) => {
-  let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(i), "trouble", period])
+const planeTrouble = (period, _id) => {
+  let hex = ethers.utils.bigNumberify(_id).toHexString()
+  let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(hex), "trouble", period])
   //determine difficulty 
   let dn = (hashToDecimal(hash,1)*256+hashToDecimal(hash,0)) % 1024
   let d = difficulty(dn)
@@ -363,14 +364,13 @@ const planeTrouble = (period, i) => {
 
   return {
     period, 
-    id : i,
+    id : _id,
     diff : d,
     sz : sz,
     approach : APPROACHES[a],
     skill: SKILLGROUPS[s],
     skillId : s,
     approachId: a,
-    simpleHash : ethers.utils.solidityKeccak256(['uint256','uint256'], [period, i])
   }
 }
 
