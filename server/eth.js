@@ -42,11 +42,35 @@ const CPXContracts = {
         //Kovan 
         address: "0x246e9084e0a8572FDAc05d2029CDe383c54A830c",
     },
+    CosmicRegistry : {
+        abi : [
+          "function tokenId(uint256) public view returns(uint256)",
+          "function getCPX(address account) public view returns(uint256[7] cpx)",
+          "function getBatchCPX(address[] account) public view returns(uint256[7][] cpx) ",
+          "function mint(uint256 _i, address[] _who, uint256[] _amt) public",
+          "function burn(address _from, uint256[] _ids, uint256[] _values) public",
+          "function makeDiamond(uint256 _amt) public",
+        ],
+        //Kovan 
+        address : "0x1083F9E5Df0Debdf7Ec0a52580ad612F41465A04",
+      },
+    OutlandsTrouble: {
+        abi : [
+          "event ChallengeRecord (uint256 indexed period, address indexed player, uint256 planeId, uint256 points, bytes res)",
+          "function currentPeriod() public view returns(uint256)",
+          "function coolPerStress() public view returns(uint256)",
+          "function mayCompleteCheck(uint256 planeId, address player) public view returns (bool mayComplete, uint256 period, uint256 cool)",
+          "function complete(address player, uint256 period, uint256 planeId, uint256 points, uint256[] ids, uint256[] xp, uint256[] cool, bytes res) public"
+        ],
+        //Kovan
+        address : "0x402980511D1e0BAc23810B1c1B5ce99e56d867aA",
+    },
 }
 
 const OutlandsToken = new ethers.Contract(CPXContracts.OutlandsToken.address,CPXContracts.OutlandsToken.abi,wallet)
 const OutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,wallet)
-const outlandsTrouble = null
+const CosmicRegistry = new ethers.Contract(CPXContracts.CosmicRegistry.address,CPXContracts.CosmicRegistry.abi,kWallet)
+const OutlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,kWallet)
 const OutlandsUnitStatus = new ethers.Contract(CPXContracts.OutlandsUnitStatus.address,CPXContracts.OutlandsUnitStatus.abi,kWallet)
 
 //log check function - searches log back 256 block for a topic releveant to an address
@@ -137,7 +161,8 @@ module.exports = {
     signData,
     OutlandsToken,
     OutlandsRegistry,
-    outlandsTrouble,
+    CosmicRegistry,
+    OutlandsTrouble,
     OutlandsUnitStatus,
     logCheck,
     getHeroData,
