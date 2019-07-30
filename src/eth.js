@@ -111,22 +111,22 @@ if (typeof web3 !== 'undefined') {
     signer = provider.getSigner()
 } else {    
   provider = ethers.getDefaultProvider('ropsten')
-    /*
-    //find a signer if stored 
-    let lastSigner = localStorage.getItem("lastSigner")
-    //if nothing is stored - create wallet and save 
-    if(!lastSigner) {
-      wallet = ethers.Wallet.createRandom()
-      localStorage.setItem(wallet.address, wallet.mnemonic)  
-      localStorage.setItem("lastSigner",wallet.address)
-    }
-    else {
-      //pull wallet from mnemonic
-      let mnemonic = localStorage.getItem(lastSigner)  
-      wallet = ethers.Wallet.fromMnemonic(mnemonic)
-      signer = wallet.connect(provider)
-    }
-    */
+  /*
+  //find a signer if stored 
+  let lastSigner = localStorage.getItem("lastSigner")
+  //if nothing is stored - create wallet and save 
+  if(!lastSigner) {
+    wallet = ethers.Wallet.createRandom()
+    localStorage.setItem(wallet.address, wallet.mnemonic)  
+    localStorage.setItem("lastSigner",wallet.address)
+  }
+  else {
+    //pull wallet from mnemonic
+    let mnemonic = localStorage.getItem(lastSigner)  
+    wallet = ethers.Wallet.fromMnemonic(mnemonic)
+    signer = wallet.connect(provider)
+  }
+  */
 }
 provider.getNetwork().then(n=> { network = n})
 provider.getBlock ( "latest" ).then(b => { block = b })
@@ -290,12 +290,12 @@ const getTokensOfAddress = (app, address) => {
         })
         //now push updates 
         UIMain.planes = [...tokens.get("plane").values()]
-        UIMain.heroIds = [...tokens.get("hero").values()]
-        UIMain.crewIds = [...tokens.get("crew").values()]
         //now pull new hero data
-        getHeroData(UIMain.heroIds,app,lastPoll)
+        getHeroData([...tokens.get("hero").values()],app,lastPoll)
         //pull crew data  
-        getCrewData(UIMain.crewIds,app,lastPoll)
+        getCrewData([...tokens.get("crew").values()],app,lastPoll)
+        //add local data 
+        app.setLocalData() 
         //now set new last poll 
         lastPoll = cBlock
     })
@@ -323,8 +323,8 @@ const getHeroData = (ids,app,start) => {
             let _id = ethers.utils.bigNumberify(hex).toString()
             if(!ids.includes(_id)) return 
             //get hero data 
-            let hero = utils.heroData(_id, plane.toString(), log.blockNumber)
-            heroes.set(_id,hero)
+            let hero = utils.heroData(_id, plane.toString(), log.blockNumber, 0, network.chainId)
+            heroes.set(hero.id,hero)
         })
   })
 }
@@ -349,12 +349,13 @@ const pollHeroes = (app) => {
 
 //Function to pull and update crew data
 const getPlaneCrewData = (app, plane) => {
-  let {planeCrew, day} = app.UIMain 
+  let {day, mayClaim} = app 
+  let {planeCrew} = app.UIMain
   //first pull plaine crew index 
   OutlandsRegistry.getClaimedCrew(plane._id).then(isClaimed => {
     planeCrew.crew = isClaimed.map((av,i) => {
       let C = app.utils.crewDataFromDay(day,plane,i)
-      C.available = !av 
+      C.available = app.mayClaim("crew",plane.i,i) && !av 
       return C 
     })
   })
@@ -388,7 +389,9 @@ const getCrewData = (ids,app,start) => {
 }
 
 const check = (app) => {
-  let {UIMain,utils,planes,planets,tokens} = app
+  let {UIMain,utils,planes,planets,tokens,cooldown} = app
+  //save state 
+  app.save()
 
   if(network && block) {
     provider.getNetwork().then(n=> { network = n})
@@ -418,14 +421,29 @@ const check = (app) => {
     viewOutlandsRegistry.cost(0).then(c => UIMain.searchCost = ethers.utils.formatEther(c))
     viewOutlandsRegistry.cost(1).then(c => UIMain.recruitCost = ethers.utils.formatEther(c))
     viewOutlandsRegistry.cost(2).then(c => UIMain.recruitCrewCost = ethers.utils.formatEther(c))
+    //check if plane selected
+    if(UIMain.tid>-1) {
+      //get available crew 
+      getPlaneCrewData(app, UIMain.planeData)
+      //check for time 
+      OutlandsRegistry.nextTimePlane(UIMain.planeData._id).then(t => {
+        t = t.toNumber() 
+        let _cool = cooldown[UIMain.planeData._id] || 0
+        //set cool for plane 
+        if(t > _cool) cooldown[UIMain.planeData._id] = t
+      })
+    }
   }
 
   //scan for CPX
   if(UIMain && signer) {
+    //get address 
     let address = UIMain.address
 
     signer.getAddress().then(a => {
         if(a != UIMain.address) {
+          //set last address 
+          localStorage.setItem("lastAddress",a)
           UIMain.address = a  
           //redo contracts 
           setContracts(signer)
@@ -441,9 +459,7 @@ const check = (app) => {
         UIMain.balance = ethers.utils.formatEther(b).slice(0,5)
       }) 
 
-    if(address == "" || network.name != "ropsten") return 
-    //save state 
-    app.save()
+    if(address == "local" || address == "" || network.name != "ropsten") return 
     //get tokens 
     getTokensOfAddress(app,address)
     //get cpx 
@@ -453,15 +469,15 @@ const check = (app) => {
 
     //look if there is shares to claim 
     OutlandsRegistry.fundsReceived(address).then(s => UIMain.shareToClaim = ethers.utils.formatEther(s))
-
     //time 
     OutlandsRegistry.nextTimePlayer(address).then(t => UIMain.nextSearch = t.toNumber())
-    //check if plane selected
     if(UIMain.tid>-1) {
-      //get available crew 
-      getPlaneCrewData(app, UIMain.planeData)
-      //check for time 
-      OutlandsRegistry.nextTimePlane(UIMain.planeData._id).then(t => UIMain.nextRecruit = t.toNumber())
+      OutlandsTrouble.mayCompleteCheck(UIMain.planeData._id, address).then(res =>{
+        //claim it if it is done 
+        if(!res.mayComplete) {
+          app.makeClaim("trouble",UIMain.planeData.i,0)
+        }
+      })
     }
   }  
 }

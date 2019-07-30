@@ -261,7 +261,8 @@ const ruinData = (periodId, ruinId) => {
   Hero
 */
 // Hero Data Generator 
-const heroData = (heroId,planeId,block,xp) => {
+const heroData = (heroId,planeId,block,xp,network) => {
+  network = network || -1
   //unique hash for hero 
   let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"hero",heroId,block])
   //pull planet id of plane - heroes are from a plane 
@@ -302,23 +303,29 @@ const heroData = (heroId,planeId,block,xp) => {
   ranks.forEach((v,i) => skillsById[skills[i]] = v)
 
   return {
-    id: heroId, 
+    _id: heroId, 
+    network,
+    get id () { return this.network + "." + this._id },
     plane: planeId, 
     planeName : plane.name,
     block,
-    r, ppl, 
+    r, ppl,
     _xp: xp || 0,
-    name: "",
+    _name : '',
+    get name () {
+      return this._name != '' ? this._name : this.id.slice(3,8)+'...'+this.id.slice(-5)
+    },
     approaches : ac.map(ci => APPROACHES[ci]),
     skills : sr,
     skillsById : skillsById,
     get save() {
       return {
-        id : this.id,
+        id : this._id,
         name : this.name,
+        network,
         plane : this.plane,
         block : this.block,
-        xp : this._xp
+        xp : this._xp,
       }
     }
   }   
@@ -334,14 +341,14 @@ const planetData = (i) => {
   let hash = planetHash(i)
   //people array
   //common, uncommon, rare, very rare, mythic 
-  let people = ["c","u","r","v","m"].map((j,k) => peopleGen(hash+"-"+k,j)) 
+  let ppl = people[i]
 
   return {
     i : i,
     hash : hash,
     type : hashToDecimal(hash,0),
     state : hashToDecimal(hash,1),
-    people : people,
+    people : ppl,
     planes : []
   }
 }
@@ -389,7 +396,7 @@ const planePlanetId = (hex) => {
   let hash = planeHash(hex)
   let i = parseInt(hex.slice(34), 16)
   //for less than 265 
-  let pi = 1 + hashToDecimal(hash,0) % 32
+  let pi = hashToDecimal(hash,0) % 32
   if(i > 256){}
   return pi 
 }
@@ -417,14 +424,19 @@ const planeData = (i) => {
   //generate names 
   let rng = new Chance(hash)
   NameGen.setRandom(rng)
-  let base = nameBases[pi-1]
+  let base = nameBases[pi]
+
+  //poeple 
+  let ppl = planetData(pi).people
 
   return {
     i : i,
+    hex, 
     _id, 
     pi : pi,
     hash : hash,
     cpx : planeCPX(hash),
+    people : ppl.slice(0,2),
     name : NameGen.getStateFromBase(base),
     sites : Array.from({length: 10}, (v, i) => NameGen.getTown(base)),
   }
@@ -443,7 +455,8 @@ const crewDataFromDay = (day,plane,i) => {
   let baseHash = ethers.utils.solidityKeccak256(['uint256','uint256','uint256'], [day,plane._id,i])  
   return crewData(-1,plane,baseHash)
 }
-const crewData = (crewId,plane,baseHash) => {
+const crewData = (crewId,plane,baseHash,network) => {
+  network = network || -1 
   let {people} = planetData(plane.pi)
   let pplSkills = peopleSkills(plane.pi)
   let hash = ethers.utils.solidityKeccak256(['string','string','bytes32'], [seed,"crew",baseHash])
@@ -475,13 +488,27 @@ const crewData = (crewId,plane,baseHash) => {
   //data 
   return {
     _id : crewId,
-    name : '',
+    network,
+    get id () { return this.network + "." + this._id },
+    _name : '',
+    get name () {
+      return this._name != '' ? this._name : this.id.slice(3,8)+'...'+this.id.slice(-5)
+    },
     plane : plane._id,
     planeName : plane.name,
     baseHash, r, 
     people : people[pr],
     approach,
-    skill 
+    skill,
+    get save() {
+      return {
+        id : this._id,
+        name : this._name,
+        network,
+        plane : this.plane,
+        baseHash : this.baseHash
+      }
+    } 
   }
 }
 
@@ -508,6 +535,7 @@ const init = (_seed) => {
     return {
         planetData,
         planeHash,
+        planeHex,
         planeData,
         heroData,
         crewData,
