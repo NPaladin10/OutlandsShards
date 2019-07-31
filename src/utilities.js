@@ -1,10 +1,12 @@
 import {people, nameBases} from "./peoples.js"
 let seed = "OutlandsPlanes2019"
 
+const rarityNames = ["Common","Uncommon","Rare","Very Rare","Mythic"]
 const cpxColors = ["Ruby","Citrine","Topaz","Emerald","Sapphire","Amethyst"]
 const APPROACHES = ["Careful", "Clever", "Flashy", "Forceful", "Quick", "Sneaky"]
 const SKILLGROUPS = ["Arcane", "Combat", "Diplomacy", "Exploration", "Science", "Thievery"]
-
+const RESOURCES = ["Artisans","Barter Goods","Crops","Defenses","Engineering","Fresh Water","Justice","Land","Leadership","Luxury","Medicine","Morale","Prestige","Scholars","Recruits","Safety","Scouts","Spies","Trade","Transport","Warriors","Wealth"]
+const nR = RESOURCES.length
 /* 
   Utilities 
 */
@@ -258,33 +260,17 @@ const ruinData = (periodId, ruinId) => {
 }
 
 /*
-  Hero
+  Skill randomization 
 */
-// Hero Data Generator 
-const heroData = (heroId,planeId,block,xp,network) => {
-  network = network || -1
-  //unique hash for hero 
-  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"hero",heroId,block])
-  //pull planet id of plane - heroes are from a plane 
-  let plane = planeData(parseInt(ethers.utils.bigNumberify(planeId).toHexString().slice(34), 16))
-  let pi = plane.pi 
-  //pull people data 
-  let p = people[pi - 1]
-  //first hash deterines rarity
-  let r = rarityFromHash(hash, 0)
-  //check against xp
-  if(xp) {
-    let xpr = Math.floor(getBaseLog(10,xp))
-    if(xpr > r) r = xpr
-  }
-  //second hash determines people
-  let ppl = p[rarityFromHash(hash, 1)-1]
-  //now the rest is through randomization
-  let rng = new Chance(hash)
-  let nc = rng.weighted([1,2],[7,3])
-  let ac = rng.shuffle([0,1,2,3,4,5]).slice(0,nc)
-  //skills
+const randomSkills = (rng,r,first) => {
   let skills = rng.shuffle([0,1,2,3,4,5])
+  //if first - set first skill 
+  if(first) {
+    let i = skills.indexOf(first)
+    skills[i] = skills[0]
+    skills[0] = first
+  }
+  //map names 
   let sN = skills.map(v => SKILLGROUPS[v])
   let skillsById = [0,0,0,0,0,0]
   //skill ranks
@@ -303,6 +289,40 @@ const heroData = (heroId,planeId,block,xp,network) => {
   ranks.forEach((v,i) => skillsById[skills[i]] = v)
 
   return {
+    sr, skillsById
+  }
+}
+
+/*
+  Hero
+*/
+// Hero Data Generator 
+const heroData = (heroId,planeId,block,xp,network) => {
+  network = network || -1
+  //unique hash for hero 
+  let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"hero",heroId,block])
+  //pull planet id of plane - heroes are from a plane 
+  let plane = planeData(parseInt(ethers.utils.bigNumberify(planeId).toHexString().slice(34), 16))
+  let pi = plane.pi 
+  //pull people data 
+  let p = people[pi]
+  //first hash deterines rarity
+  let r = rarityFromHash(hash, 0)
+  //check against xp
+  if(xp) {
+    let xpr = Math.floor(getBaseLog(10,xp))
+    if(xpr > r) r = xpr
+  }
+  //second hash determines people
+  let ppl = p[rarityFromHash(hash, 1)-1]
+  //now the rest is through randomization
+  let rng = new Chance(hash)
+  let nc = rng.weighted([1,2],[7,3])
+  let ac = rng.shuffle([0,1,2,3,4,5]).slice(0,nc)
+  //skills
+  let skills = randomSkills(rng,r)
+
+  return {
     _id: heroId, 
     network,
     get id () { return this.network + "." + this._id },
@@ -316,8 +336,8 @@ const heroData = (heroId,planeId,block,xp,network) => {
       return this._name != '' ? this._name : this.id.slice(3,8)+'...'+this.id.slice(-5)
     },
     approaches : ac.map(ci => APPROACHES[ci]),
-    skills : sr,
-    skillsById : skillsById,
+    skills : skills.sr,
+    skillsById : skills.skillsById,
     get save() {
       return {
         id : this._id,
@@ -382,6 +402,35 @@ const planeTrouble = (period, _id) => {
 }
 
 /*
+  Need / Surplus 
+*/
+const planeNeed = (period, _id) => {
+  let hex = ethers.utils.bigNumberify(_id).toHexString()
+  let hash = ethers.utils.solidityKeccak256(['bytes32', 'string', 'uint256'], [planeHash(hex), "need", period])
+  //plane 
+  let plane = planeData(_id)
+  //if plane has resource, 50% chance surplus is resource 
+  let sp = hashToDecimal(hash,1)%2 
+  let si = sp == 1 && plane.SR != "" ? RESOURCES.indexOf(plane.SR) : hashToDecimal(hash,2)%nR
+  //Need based on surplus
+  let ni = si + hashToDecimal(hash,3)%(nR-1)
+  if(ni > nR-1) ni -= (nR-1);
+  //Rarity 
+  let ri = (hashToDecimal(hash,4)*256+hashToDecimal(hash,5)) % 1024
+  let r = Math.floor(difficulty(ri)/2)
+  if(r == 0) r = 1;
+
+  return {
+    period, 
+    id : _id,
+    pi : plane.i,
+    need : RESOURCES[ni],
+    surplus : RESOURCES[si],
+    r
+  }
+}
+
+/*
   Plane Data 
 */
 const planeCPX = (hash) => {
@@ -413,10 +462,21 @@ const planeHex = (i) => {
   return  hexPre + hexPost
 }
 const planeData = (i) => {
-  let hex = planeHex(i)
-  let _id = ethers.utils.bigNumberify(hex).toString()
+  let _id, hex;
+  if(typeof i == "string") {
+    hex = i.slice(0,2) == "0x" ? i : ethers.utils.bigNumberify(i).toHexString()
+    _id = ethers.utils.bigNumberify(hex).toString()
+    i = parseInt(hex.slice(34), 16)
+  }
+  else {
+    hex = planeHex(i)
+    _id = ethers.utils.bigNumberify(hex).toString()
+  }
   //now hash 
   let hash = planeHash(hex)
+  //does it have a strategic resource, 50%
+  let nSR = hashToDecimal(hash,3)%2
+  let SR = nSR > 0 ? RESOURCES[hashToDecimal(hash,4)%nR] : ""
 
   //planet 
   let pi = planePlanetId(hex)  
@@ -436,6 +496,7 @@ const planeData = (i) => {
     pi : pi,
     hash : hash,
     cpx : planeCPX(hash),
+    SR,
     people : ppl.slice(0,2),
     name : NameGen.getStateFromBase(base),
     sites : Array.from({length: 10}, (v, i) => NameGen.getTown(base)),
@@ -468,14 +529,8 @@ const crewData = (crewId,plane,baseHash,network) => {
   r = r >= 4 ? 3 : r
   //skill - 50% primary / 50% random 
   let ps = hashToDecimal(hash,2) % 2
-  let skill = -1
-  if(ps == 0) {
-    skill = pplSkills[pr]
-  }
-  else {
-    skill = pplSkills[pr] + hashToDecimal(hash,3) % 5
-    skill = skill > 5 ? skill - 5 : skill 
-  }
+  let first = ps == 1 ? pplSkills[pr] : null 
+  let skills = randomSkills(new Chance(hash),r-1,first)
   //cpx to approach - 50% based on plane cpx / 50% random 
   let pa = hashToDecimal(hash,4) % 2
   let approach = -1
@@ -498,8 +553,14 @@ const crewData = (crewId,plane,baseHash,network) => {
     planeName : plane.name,
     baseHash, r, 
     people : people[pr],
-    approach,
-    skill,
+    approaches : [APPROACHES[approach]],
+    _skills : skills,
+    get skill () { 
+      return this._skills.sr[0][1]
+    }, 
+    get skillsById () { 
+      return this._skills.skillsById
+    },
     get save() {
       return {
         id : this._id,
@@ -537,11 +598,13 @@ const init = (_seed) => {
         planeHash,
         planeHex,
         planeData,
+        planeNeed,
         heroData,
         crewData,
         crewDataFromDay,
         planeTrouble,
-        addPlaneData
+        addPlaneData,
+        RESOURCES
     }
 } 
 

@@ -114,18 +114,21 @@ const resolvers = (app)=>{
     //return result
     let now = Date.now() / 1000
     return {
-      allR,
-      challenge,
-      hash,
+      //result for compact repesentation 
+      res : {
+        c : [challenge.period,challenge.id],
+        hash,
+        //keep skill cross
+        heroes: heroes.skillCross,
+        //previous exp 
+        xp: heroes.bySkill.map(h=>h._xp),
+      },
+      //heroes 
+      heroes: heroes.all,
+      //rewards 
       points: Math.round(points),
-      //keep skill cross
-      hBySkill: heroes.skillCross,
-      heroes: heroes.all.map(h=>h.id),
-      //previous exp 
-      _xp: heroes.all.map(h=>h._xp),
-      //if complete - all skills overcome 
-      res: skills.length == 0,
       xp: heroes.all.map(h=>h.xp),
+      reward: skills.length == 0 ? reward : [0, 0],
       //no cool for no stress - every stress gives another 
       now,
       cool: heroes.all.map(h=>{
@@ -133,7 +136,6 @@ const resolvers = (app)=>{
         return nc.toFixed()
       }
       ),
-      reward: skills.length == 0 ? reward : [0, 0]
     }
   }
 

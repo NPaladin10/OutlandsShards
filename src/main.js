@@ -32,6 +32,11 @@ const app = {
   },
   //local cpx 
   cpx : [0,0,0,0,0,0,0],
+  updateCPX (i,val) {
+    this.cpx[i] += val 
+    //update UI 
+    this.UIMain.CPX = this.cpx.slice()
+  },
   //specific token data 
   planets : new Map(),
   planes : new Map(),
@@ -39,9 +44,18 @@ const app = {
   get heroIds () {
     return [...this.heroes.keys()]
   },
+  giveXP (id,xp) {
+    let h = this.heroes.get(id).save
+    xp += h.xp 
+    //update 
+    let H = utils.heroData(h.id,h.plane,h.block,xp,h.network)
+    this.heroes.set(H.id,H)
+  },
   crew : new Map(),
   //track cooldown independently
   cooldown : {},
+  //record challenge results 
+  challenges : {},
   //track claims - so they cannot be made again 
   claims : {},
   makeClaim (what,plane,i) {
@@ -120,6 +134,10 @@ const app = {
     DB.getItem(".cool").then(cool => {
       this.cooldown = cool || {}
     })
+    //challenges
+    DB.getItem(".challenges").then(c => {
+      this.challenges = c || {}
+    })
     if(address != "") this._load(address)
   },
   save () {
@@ -130,6 +148,8 @@ const app = {
       DB.setItem(".cool",this.cooldown)
       //local claims 
       DB.setItem(".claims",this.claims)
+      //challenge data 
+      DB.setItem(".challenges",this.challenges)
       //local saves 
       let heroes = [...this.heroes.values()].filter(h => h.network == -1)
         .map(h => h.save)
@@ -181,14 +201,22 @@ const drawArc = () => {
   let r = 30
 
   for(let i = 0; i < 6; i++){
-    if(!app.UIMain.troubleHeroes[i].skillsById) continue;
+    if(!app.UIMain.troubleHeroes[i].skillsById && !app.UIMain.troubleCrew[i].skillsById) continue;
     let hero = app.UIMain.troubleHeroes[i]
+    let crew = app.UIMain.troubleCrew[i]
+    //get higher bonus
+    let cB = -5, hB = -5;
+    if(crew.skillsById){
+      cB = crew.skillsById[i] + (crew.approaches.includes(app.UIMain.trouble.approach) ? 1 : 0)
+    }
     //define skill and bonus 
-    let s = hero.skillsById[i]
-    //check for approach bonus 
-    let AB = hero.approaches.includes(app.UIMain.trouble.approach) ? 1 : 0
+    if(hero.skillsById){
+      hB = hero.skillsById[i] + (hero.approaches.includes(app.UIMain.trouble.approach) ? 1 : 0) 
+    }
+    //check for best bonus 
+    let AB = cB > hB ? cB : hB
     //calculate probabilities 
-    let d = diff - (s+AB) 
+    let d = diff - AB 
     let p = d < -3 ? 100 : d > 4 ? 0 : skillProb[d+3]
     let z = d < -4 ? 0 : d > 4 ? 0 : zp[d+4]   
     let f = 100 - p 
@@ -315,6 +343,14 @@ const drawCircleMap = ()=>{
       app.UIMain.trouble = utils.planeTrouble(app.UIMain.day, app.UIMain.planeData._id)
       app.UIMain.trouble.complete = !app.mayClaim("trouble",cp.data.i,0)
       app.UIMain.trouble.sCool = app.params.coolPerStress
+      //Need Surplus
+      let ns = utils.planeNeed(app.UIMain.day, app.UIMain.planeData._id)
+      //need resolved  
+      if(!app.mayClaim("trade",cp.data.i,0)) ns.need = ""
+      //surplus used 
+      if(!app.mayClaim("trade",cp.data.i,1)) ns.surplus = ""
+      //set UI 
+      app.UIMain.needSurplus = ns
       //
       app.UIMain.show = 0
       //set planet 
@@ -364,6 +400,8 @@ app.UIMain = new Vue({
         maySearch: false,
         searchCost : "0.01",
         nextSearch: 0,
+        needSurplus : {},
+        tradeId : "",
         //Hero data 
         hid : "",
         heroIds : [],
@@ -374,6 +412,7 @@ app.UIMain = new Vue({
         currentPeriod : 1,
         solveTrouble : false,
         troubleHeroIds : ["","","","","",""],
+        troubleCrewIds : ["","","","","",""],
         trouble : {},
         challengeCost : "0.005",
         //Completed Challenges
@@ -434,6 +473,18 @@ app.UIMain = new Vue({
           return dt < 0 ? 0 : dt
         },
         //Plane data 
+        allPlanes () { return [...app.planes.values()] },
+        tradeData () {
+          let tD = {} 
+          if(this.tradeId != "") {
+            tD = utils.planeNeed(app.UIMain.day, this.tradeId)
+            //need resolved  
+            if(!app.mayClaim("trade",tD.pi,0)) tD.need = ""
+            //surplus used 
+            if(!app.mayClaim("trade",tD.pi,1)) tD.surplus = ""
+          } 
+          return tD
+        },
         planeData () {
           let plane = {} 
           if (this.tid > -1) {
@@ -445,9 +496,10 @@ app.UIMain = new Vue({
         },
         //Handle Trouble 
         troubleHeroes () {
-          return this.troubleHeroIds.map(id => {
-            return id === "" ? {} : app.heroes.get(id)
-          })
+          return this.troubleHeroIds.map(id => id === "" ? {} : app.heroes.get(id))
+        },
+        troubleCrew () {
+          return this.troubleCrewIds.map(id => id === "" ? {} : app.crew.get(id))
         },
         canSolveTrouble () {
           return this.troubleHeroIds.reduce((state,id) => state && id != "",true)
@@ -465,14 +517,16 @@ app.UIMain = new Vue({
           let dt = (cool - this.now)/(60*60)
           return dt < 0 ? "" : dt.toFixed(2)
         },
+        heroCanAct () {
+          return this.heroIds.map(hi => (app.cooldown[hi] || 0) < this.now)
+        },
         //Crew data
-        allCrew () { return [...app.crew.values()] },
+        allCrew () { return this.crewIds.map(id => app.crew.get(id)) },
         crewData () {
           return this.crid == "" ? {} : app.crew.get(this.crid)
         },
-        //
-        canAct () {
-          return this.heroIds.map(hi => (app.cooldown[hi] || 0) < this.now)
+        crewCanAct () {
+          return this.crewIds.map(hi => (app.cooldown[hi] || 0) < this.now)
         },
         //
         maxCPX () {
@@ -498,15 +552,23 @@ app.UIMain = new Vue({
         skillDiff (sid) {
           let t = this.trouble
           let h = this.troubleHeroes[sid]
+          let c = this.troubleCrew[sid]
           let diff = t.diff
-          let s = h.skillsById[sid]
+          //determine higher bonus 
+          let cB = -5
+          //if crew 
+          if(c.skillsById) {
+            cB = c.skillsById[sid] + (c.approaches.includes(t.approach) ? 1 : 0)
+          }
+          let hB = h.skillsById[sid] + (h.approaches.includes(t.approach) ? 1 : 0)
           //check for approach bonus 
-          let AB = h.approaches.includes(t.approach) ? 1 : 0
-          let d = diff - (s + AB) 
+          let AB = cB > hB ? cB : hB
+          let d = diff - (AB) 
           let p = d < -3 ? 100 : d > 4 ? 0 : this.skillProb[d+3]
           return {d,p}
         },
         conductSearch() {
+          return
           //pay for search 
           let pay = {
             value: ethers.utils.parseUnits(this.searchCost,"ether"),
@@ -543,6 +605,7 @@ app.UIMain = new Vue({
             this.heroIds.push(hero.id)
             //save hero 
             app.heroes.set(hero.id,hero)
+            app.simpleNotify("You just recruited hero "+hero.name,"info")
             //save 
             app.save()
           }
@@ -571,6 +634,7 @@ app.UIMain = new Vue({
             this.crewIds.push(crew.id)
             //save 
             app.crew.set(crew.id,crew)
+            app.simpleNotify("You just recruited crew "+crew.name,"info")
             //save 
             app.save()
           }
@@ -586,17 +650,13 @@ app.UIMain = new Vue({
         claimHeroFunds() {
 
         },
-        tap(){
-          //<button class="btn btn-outline-success btn-sm" type="button" v-if="tid>-1" @click="tap()" :disabled="nextTapTime>0">{{tid}} Tap</button>
-          eC().outlandsPlanes.Tap(Number(this.pid), Number(this.sid)).then(t => {
-              app.simpleNotify("Transaction sent: "+t.hash,"info")
-          })
-        },
         combineCPX() {
+          /*
           let val = ethers.utils.parseUnits(this.toCombine,'ether')
           eC().cpxRegistry.makeDiamond(val.toString()).then(t => {
               app.simpleNotify("Transaction sent: "+t.hash,"info")
           })
+          */
         },
         saveHero () {
           let h = this.heroData
@@ -610,21 +670,73 @@ app.UIMain = new Vue({
             //plane data and set cool 
             let plane = this.planeData
             //make local claim 
-            //app.makeClaim("trouble",plane.i,0)
+            app.makeClaim("trouble",plane.i,0)
             //run trouble 
             let tR = app.resolveChallenge({
+              crew : this.troubleCrew,
               heroes : this.troubleHeroes,
               challenge : this.trouble
             })
+            //notify
+            tR.heroes.forEach((h,i) => {
+              if(tR.xp[i] > 0) {
+                let text = h.name + " has earned "+tR.xp[i]+" XP."
+                app.simpleNotify(text,"success")
+                //give xp 
+                app.giveXP(h.id,tR.xp[i])
+              }
+              //cool notify 
+              let cool = Number(tR.cool[i])
+              let delta = Math.round((cool - this.now)/60)
+              if(delta > 0) {
+                let text = h.name + " has "+delta+" minutes of cooldown."
+                app.simpleNotify(text,"warning")
+                //set cool 
+                app.cooldown[h.id] = cool 
+              }
+            })
+            if(tR.reward[1] > 0){
+              let text = "You have earned "+tR.reward[1]+" "+this.cpxNames[tR.reward[0]]+"."
+              app.simpleNotify(text,"success")
+              //provide CPX 
+              app.updateCPX(tR.reward[0],tR.reward[1])
+            }
+            //turn the challenge into hex  
+            let hex = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(tR.res)))
+            //save challenge data 
+            let cid = this.trouble.period+"."+plane.i
+            app.challenges[cid] = hex
             //save 
-            //app.save()
+            app.save()
+            //close display
             this.troubleHeroIds=["","","","","",""]
+            this.tid = -1
+            this.show = -1
           }
           /*
           let hids = this.troubleHeroIds.slice()
           eth.submitChallenge(app, this.planeData._id, hids, [])
           this.troubleHeroIds=["","","","","",""]
           */
+        },
+        makeTrade(from,to) {
+          if(from.surplus != to.need) return
+          let ri = utils.RESOURCES.indexOf(from.surplus)
+          let color = 1 + ri % 6 
+          let random = 2+chance.rpg("2d4",{sum:true})
+          let value = Math.pow(random,from.r-1 == 0 ? -1 : from.r-1)
+          //claim - need is 0, surplus is 1 
+          app.makeClaim("trade",to.pi,0)
+          app.makeClaim("trade",from.pi,1)
+          //provide CPX 
+          app.updateCPX(color,value)
+          //notify 
+          let text = from.surplus+" Trade Made, you earned "+value+" "+this.cpxNames[color]+"."
+          app.simpleNotify(text,"info")
+          //close display 
+          this.tid = -1
+          this.tradeId = ""
+          this.show = -1
         }
     }
 })
