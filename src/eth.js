@@ -205,7 +205,7 @@ const signData = (types,data) => {
 
 //Function to check if challenges have been submitted 
 const submitChallenge = (app, planeId, heroIds, crewIds) => {
-  let {tokens, UIMain} = app 
+  let {tokens, UI} = app 
   //ensure ownership
   let mayContinue = heroIds.concat(crewIds).reduce((mayC,id) => mayC && tokens.has(id),true)
   if(!mayContinue) return 
@@ -214,7 +214,7 @@ const submitChallenge = (app, planeId, heroIds, crewIds) => {
   signer.signMessage(JSON.stringify(data)).then(sig => {
     //turn it into hex 
     let payload = {
-      address : UIMain.address,
+      address : UI.main.address,
       data,
       sig 
     }
@@ -236,7 +236,7 @@ const getTokensOfAddress = (app, address) => {
     //check if poll is needed 
     if(lastPoll == cBlock || network.name != "ropsten") return 
         
-    let {utils,heroCooldown,heroXP,tokensHeroes,UIMain,tokens} = app
+    let {utils,heroCooldown,heroXP,tokensHeroes,UI,tokens} = app
     let {tokenTypeIds} = CPXContracts.OutlandsToken
     let topic = OutlandsToken.interface.events.TransferSingle.topic
     
@@ -289,7 +289,7 @@ const getTokensOfAddress = (app, address) => {
             }
         })
         //now push updates 
-        UIMain.planes = [...tokens.get("plane").values()]
+        UI.main.planes = [...tokens.get("plane").values()]
         //now pull new hero data
         getHeroData([...tokens.get("hero").values()],app,lastPoll)
         //pull crew data  
@@ -308,7 +308,7 @@ const getTokensOfAddress = (app, address) => {
 //initial pull of hero data 
 const getHeroData = (ids,app,start) => {
   if(ids.length == 0) return 
-  let {UIMain,tokens,utils,heroes} = app
+  let {UI,tokens,utils,heroes} = app
   let topic = OutlandsRegistry.interface.events.NewHero.topic
 
   logCheck(OutlandsRegistry.address,topic,start).then(res => {
@@ -323,7 +323,13 @@ const getHeroData = (ids,app,start) => {
             let _id = ethers.utils.bigNumberify(hex).toString()
             if(!ids.includes(_id)) return 
             //get hero data 
-            let hero = utils.heroData(_id, plane.toString(), log.blockNumber, 0, network.chainId)
+            let hero = utils.heroData({
+              heroId: _id, 
+              planeId: plane.toString(), 
+              block: log.blockNumber, 
+              xp: 0, 
+              netowrk : network.chainId
+              })
             heroes.set(hero.id,hero)
         })
   })
@@ -331,7 +337,7 @@ const getHeroData = (ids,app,start) => {
 //polls looking for updates 
 const pollHeroes = (app) => {
   //get array of ids 
-  let ids = app.UIMain.heroIds
+  let ids = app.UI.main.heroIds
   //pull unit data 
   OutlandsUnitStatus.getUnitData(ids).then(res => {
     app.heroes.forEach((h,id) => {
@@ -350,7 +356,7 @@ const pollHeroes = (app) => {
 //Function to pull and update crew data
 const getPlaneCrewData = (app, plane) => {
   let {day, mayClaim} = app 
-  let {planeCrew} = app.UIMain
+  let {planeCrew} = app.UI.main
   //first pull plaine crew index 
   OutlandsRegistry.getClaimedCrew(plane._id).then(isClaimed => {
     planeCrew.crew = isClaimed.map((av,i) => {
@@ -364,7 +370,7 @@ const getPlaneCrewData = (app, plane) => {
 //initial pull of crew data 
 const getCrewData = (ids,app,start) => {
   if(ids.length == 0) return 
-  let {UIMain,tokens,utils,planes,crew} = app
+  let {UI,tokens,utils,planes,crew} = app
   let topic = OutlandsRegistry.interface.events.NewUnit.topic
 
   logCheck(OutlandsRegistry.address,topic,start).then(res => {
@@ -389,7 +395,7 @@ const getCrewData = (ids,app,start) => {
 }
 
 const check = (app) => {
-  let {UIMain,utils,planes,planets,tokens,cooldown} = app
+  let {UI,utils,planes,planets,tokens,cooldown} = app
   //save state 
   app.save()
 
@@ -403,9 +409,9 @@ const check = (app) => {
     }
 
     //trouble period
-    OutlandsTrouble.currentPeriod().then(d => UIMain.currentPeriod = d.toNumber())
+    OutlandsTrouble.currentPeriod().then(d => UI.main.currentPeriod = d.toNumber())
     //get day 
-    viewOutlandsRegistry.day().then(d => UIMain.day = d.toNumber())
+    viewOutlandsRegistry.day().then(d => UI.main.day = d.toNumber())
     //get range of tokens 
     viewOutlandsRegistry.getTokenData().then(data => {
       let {count} = data 
@@ -418,33 +424,33 @@ const check = (app) => {
       pids.forEach(i => utils.addPlaneData(i, app))
     })
     //cost 
-    viewOutlandsRegistry.cost(0).then(c => UIMain.searchCost = ethers.utils.formatEther(c))
-    viewOutlandsRegistry.cost(1).then(c => UIMain.recruitCost = ethers.utils.formatEther(c))
-    viewOutlandsRegistry.cost(2).then(c => UIMain.recruitCrewCost = ethers.utils.formatEther(c))
+    viewOutlandsRegistry.cost(0).then(c => UI.main.searchCost = ethers.utils.formatEther(c))
+    viewOutlandsRegistry.cost(1).then(c => UI.main.recruitCost = ethers.utils.formatEther(c))
+    viewOutlandsRegistry.cost(2).then(c => UI.main.recruitCrewCost = ethers.utils.formatEther(c))
     //check if plane selected
-    if(UIMain.tid>-1) {
+    if(UI.main.tid>-1) {
       //get available crew 
-      getPlaneCrewData(app, UIMain.planeData)
+      getPlaneCrewData(app, UI.main.planeData)
       //check for time 
-      OutlandsRegistry.nextTimePlane(UIMain.planeData._id).then(t => {
+      OutlandsRegistry.nextTimePlane(UI.main.planeData._id).then(t => {
         t = t.toNumber() 
-        let _cool = cooldown[UIMain.planeData._id] || 0
+        let _cool = cooldown[UI.main.planeData._id] || 0
         //set cool for plane 
-        if(t > _cool) cooldown[UIMain.planeData._id] = t
+        if(t > _cool) cooldown[UI.main.planeData._id] = t
       })
     }
   }
 
   //scan for CPX
-  if(UIMain && signer) {
+  if(UI.main && signer) {
     //get address 
-    let address = UIMain.address
+    let address = UI.main.address
 
     signer.getAddress().then(a => {
-        if(a != UIMain.address) {
+        if(a != UI.main.address) {
           //set last address 
           localStorage.setItem("lastAddress",a)
-          UIMain.address = a  
+          UI.main.address = a  
           //redo contracts 
           setContracts(signer)
           //load data from db
@@ -456,26 +462,26 @@ const check = (app) => {
       })
       //get the eth balance  
       signer.getBalance().then(b => {
-        UIMain.balance = ethers.utils.formatEther(b).slice(0,5)
+        UI.main.balance = ethers.utils.formatEther(b).slice(0,5)
       }) 
 
     if(address == "local" || address == "" || network.name != "ropsten") return 
     //get tokens 
     getTokensOfAddress(app,address)
     //get cpx 
-    CosmicRegistry.getCPX(address).then(res => UIMain.CPX = res.map(c => ethers.utils.formatEther(c)))
+    CosmicRegistry.getCPX(address).then(res => UI.main.CPX = res.map(c => ethers.utils.formatEther(c)))
     //poll hero data 
     pollHeroes(app,address)
 
     //look if there is shares to claim 
-    OutlandsRegistry.fundsReceived(address).then(s => UIMain.shareToClaim = ethers.utils.formatEther(s))
+    OutlandsRegistry.fundsReceived(address).then(s => UI.main.shareToClaim = ethers.utils.formatEther(s))
     //time 
-    OutlandsRegistry.nextTimePlayer(address).then(t => UIMain.nextSearch = t.toNumber())
-    if(UIMain.tid>-1) {
-      OutlandsTrouble.mayCompleteCheck(UIMain.planeData._id, address).then(res =>{
+    OutlandsRegistry.nextTimePlayer(address).then(t => UI.main.nextSearch = t.toNumber())
+    if(UI.main.tid>-1) {
+      OutlandsTrouble.mayCompleteCheck(UI.main.planeData._id, address).then(res =>{
         //claim it if it is done 
         if(!res.mayComplete) {
-          app.makeClaim("trouble",UIMain.planeData.i,0)
+          app.makeClaim("trouble",UI.main.planeData.i,0)
         }
       })
     }

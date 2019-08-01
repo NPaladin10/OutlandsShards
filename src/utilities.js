@@ -5,7 +5,7 @@ const rarityNames = ["Common","Uncommon","Rare","Very Rare","Mythic"]
 const cpxColors = ["Ruby","Citrine","Topaz","Emerald","Sapphire","Amethyst"]
 const APPROACHES = ["Careful", "Clever", "Flashy", "Forceful", "Quick", "Sneaky"]
 const SKILLGROUPS = ["Arcane", "Combat", "Diplomacy", "Exploration", "Science", "Thievery"]
-const RESOURCES = ["Artisans","Barter Goods","Crops","Defenses","Engineering","Fresh Water","Justice","Land","Leadership","Luxury","Medicine","Morale","Prestige","Scholars","Recruits","Safety","Scouts","Spies","Trade","Transport","Warriors","Wealth"]
+const RESOURCES = ["Artisans","Barter Goods","Crops","Defenses","Energy","Engineering","Fresh Water","Justice","Land","Leadership","Luxury","Medicine","Morale","Prestige","Scholars","Rare Materials","Recruits","Safety","Scouts","Spies","Trade","Transport","Warriors","Wealth"]
 const nR = RESOURCES.length
 /* 
   Utilities 
@@ -297,7 +297,8 @@ const randomSkills = (rng,r,first) => {
   Hero
 */
 // Hero Data Generator 
-const heroData = (heroId,planeId,block,xp,network) => {
+const heroData = (opts) => {
+  let {heroId,planeId,block,xp,network,name,faction} = opts
   network = network || -1
   //unique hash for hero 
   let hash = ethers.utils.solidityKeccak256(['string','string','uint256','uint256'], [seed,"hero",heroId,block])
@@ -331,7 +332,8 @@ const heroData = (heroId,planeId,block,xp,network) => {
     block,
     r, ppl,
     _xp: xp || 0,
-    _name : '',
+    _name : name || '',
+    faction : faction || -1,
     get name () {
       return this._name != '' ? this._name : this.id.slice(3,8)+'...'+this.id.slice(-5)
     },
@@ -346,6 +348,7 @@ const heroData = (heroId,planeId,block,xp,network) => {
         plane : this.plane,
         block : this.block,
         xp : this._xp,
+        faction : this.faction
       }
     }
   }   

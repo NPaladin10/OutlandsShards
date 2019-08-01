@@ -14,7 +14,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   background-color: whitesmoke;
-  max-height: 70%;
+  max-height: 85%;
   overflow-y: auto;
 }
 @media only screen and (max-width: 600px) {

@@ -64,10 +64,11 @@ const resolvers = (app)=>{
       , [])
     }
     //check to give xp 
-    const giveXP = (h,SB,D)=>{
-      if (D >= SB && h.xp == 0) {
-        //get hp at skill bonus rank - round up 
-        h.xp = Math.ceil(Math.pow(10, SB) / 20)
+    const giveXP = (h,SR)=>{
+      //get xp at skill bonus rank - round up
+      let nxp = Math.ceil(Math.pow(10, SR+1) / 20)
+      if (nxp > h.xp) {
+        h.xp = nxp 
       }
     }
     //repeat until finished or no one can challenge
@@ -82,35 +83,37 @@ const resolvers = (app)=>{
       h = h.stress > 9 ? alt : h
       //check for approach bonus 
       let AB = h.approaches.includes(a) ? 1 : 0
-      let skillB = h.skillsById[s] + AB
+      let skillR = h.skillsById[s]
+      let SB = skillR + AB
       //roll + bonus 
       //Want the result to be 0 or greater 
-      let R = (dF(rng) + skillB) - (D + dF(rng))
+      let R = (dF(rng) + SB) - (D + dF(rng))
       allR.push(R)
       //check for result 
       if (R < 0) {
         h.stress += -R
-        //give xp - D to skill bonus
-        giveXP(h, skillB, D)
+        //give xp 
+        giveXP(h, skillR)
       } else if (R == 0) {
         h.stress += 1
-        //give xp - compare D to skill bonus 
-        giveXP(h, skillB, D)
+        //give xp 
+        giveXP(h, skillR)
         //remove the skill - it is complete 
         skills.shift()
         approaches.shift()
         //give points 
-        points += Math.pow(10, D - skillB)
+        points += Math.pow(10, D - SB)
       } else {
         //remove the skill - it is complete 
         skills.shift()
         approaches.shift()
         //give points 
-        points += Math.pow(10, D - skillB)
+        points += Math.pow(10, D - SB)
       }
     }
     //check for reward - Diamond or a color 
     let reward = [rng.weighted([0, challenge.approachId + 1], [2, 3]), Math.pow(2, D)]
+    let faction = heroes.bySkill[challenge.skillId].faction
     //return result
     let now = Date.now() / 1000
     return {
@@ -123,6 +126,7 @@ const resolvers = (app)=>{
         //previous exp 
         xp: heroes.bySkill.map(h=>h._xp),
       },
+      faction,
       //heroes 
       heroes: heroes.all,
       //rewards 
