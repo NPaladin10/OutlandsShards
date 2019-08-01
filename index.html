@@ -31,6 +31,7 @@
                 Claim <span class="font-weight-bold">Ξ</span>
                 <span>{{shareToClaim}}</span>
               </button>
+              <button type="button" class="btn btn-block btn-info" @click="show=6" data-toggle="collapse" href="#menu-list">About</button>
               <button type="button" class="btn btn-block btn-danger" @click="reset()" data-toggle="collapse" href="#menu-list">Reset Game</button>
             </div>
           </div>
@@ -191,7 +192,15 @@
               <div>[{{s[0]}}]</div>
               <div>{{s.slice(1).join(", ")}}</div>
             </div>
-            <h6 v-if="cooldown!=''" v-cloak>Cooldown: {{cooldown}}hrs</h6>
+            <div class="input-group mt-1" v-if="cooldown!=''">
+              <div class="input-group-prepend">
+                <span class="input-group-text">Cooldown</span>
+              </div>
+              <div class="input-group-append">
+                <span class="input-group-text">{{cooldown}} hrs</span>
+                <button type="button" class="btn btn-warning" v-if="CPX[0]>=1" @click="reduceCool()">Reduce (1<span class="font-weight-bold diamond">&#10023;</span>)</button>
+              </div>
+            </div>
           </div>
           <div class="btn-group btn-block" role="group">
             <button type="button" class="btn btn-success btn-block" @click="saveHero()">Save</button>
@@ -199,8 +208,11 @@
           </div>
         </div>
         <!--END HEROES---------------------------------------------->
+        <!--FACTIONS 7---------------------------------------------->
+        <factions class="mt-2 p-1" v-if="show==7" v-cloak></factions>
+        <!--END FACTIONS---------------------------------------------->
         <!--ABOUT (6)---------------------------------------------->
-        <div class="mt-2 p-1" v-if="show == 6" v-cloak>
+        <div class="mt-2 p-1" v-if="show==6" v-cloak>
           <h3>Welcome to the Outlands!</h3>
           <p align="left">The last Cosmic War ended with the shattering of countless worlds. 
                     As they were torn apart an attempt was made to save some of their populations. 
@@ -219,9 +231,17 @@
           <p align="left">You start with five heroes and a small amount of Diamond. Use it to recruit heroes, 
           crew and buy gear. Spend it wisely. 
           </p>
-          <button type="button" class="btn btn-info" @click="show=-1">Close</button>
+          <div class="p-1">
+            <button type="button" class="btn btn-info" @click="show=7">Factions</button>
+          </div>
+          <div>
+            <button type="button" class="btn btn-info" @click="show=-1">Close</button>
+          </div>
         </div>
         <!--END ABOUT---------------------------------------------->
+        <!--OVERTEXT---------------------------------------------->
+        <over-text class="mt-2 p-1" v-if="overTextId != ''" v-cloak></over-text>
+        <!--END OVERTEXT---------------------------------------------->
       </div>
       <!--END OVERHEAD---------------------------------------------->
       <div id="map">
@@ -231,12 +251,12 @@
       <!--END FOOTER---------------------------------------------->
       <div class="overlay m-1 p-1" style="bottom:0;" align="center">
         <div class="bg-light">
-          <div class="d-flex justify-content-center">
+          <div class="d-flex justify-content-center align-items-center">
             <span class="font-weight-bold">Ξ</span>
             <span>{{balance}}</span>
-            <span class="font-weight-bold diamond ml-2">&#10023;</span>
+            <span class="font-weight-bold diamond ml-3">&#10023;</span>
             <span>{{CPX[0]}}</span>
-            <div class="input-group input-group-sm ml-2" style="width:175px;" v-if="maxCPX>0 && unlocked">
+            <div class="input-group input-group-sm ml-2" style="width:175px;" v-if="maxCPX>0">
               <input type="number" class="form-control" min="0" :max="maxCPX" step="0.1" v-model="toCombine">
               <div class="input-group-append">
                 <button class="btn btn-info" type="button" @click="combineCPX()">Combine CPX</button>
@@ -252,6 +272,32 @@
         </div>
       </div>
     </div>
+    <template id="over-text">
+      <div>
+        <div v-html="content"></div>
+        <button type="button" class="btn btn-info" v-for="o in options">{{o[0]}}</button>
+        <div v-if="showClose" v-cloak>
+          <button type="button" class="btn btn-info" @click="show=-1">Close</button>
+        </div>
+      </div>
+    </template>
+    <template id="factions">
+      <div align="left">
+        <h3>Player Factions</h3>
+        <faction-data :F="F" v-for="F in playerFactions"></faction-data>
+        <h3>Non-Player Factions</h3>
+        <faction-data :F="F" v-for="F in nonPlayerFactions"></faction-data>
+      </div>
+    </template>
+    <template id="faction-data">
+      <div class="p-1">
+        <h5 class="m-0">{{F.name}}</h5>
+        <div>{{F.text}}</div>
+        <div>
+          <span class="mx-2" v-for="(n,i) in ['Might','Reach','Slight']">{{n}}: {{F.stats[i]}}</span>
+        </div>
+      </div>
+    </template>
   </body>
   <script src="src/nameGenerate.js"></script>
   <script src="lib/ethers-v4.min.js"></script>
