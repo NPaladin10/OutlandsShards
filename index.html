@@ -105,10 +105,26 @@
         <!--END CHALLENGES---------------------------------------------->
         <!--TROUBLE---------------------------------------------->
         <div v-if="show == 2" v-cloak>
-          <h5 class="my-0">Plane {{tid}} Trouble</h5>
+          <h5 class="my-0">Plane {{tid}} Trouble <button type="button" class="btn btn-sm btn-info" data-toggle="collapse" href="#troubleAbout">&#8520;</button></h5>
           <h6 class="mx-1 my-0">{{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
+          <h6 class="mx-1 my-0" v-if="trouble.source">Cause: {{trouble.source.name}}</h6>
+          <div class="p-2 collapse" id="troubleAbout" align="left" style="max-width:450px;">Select a hero to solve each skill challenge. Not every skill may be faced
+            when solving the Trouble, the central skill ({{trouble.skill}}) will. If the hero 
+            fails to defeat a skill they will recieve stress which will require a period of 
+            cooldown, but they will also earn the listed XP for their effort. They will only 
+            earn XP once for every trouble they face. The chances of a hero solving a skill 
+            challenge is represented by the colored arc: green is success, blue is success with 
+            stress, and red is failure. If you successfully solve the trouble by facing 
+            {{trouble.sz}} skill challenges you will recive a reward of CPX.     
+          </div>
+          <div class="mt-2" v-if="troubleLeadFaction.name">
+            <h6 class="my-0">Lead Hero: {{troubleHeroes[trouble.skillId].name}}</h6>
+            <h6>Faction: {{troubleLeadFaction.name}}</h6>
+          </div>
           <div class="mt-1" v-for="n in 6">
-            <h5 class="m-0">{{skillNames[n-1]}}</h5>
+            <h5 class="m-0">
+              {{skillNames[n-1]}} <span v-if="troubleHeroIds[n-1] != ''">({{troubleXP[n-1]}}XP)</span>
+            </h5>
             <div class="d-flex justify-content-around align-items-center">
               <div>
                 <div :class="troubleHeroIds[n-1] == -1 ? 'w-100' : ''">
@@ -198,7 +214,11 @@
               </div>
               <div class="input-group-append">
                 <span class="input-group-text">{{cooldown}} hrs</span>
-                <button type="button" class="btn btn-warning" v-if="CPX[0]>=1" @click="reduceCool()">Reduce (1<span class="font-weight-bold diamond">&#10023;</span>)</button>
+                <button type="button" class="btn btn-warning" v-if="CPX[0]>=1" @click="reduceCool()">
+                  Reduce (1<span class="font-weight-bold diamond">&#10023;</span>
+                  )
+                
+                </button>
               </div>
             </div>
           </div>
