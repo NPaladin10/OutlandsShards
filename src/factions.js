@@ -256,13 +256,36 @@ const UI = (app)=>{
     _rep : {},
     get rep () { return this._rep },
     changeRep (id,mod) {
+      //rep at id 
       let _rep = this._rep[id] || 0
       _rep += mod
       this._rep[id] = _rep 
+      //check for plane - if so increase total rep
+      id = id.split(".") 
+      if(id[1].charAt(0) != "p") return 
+      //total rep 
+      let fid = id[0]
+      let _trep = this._rep[fid] || 0
+      _trep += mod 
+      this._rep[fid] = _trep
     },
+    byId (id) { return FACTIONS.find(f => f.id == id) },
     get all() { return FACTIONS },
     get player () { return FACTIONS.filter(f => f.isPlayer) },
     get nonPlayer () { return FACTIONS.filter(f => !f.isPlayer) },
+    troubleSource () {
+      let {player, nonPlayer} = app.factions
+      //establish rng 
+      let rng = new Chance("trouble."+app.day)
+      //run for each 
+      let n = app.planes.size 
+      return Array.from({length: n}, (v, i) => {
+        let type = rng.weighted(["np","p",""],[25,15,60])
+        if(type == "np") return rng.pickone(nonPlayer)
+        else if(type == "p") return rng.pickone(player)
+        return null
+      })
+    }
   }
 
   Vue.component("faction-data",{

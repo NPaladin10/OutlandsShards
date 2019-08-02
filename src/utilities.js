@@ -576,7 +576,63 @@ const crewData = (crewId,plane,baseHash,network) => {
   }
 }
 
-//console.log(d3.range(32).map(v => ruinData(chance.d20(),chance.d20())))
+/* 
+  Gear Data 
+*/
+const gearDataFromDay = (day,plane,i) => {
+  let baseHash = ethers.utils.solidityKeccak256(['uint256','uint256','uint256'], [day,plane._id,i])  
+  return gearData(-1,plane,baseHash)
+}
+const gearData = (crewId,plane,baseHash,network) => {
+  network = network || -1 
+  let {people} = planetData(plane.pi)
+  let pplSkills = peopleSkills(plane.pi)
+  let hash = ethers.utils.solidityKeccak256(['string','string','bytes32'], [seed,"gear",baseHash])
+  //people 
+  let pr = rarityFromHash(hash,0)
+  pr = pr > 3 ? 2 : pr-1
+  //actual rank 
+  let r = rarityFromHash(hash,1)
+  //generate capabilities 
+  let rng = new Chance(hash)
+  //o - overcome roll / r - improved result / d - defense / a - aspect 
+  let abilities = rng.shuffle(["o","r","d","a","a"])
+  //primary skill - 50% based on people / 50% random 
+  let rs = rng.d6()-1
+  let skill = rng.pickone(pplSkills[pr],rs)
+  //cpx to approach - 50% based on plane cpx / 50% random 
+  let ra = rng.d6()-1
+  let rcpx = rng.pickone(plane.cpx)[0]-1
+  let approach = rng.pickone(rcpx,rs)
+  //generate aspects 
+  let aspects = [] 
+  for(let i = 0; i < 2; i++){
+    //skill / approach / color 
+    aspects.push([rng.pickone(["s","a","c"]),rng.d6()-1,rng.pickone(["s","a","c"]),rng.d6()-1])
+  }
+  //data 
+  return {
+    _id : crewId,
+    network,
+    get id () { return this.network + "." + this._id },
+    plane : plane._id,
+    planeName : plane.name,
+    baseHash, r, 
+    abilities,
+    approach,
+    skill,
+    aspects,
+    get save() {
+      return {
+        id : this._id,
+        network,
+        plane : this.plane,
+        baseHash : this.baseHash
+      }
+    } 
+  }
+}
+
 
 //function to add planes and check for planets 
 const addPlaneData = (i, app) => {

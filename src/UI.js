@@ -159,6 +159,7 @@ const drawCircleMap = (app)=>{
     app.UI.main.tid = cp.data.i
     //set trouble 
     app.UI.main.trouble = utils.planeTrouble(app.UI.main.day, app.UI.main.planeData._id)
+    app.UI.main.trouble.source = app.factions.troubleSource()[cp.data.i]
     app.UI.main.trouble.complete = !app.mayClaim("trouble", cp.data.i, 0)
     app.UI.main.trouble.sCool = app.params.coolPerStress
     //Need Surplus
@@ -343,8 +344,18 @@ const UI = (app)=>{
       troubleHeroes() {
         return this.troubleHeroIds.map(id=>id === "" ? {} : app.heroes.get(id))
       },
+      troubleLeadFaction () {
+        let fid = this.troubleHeroes[this.trouble.skillId].faction || -1
+        return fid > -1 ? app.factions.byId(fid) : {}
+      },
       troubleCrew() {
         return this.troubleCrewIds.map(id=>id === "" ? {} : app.crew.get(id))
+      },
+      troubleXP () {
+        return this.troubleHeroes.map((H,i) => {
+          let b = H.skillsById ? H.skillsById[i] : -4
+          return Math.ceil(Math.pow(10, b+1) / 20)
+        })
       },
       canSolveTrouble() {
         return this.troubleHeroIds.reduce((state,id)=>state && id != "", true)
@@ -356,6 +367,7 @@ const UI = (app)=>{
       heroData() {
         let hero = this.hid == "" ? {} : app.heroes.get(this.hid)
         hero.cool = app.cooldown[hero.id] || 0
+        hero.faction = app.factions.byId(hero.faction)
         return hero
       },
       cooldown() {
@@ -567,8 +579,17 @@ const UI = (app)=>{
             //provide CPX 
             app.updateCPX(tR.reward[0], tR.reward[1])
             //update rep of leading faction 
+            let faction = app.factions.byId(tR.faction)
             let repId = tR.faction+".p"+plane.i
             app.factions.changeRep(repId,1)
+            app.simpleNotify("The "+faction.name+" has gained 1 Rep.", "success")
+            //if there is a faction causing trouble, reduce rep between
+            if(this.trouble.source && this.trouble.source.id != tR.faction){
+              let tsid = this.trouble.source.id
+              //lowest id first 
+              repId = tsid < tR.faction ? tsid+".f"+tR.faction : tR.faction+".f"+tsid
+              app.factions.changeRep(repId,-1)
+            }
           }
           //turn the challenge into hex  
           let hex = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(tR.res)))
