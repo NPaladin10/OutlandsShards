@@ -1,237 +1,119 @@
 //chance
-import "../lib/chance.min.js"
+import "../../lib/chance.min.js"
 //localforage 
-import "../lib/localforage.1.7.1.min.js";
+import "../../lib/localforage.1.7.1.min.js";
 //Save db for Indexed DB - localforage
-const DB = localforage.createInstance({ name: "OP", storeName: "OutlandsPlanes" })
-
-//pull utility functions like hash and data generation
-import {init as uInit} from "./utilities.js"
+const DB = localforage.createInstance({
+  name: "Shards",
+  storeName: "ShardsOfTheOutlands"
+})
+//eth
+import {ETHManager} from "./eth.js"
 //UI 
 import {UI} from "./UI.js"
-//intialize resolvers
-import {resolvers} from "./resolvers.js"
+//inventorry 
+import {InventoryManager} from "./inventory.js"
 
 //core params
 const params = {
   //Seed for generation
-  seed : "OutlandsPlanes2019",
-  timeBetween : [2*3600,3600],
-  coolPerStress : 60*12,
+  seed: "Compendium2020",
 }
-const utils = uInit(params.seed)
 
 //generic application 
 const app = {
   DB,
-  UI : {},
+  UI: {},
   params,
-  utils, 
-  get day () {
+  get day() {
     let now = Date.now() / 1000
-    return Math.round(now/(24*60*60))
+    return Math.round(now / (24 * 60 * 60))
   },
-  //local cpx 
-  cpx : [0,0,0,0,0,0,0],
-  updateCPX (i,val) {
-    this.cpx[i] += val 
-    //update UI 
-    this.UI.main.CPX = this.cpx.slice()
-  },
-  //specific token data 
-  planets : new Map(),
-  planes : new Map(),
-  heroes : new Map(),
-  get heroIds () {
-    return [...this.heroes.keys()]
-  },
-  giveXP (id,xp) {
-    let h = this.heroes.get(id).save
-    xp += h.xp 
-    //update 
-    let H = utils.heroData({
-      heroId: h.id,
-      planeId: h.plane,
-      block: h.block,
-      xp: xp,
-      network : h.network 
+  // ----------- LOAD/SAVE -------------------------- //
+  reset () {
+    //remove storage 
+    localStorage.clear()
+    //clear data 
+
+    //clear db 
+    app.DB.clear().then(res => {
+      window.location = ""
     })
-    this.heroes.set(H.id,H)
   },
-  crew : new Map(),
-  //track cooldown independently
-  cooldown : {},
-  //record challenge results 
-  challenges : {},
-  //track claims - so they cannot be made again 
-  claims : {},
-  makeClaim (what,plane,i) {
-    let cPre = this.day+"."+what
-    let cPost = plane+"."+i 
-    if(this.claims[cPre]) {
-      this.claims[cPre].push(cPost)
-    }
-    else this.claims[cPre] = [cPost]
+  load() {   
   },
-  mayClaim (what,plane,i) {
-    let cPre = this.day+"."+what
-    if(!this.claims[cPre]) return true
-    let cPost = plane+"."+i
-    if(!this.claims[cPre].includes(cPost)) return true
-    return false 
+  save() {
+
   },
-  //cross reference tokens 
-  tokens : new Map(),
-  //set local data - called after tokens are updated 
-  setLocalData () {
-    //[...tokens.get("hero").values()]
+  // ----------- NOTIFY ------------------------------ //
+  notify(text, opts) {
+    let {layout="bottomCenter", type="info", timeout=1000} = opts
+    new Noty({
+      text,
+      layout,
+      type,
+      timeout,
+      theme: "relax"
+    }).show()
   },
-  //Load and save 
-  _load(address) {
-    /*
-    let loadList = ["challenges"]
-    loadList.forEach(what => {
-      DB.getItem(address+"."+what).then(r => {
-        if(!r) return
-        r.forEach(_r => this[what].set(_r[0],_r[1]))
-      })  
+  simpleNotify(text, type="info") {
+    this.notify(text, {
+      type,
+      timeout: 2500
     })
-    */
-    //pull heroes 
-    DB.getItem(address+".heroes").then(heroes => {
-      if(!heroes) return
-      let allF = app.factions.player.map(f => f.id)
-      //load heroes
-      heroes.forEach(h => {
-        let faction = h.faction || chance.pickone(allF)
-        faction = faction == -1 ? chance.pickone(allF) : faction
-        //check for factions 
-        let H = utils.heroData({
-          heroId: h.id,
-          planeId: h.plane,
-          block: h.block,
-          xp: h.xp,
-          network: h.network,
-          name : h.name || "",
-          faction : faction
-          })
-        //set 
-        this.heroes.set(H.id,H)
+  },
+  // ----------- INIT ------------------------------ //
+  init() {
+    localStorage.setItem("lastPlayer", chance.hash())
+  },
+  // ----------- dice rolls ------------------------------ //
+  roll : {
+    dF(b,D) {
+      b = b || 0
+      D = D || 0
+      let roll = chance.rpg("4d3")
+      let R = -8, suns = 0, moons = 0;
+      roll.forEach(v => {
+        R+=v
+        if(v == 1) moons++
+        else if(v == 3) suns++
       })
-      //set UI.main
-      this.UI.main.heroIds = [...this.heroes.keys()]
-    })
-    //pull heroes 
-    DB.getItem(address+".crew").then(crew => {
-      if(!crew) return
-      //load heroes
-      crew.forEach(c => {
-        let plane = app.planes.get(c.plane)
-        let C = utils.crewData(c.id,plane,c.baseHash,c.network)
-        C._name = c.name || ""
-        //set 
-        this.crew.set(C.id,C)
-      })
-      //set UI.main
-      this.UI.main.crewIds = [...this.crew.keys()]
-    })
-  },
-  load () {
-    let address = this.UI.main.address
-    //load local data and load address data 
-    this._load("")
-    //load local cpx 
-    DB.getItem("cpx").then(_cpx => {
-      if(_cpx) this.cpx = _cpx
-    })
-    //pull claims data 
-    DB.getItem(".claims").then(claims => {
-      this.claims = claims || {}
-    })
-    //pull cooldown data 
-    DB.getItem(".cool").then(cool => {
-      this.cooldown = cool || {}
-    })
-    //challenges
-    DB.getItem(".challenges").then(c => {
-      this.challenges = c || {}
-    })
-    //faction rep 
-    DB.getItem(".rep").then(rep => {
-      this.factions._rep = rep || {}
-    })
-    if(address != "") this._load(address)
-  },
-  save () {
-    if(this.UI.main) {
-      //save local cpx 
-      DB.setItem("cpx",this.cpx)
-      //cooldown
-      DB.setItem(".cool",this.cooldown)
-      //local claims 
-      DB.setItem(".claims",this.claims)
-      //challenge data 
-      DB.setItem(".challenges",this.challenges)
-      //faction rep 
-      DB.setItem(".rep",this.factions.rep)
-      //local saves 
-      let heroes = [...this.heroes.values()].filter(h => h.network == -1)
-        .map(h => h.save)
-      DB.setItem(".heroes",heroes)
-      let crew = [...this.crew.values()].filter(h => h.network == -1)
-        .map(h => h.save)
-      DB.setItem(".crew",crew)
-      //set heroes - for address 
-      if(this.UI.main.address) {
-        let address = this.UI.main.address
-        heroes = [...this.heroes.values()].filter(h => h.network > -1)
-          .map(h => h.save)
-        DB.setItem(address+".heroes",heroes)
-        crew = [...this.crew.values()].filter(h => h.network > -1)
-          .map(h => h.save)
-        DB.setItem(address+".crew",crew)
-      }
-      //update ids 
-      app.UI.main.heroIds = [...this.heroes.keys()]
-      app.UI.main.crewIds = [...this.crew.keys()]
-      //update cpx 
-      app.UI.main.CPX = this.cpx.slice()
+      let d = R-D
+      let res = d >= 5 ? 3 : d >= 3 ? 2 : d >= 0 ? 1 : d >= -2 ? 0 : -1
+      let text = ["Critical Failure","Failure","Success","Strong Success","Overwhelming Success"][res+1]
+      return {R,res,text,suns,moons}
+    },
+    AW (b) {
+      b = b || 0
+      let R = chance.rpg("2d6",{sum:true}) + b 
+      let res = R >= 12 ? 3 : R >= 10 ? 2 : R >= 7 ? 1 : 0
+      let text = ["Miss","Weak Hit","Strong Hit","Critical"][res]
+      return {R,res,text}
+    },
+    blades (n) {
+      n = n || 0
+      let roll = n == 0 ? chance.rpg("2d6") : chance.rpg(n+"d6")
+      roll.sort((a, b)=> a - b)  // least to greatest
+      let crit = roll.reduce((nc,r)=> nc = r==6 ? nc+1 : nc,0)
+      let max = n == 0 ? roll[0] : roll[roll.length-1]
+      let res = max < 4 ? -1 : max < 6 ? 0 : 1
+      let text = ["Miss","Weak Hit","Strong Hit","Critical"][crit > 1 ? 3 : res+1]
+      return {roll,crit,res,text}
     }
-  },
-  notify (text,opts) {
-    let {layout="bottomCenter",type="info",timeout=1000} = opts
-    new Noty({text,layout,type,timeout,theme:"relax"}).show()
-  },
-  simpleNotify (text,type="info") {
-    this.notify(text,{type,timeout:2500})
-  },
-  newPlayer () {
-    //give 100 diamond 
-    this.cpx = [100,0,0,0,0,0,0]
-    //give 5 heroes 
-    let hex, planeId, heroId, hero, block = Math.round(Date.now()/1000);
-    for(let i = 0; i < 5; i++){
-      //random home plane 
-      hex = utils.planeHex(chance.rpg("1d32")[0])
-      planeId = ethers.utils.bigNumberify(hex).toString()
-      //create hero id  
-      heroId = ethers.utils.bigNumberify("0x"+chance.hash()).toString()
-      hero = utils.heroData({heroId,planeId,block,xp:0})
-      //save hero 
-      this.heroes.set(hero.id,hero)
-    }
-    //save
-    this.save()
   }
 }
-//initialize - plane map 
-d3.range(localStorage.getItem("nPlanes")||32).map(i => utils.addPlaneData(i+1,app))
-//initialize UI 
+//initialize 
 UI(app)
-//set resolvers
-resolvers(app)
+app.inventory = new InventoryManager(app)
+app.ETH = new ETHManager(app)
 
-//load data 
-app.load()
+//setInterval(()=>app.save(), 5000)
 
 
+//new player
+let lp = localStorage.getItem("lastPlayer")
+if(!lp) app.init()
+else {
+  //load data 
+  app.load()
+}

@@ -1,501 +1,499 @@
-//get the new data in Set B 
-const setCheckForNewData = (A,B) => {
-  if(!B) return []
-  let bArr = [...B.values()]
-  return bArr.reduce((newIds,id)=>{
-    if(!A.has(id)) newIds.push(id);
-    return newIds
-  },[])
-} 
+import*as CONTRACTS from "./abi/index.js"
+//ethers js 
+import {ethers} from "../../lib/ethers-5.0.min.js"
+//outlands data 
+import*as OutlandsCore from "./outlands.js"
+//UI
+import {UI} from "./uiETHAdmin.js"
 
-const addressFromTopic = (id, topic) => {
-    return ethers.utils.getAddress(ethers.utils.hexStripZeros(topic[id])) 
-}
+const Regions = {}
+const Shards = {}
 
-const toHexString = (obj) => {
-    return ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(obj)))
-}
-
-/* Contract Data 
-*/
-
-let CPXContracts = {
-  OutlandsToken : {
-    abi : [
-      "event TransferSingle(address indexed _operator, address indexed _from, address indexed _to, uint256 _id, uint256 _value)",
-      "event URI(string _value, uint256 indexed _id)",
-      "function ownerOf(uint256 _id) public view returns (address)",
-      "function balanceOf(address _owner, uint256 _id) external view returns (uint256)",
-      "function isApprovedForAll(address _owner, address _operator) external view returns (bool)",
-      "function getNonFungibleIndex(uint256 _id) public pure returns(uint256)",
-      "function getNonFungibleBaseType(uint256 _id) public pure returns(uint256)"
-    ],
-    //kovan - 0x303435cf43478b61F25D6fa8909a7418E1b6E3Ec
-    address : "0x20a2F9E30bdecAFfdc7B9571FF7CAC585D054014",
-    tokenTypeIds : {
-      "57896044618658097711785492504343953926975274699741220483192166611388333031424" : "plane",
-      "plane" : "57896044618658097711785492504343953926975274699741220483192166611388333031424",
-      "hero" : "57896044618658097711785492504343953927315557066662158946655541218820101242880",
-      "57896044618658097711785492504343953927315557066662158946655541218820101242880" : "hero",
-      "crew" : "57896044618658097711785492504343953927655839433583097410118915826251869454336",
-      "57896044618658097711785492504343953927655839433583097410118915826251869454336" : "crew"            
-    }
-  },
-  OutlandsRegistry : {
-    abi : [
-      "event NewPlane (address indexed player, uint256 i)",
-      "event NewHero (address indexed player, uint256 i, uint256 plane)",
-      "event NewUnit (address indexed player, uint256 i, uint256 plane, bytes32 hash)",
-      "event FundsWithdrawn (address indexed who, uint256 amt)",
-      "function cost(uint256) public view returns(uint256)",
-      "function shareToOwner(uint256) public view returns(uint256)",
-      "function timeBetween(uint256) public view returns(uint256)",
-      "function nextTimePlayer(address) public view returns(uint256)",
-      "function nextTimePlane(uint256) public view returns(uint256)",
-      "function fundsReceived(address) public view returns(uint256)",
-      "function getTokenData() public view returns (uint256[3] ids, uint256[3] count)",
-      "function ownerOfBatch(uint256[] ids) public view returns (address[] owners)",
-      "function withdrawFundsReceived() public",
-      "function day() public view returns(uint256)",
-      "function getClaimedCrew(uint256 plane) public view returns(bool[5] isClaimed)",
-      "function create(uint256 _type, uint256 plane, uint256 ci) public payable"
-    ],
-    address : "0x6D6EF96EFD4E354d63682cBC165f8ddB1cA52dC7",
-  },
-  CosmicRegistry : {
-    abi : [
-      "function tokenId(uint256) public view returns(uint256)",
-      "function getCPX(address account) public view returns(uint256[7] cpx)",
-      "function getBatchCPX(address[] account) public view returns(uint256[7][] cpx) ",
-      "function mint(uint256 _i, address[] _who, uint256[] _amt) public",
-      "function burn(address _from, uint256[] _ids, uint256[] _values) public",
-      "function makeDiamond(uint256 _amt) public",
-    ],
-    //Kovan 
-    address : "0x1083F9E5Df0Debdf7Ec0a52580ad612F41465A04",
-  },
-  OutlandsUnitStatus : {
-    abi : [
-      "function getXP(uint256[] ids) public view returns(uint256[] total, uint256[] available)",
-      "function getAvailableXP(uint256[] ids) public view returns(uint256[] xp)",
-      "function giveXP(uint256[] ids, uint256[] xp) public",
-      "function useXP(uint256[] ids, uint256[] xp) public",
-      "function getCool(uint256[] ids) public view returns(uint256[] cCool)",
-      "function setCool(uint256[] ids, uint256[] _cool) public",
-      "function getStatus(uint256[] ids) public view returns(uint16[12][] cStatus)",
-      "function setStatus(uint256[] ids, uint8[] i, uint16[] _status) public",
-      "function getUnitData(uint256[] ids) public view returns(uint256[] xp, uint256[] cCool, uint16[12][] cStatus)"
-    ],
-    //Kovan 
-    address : "0x246e9084e0a8572FDAc05d2029CDe383c54A830c",
-  },
-  OutlandsTrouble: {
-    abi : [
-      "event ChallengeRecord (uint256 indexed period, address indexed player, uint256 planeId, uint256 points, bytes res)",
-      "function currentPeriod() public view returns(uint256)",
-      "function coolPerStress() public view returns(uint256)",
-      "function mayCompleteCheck(uint256 planeId, address player) public view returns (bool mayComplete, uint256 period, uint256 cool)",
-      "function complete(address player, uint256 period, uint256 planeId, uint256 points, uint256[] ids, uint256[] xp, uint256[] cool, bytes res) public"
-    ],
-    //Kovan
-    address : "0x402980511D1e0BAc23810B1c1B5ce99e56d867aA",
-  },
-}
-
-/* Ethers Provider
-*/
-let block = null, lastPoll = 0, network = null;
-let provider = null, signer = null, wallet = null;
-if (typeof web3 !== 'undefined') {
-    provider = new ethers.providers.Web3Provider(web3.currentProvider)
-    signer = provider.getSigner()
-} else {    
-  provider = ethers.getDefaultProvider('ropsten')
-  /*
-  //find a signer if stored 
-  let lastSigner = localStorage.getItem("lastSigner")
-  //if nothing is stored - create wallet and save 
-  if(!lastSigner) {
-    wallet = ethers.Wallet.createRandom()
-    localStorage.setItem(wallet.address, wallet.mnemonic)  
-    localStorage.setItem("lastSigner",wallet.address)
+//Contracts
+const Contracts = {}
+//deployed addresses 
+const ContractAddresses = {
+  "goerli": {
+    "OutlandsShards": "0x7E4957eF381ce2744F8B9d3EAd2B74889143CbBF",
+    "MoveTime": "0xEd094d3eA4d6509D7DBbAaD616F0EbD6b744c17E",
+    "CPXToken1155": "0x753606cde5dd3EdD7995d9080020D5281a8C4956",
+    "CPXToken20": "0x1897A9F9bbE164B257A394f2C65ad0BE348c33Aa",
+    "Gatekeeper" : "0xF988ea224f4Dd6F73d4857D32C1F43375E7b15c4",
+    "Storefront1155": "0x6781b3215492B87fd90669719595E8bc3d0eE20A",
+    "CPXSimpleMinter": "0x0fF715B78e0d6c92B09286bD2d3Ffa75F77b3E94",
+    "DiamondMinter": "0x596E1E05161f994c92b356582E12Ef0fD2A86170",
+    "CharacterLocation" : "0x6Ca442A4F8bAEfAc47e9710641b7F4d6B65Ee8c3",
+    "Cooldown" : "0x1F8fEC5Cbf415ad6101Dd40326aAa2076964EE33",
+    "TreasureMinter" : "0x47033640766f9fe1Dac22a8EBB9595b3e764B73a"
   }
-  else {
-    //pull wallet from mnemonic
-    let mnemonic = localStorage.getItem(lastSigner)  
-    wallet = ethers.Wallet.fromMnemonic(mnemonic)
-    signer = wallet.connect(provider)
+}
+
+const Roles = {
+  "admin": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "minter": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6",
+  "region_admin": "0xb0c6d6c98634bf90c5127f65c948b52cc8ad5f3b499bdb4170d0b685e60ee0df"
+}
+
+//Rarity calculations 
+const Rarity = {
+  "1": {
+    "what": "Anchor Rarity",
+    "max": 1024,
+    "start": 0,
+    "stop": 2,
+    "steps": [410, 717, 922, 1023]
   }
-  */
 }
-provider.getNetwork().then(n=> { network = n})
-provider.getBlock ( "latest" ).then(b => { block = b })
-//always set up basic Ropsten and Kovan provider 
-const rProvider = ethers.getDefaultProvider('ropsten')
-const kProvider = ethers.getDefaultProvider('kovan') 
-//set ropsten contacts for view only 
-const viewOutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,rProvider)
-//always set kovan contracts
-const OutlandsUnitStatus = new ethers.Contract(CPXContracts.OutlandsUnitStatus.address,CPXContracts.OutlandsUnitStatus.abi,kProvider)
-const CosmicRegistry = new ethers.Contract(CPXContracts.CosmicRegistry.address,CPXContracts.CosmicRegistry.abi,kProvider)
-const OutlandsTrouble = new ethers.Contract(CPXContracts.OutlandsTrouble.address,CPXContracts.OutlandsTrouble.abi,kProvider)
+const getRarity = (seed,what)=>{
+  let R = Rarity[what]
+  let slice = seed.slice(2).slice(R.start, R.stop * 2)
+  let reduced = parseInt(slice, 16) % R.max
+  let value = R.steps.length + 1
 
-//handle the contracts - connect with the signer / provider 
-let OutlandsToken, OutlandsRegistry, outlandsTrouble;
-const setContracts = (whoSends) => {
-    OutlandsToken = new ethers.Contract(CPXContracts.OutlandsToken.address,CPXContracts.OutlandsToken.abi,whoSends)
-    OutlandsRegistry = new ethers.Contract(CPXContracts.OutlandsRegistry.address,CPXContracts.OutlandsRegistry.abi,whoSends)
-}
-setContracts(signer ? signer : provider)
-
-/*Server 
-*/ 
-const server = {
-    url : "https://outlandsplanes.appspot.com/",
-    challengeResolve (id, block) {
-        let url = this.url + "trouble/resolve/"+id+"."+block
-
-        return new Promise((resolve,reject)=> {
-            $.get(url, (data, status) => resolve(data))  
-        })
-    },
-    testChallengeResolve (id, block) {
-        let url = "http://localhost:8080/trouble/resolve/"+id+"."+block
-
-        return new Promise((resolve,reject)=> {
-            $.get(url, (data, status) => resolve(data))  
-        })
-    },
-    testResolve (payload) {
-      let url = "http://localhost:8080/trouble/testResolve/"+payload
-        return new Promise((resolve,reject)=> {
-            //call
-            $.get(url, (data, status) => resolve(data))  
-        })
+  for (let i = 0; i < R.steps.length; i++) {
+    if (reduced < R.steps[i]) {
+      value = i + 1
+      break
     }
+  }
+
+  return value
 }
 
-//log check function - searches log back 256 block for a topic releveant to an address
-const logCheck = (cAddress, topic, bStart, bStop) => {
-    return new Promise((resolve, reject) => {
-        let filter = {
-            address: cAddress,
-            fromBlock: bStart || 0,
-            toBlock: bStop || "latest",
-            topics: [ topic ]
+//Polling
+const poll = (UI)=>{
+  return new Promise((res,rej)=>{
+    let OS = Contracts.OutlandsShards
+
+    const pollRegions = (rids)=>{
+      let done = []
+
+      //loop through region ids 
+      rids.forEach(id=>{
+        OS.getRegion(id).then(region=>{
+          let realm = region.realm.toNumber()
+          //set region data 
+          Regions[id] = {
+            id,
+            name: OutlandsCore.REGIONS[id - 1].name,
+            realm,
+            realmName: OutlandsCore.REALMS[realm - 1],
+            anchors: region.anchors.slice(),
+            get shards() {
+              return Object.values(Shards).filter(s=>s.region == this.id)
+            }
+          }
+
+          //track what is done
+          done.push(id)
+          if (done.length == rids.length) {
+            //set 
+            UI.regions = Regions
+
+            res({
+              Shards,
+              Regions
+            })
+          }
         }
-        provider.getLogs(filter).then(resolve)  
-    })
-}
-
-//Sign data and then send the sig - hash will be re-created in Solidity for security
-const signData = (types,data) => {
-    return new Promise((res,reject) => {
-        let msgHash = ethers.utils.solidityKeccak256(types, data)
-        //add Reqd ethereum signing stamp - mod msg to get correct hash 
-        let ethHash = ethers.utils.solidityKeccak256(['string','bytes32'],["\x19Ethereum Signed Message:\n32",msgHash])
-        //But sign the original msg - The 66 character hex string MUST be converted to a 32-byte array first!
-        let binaryData = ethers.utils.arrayify(msgHash);    
-        //sign 
-        signer.getAddress().then(address => {
-            signer.signMessage(binaryData).then(sig => res({address,msgHash,ethHash,sig}))  
-        })
-    }) 
-}
-
-//Function to check if challenges have been submitted 
-const submitChallenge = (app, planeId, heroIds, crewIds) => {
-  let {tokens, UI} = app 
-  //ensure ownership
-  let mayContinue = heroIds.concat(crewIds).reduce((mayC,id) => mayC && tokens.has(id),true)
-  if(!mayContinue) return 
-  //submit to server 
-  let data = {planeId, heroIds, crewIds}
-  signer.signMessage(JSON.stringify(data)).then(sig => {
-    //turn it into hex 
-    let payload = {
-      address : UI.main.address,
-      data,
-      sig 
+        )
+      }
+      )
     }
-    let hex = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(JSON.stringify(payload)))
-    //submit to server 
-    server.testResolve(hex).then(res => {
-      console.log(res)
-    })
-  })
-}
 
-/*
-  Token Functions 
-*/
+    //first get the shards 
+    OS.count().then(nS=>{
+      let pages = Array.from({
+        length: 1 + Math.floor(nS.toNumber() / 50)
+      }, (v,i)=>i)
+      let done = []
+      //pull data on the shards 
+      pages.forEach(p=>{
+        OS.getShardByPage(p).then(data=>{
+          let start = 1 + (p * 50)
+          //loop and set data
+          data.seeds.forEach((seed,i)=>{
+            let anchor = data.anchors[i]
+            let risk = OutlandsCore.ANCHORRISK[anchor - 1]
 
-//Function to pull and update Token Data 
-const getTokensOfAddress = (app, address) => {
-    let cBlock = block.number
-    //check if poll is needed 
-    if(lastPoll == cBlock || network.name != "ropsten") return 
-        
-    let {utils,heroCooldown,heroXP,tokensHeroes,UI,tokens} = app
-    let {tokenTypeIds} = CPXContracts.OutlandsToken
-    let topic = OutlandsToken.interface.events.TransferSingle.topic
-    
-    logCheck(OutlandsToken.address,topic,lastPoll).then(res => {
-      //roll through each 
-        res.forEach(log => {
-            //now pull data fron log 
-            let data = OutlandsToken.interface.parseLog(log)
-            //go to next if not the current address / has id loaded 
-            let {_from, _to, _id} = data.values
-            if(address != _to && address != _from) return;
-            //check for nft 
-            let _hex = _id.toHexString()
-            let tData = {block:log.blockNumber}
-            //it is nft 
-            if(_hex.charAt(2) == 8) {
-              let nftType = _hex.slice(0,35).padEnd(66,"0")
-              let _typeId = ethers.utils.bigNumberify(nftType).toString()
-              //set data 
-              tData.nft = true 
-              tData._typeId = _typeId
-              //check id 
-              let typeName = tokenTypeIds[_typeId]
-              tData.typeName = typeName
-              tData.i = parseInt(_hex.slice(34), 16)
-              tData._hex = _hex
-              //check if it exists 
-              if(!tokens.has(typeName)) {
-                tokens.set(typeName,new Set())
-              }
+            Shards[start + i] = {
+              id: start + i,
+              seed,
+              anchor: {
+                id: anchor,
+                rarity: getRarity(seed, 1),
+                text: OutlandsCore.ANCHORS[anchor - 1],
+                risk: [risk, OutlandsCore.RISK[risk]]
+              },
+              region: data.rids[i].toNumber()
             }
-            else {
-            }
-            //now review 
-            if(address == _to) {
-              tokens.set(_id.toString(),tData)
-              //add new nft to set 
-              if(tData.nft) {
-                let nft = tokens.get(tData.typeName)
-                nft.add(_id.toString())
-              }
-            }
-            else {
-              tokens.delete(_id.toString())
-              //add new nft to set 
-              if(tData.nft) {
-                let nft = tokens.get(tData.typeName)
-                nft.delete(_id.toString())
-              }
-            }
-        })
-        //now push updates 
-        UI.main.planes = [...tokens.get("plane").values()]
-        //now pull new hero data
-        getHeroData([...tokens.get("hero").values()],app,lastPoll)
-        //pull crew data  
-        getCrewData([...tokens.get("crew").values()],app,lastPoll)
-        //add local data 
-        app.setLocalData() 
-        //now set new last poll 
-        lastPoll = cBlock
-    })
+          }
+          )
+
+          //track what is done 
+          done.push(p)
+          if (pages.length = done.length) {
+            //reduce regions to unique values
+            let rids = [...new Set(Object.values(Shards).map(s=>s.region))]
+            //get region info
+            pollRegions(rids)
+          }
+        }
+        )
+      }
+      )
+    }
+    )
+  }
+  )
 }
 
-/*
-  Hero Functions 
-*/
+//provider & signer 
+let provider, signer;
 
-//initial pull of hero data 
-const getHeroData = (ids,app,start) => {
-  if(ids.length == 0) return 
-  let {UI,tokens,utils,heroes} = app
-  let topic = OutlandsRegistry.interface.events.NewHero.topic
-
-  logCheck(OutlandsRegistry.address,topic,start).then(res => {
-    //roll through each 
-        res.forEach(log => {
-            //now pull data fron log 
-            let data = OutlandsRegistry.interface.parseLog(log)
-            //go to next if not loaded
-            let {player, i, plane} = data.values
-            //get the long eth token id 
-            let hex =  "0x80000000000000000000000000000002" + i.toNumber().toString(16).padStart(32,"0")
-            let _id = ethers.utils.bigNumberify(hex).toString()
-            if(!ids.includes(_id)) return 
-            //get hero data 
-            let hero = utils.heroData({
-              heroId: _id, 
-              planeId: plane.toString(), 
-              block: log.blockNumber, 
-              xp: 0, 
-              netowrk : network.chainId
-              })
-            heroes.set(hero.id,hero)
-        })
-  })
-}
-//polls looking for updates 
-const pollHeroes = (app) => {
-  //get array of ids 
-  let ids = app.UI.main.heroIds
-  //pull unit data 
-  OutlandsUnitStatus.getUnitData(ids).then(res => {
-    app.heroes.forEach((h,id) => {
-      let i = ids.indexOf(id)
-      h._xp = res.xp[i].toNumber()
-      h.cool = res.cCool[i].toNumber()
-      h.status = res.cStatus[i]
-    })
-  })
+//load contracts 
+const loadContracts = (netName)=>{
+  for (let x in CONTRACTS) {
+    Contracts[x] = new ethers.Contract(ContractAddresses[netName][x],CONTRACTS[x],signer)
+    //log 
+    console.log("Contract " + x + " loaded.")
+  }
 }
 
-/*
-  Crew Functions 
-*/
+const goerli = ethers.getDefaultProvider("goerli")
 
-//Function to pull and update crew data
-const getPlaneCrewData = (app, plane) => {
-  let {day, mayClaim} = app 
-  let {planeCrew} = app.UI.main
-  //first pull plaine crew index 
-  OutlandsRegistry.getClaimedCrew(plane._id).then(isClaimed => {
-    planeCrew.crew = isClaimed.map((av,i) => {
-      let C = app.utils.crewDataFromDay(day,plane,i)
-      C.available = app.mayClaim("crew",plane.i,i) && !av 
-      return C 
-    })
-  })
-}
+class ETHManager {
+  constructor(app) {
+    this.app = app
+    this.address = ""
+    this.net = ""
 
-//initial pull of crew data 
-const getCrewData = (ids,app,start) => {
-  if(ids.length == 0) return 
-  let {UI,tokens,utils,planes,crew} = app
-  let topic = OutlandsRegistry.interface.events.NewUnit.topic
+    this._tokens = {}
+    this._explorers = {}
 
-  logCheck(OutlandsRegistry.address,topic,start).then(res => {
-    //roll through each 
-        res.forEach(log => {
-            //now pull data fron log 
-            let data = OutlandsRegistry.interface.parseLog(log)
-            //go to next if not loaded
-            let {player, i, plane, hash} = data.values
-            //get the long eth token id 
-            let hex =  "0x80000000000000000000000000000003" + i.toNumber().toString(16).padStart(32,"0")
-            let _id = ethers.utils.bigNumberify(hex).toString()
-            if(!ids.includes(_id)) return 
-            //get plane 
-            plane = planes.get(plane.toString())
-            //get hero data 
-            let cD = utils.crewData(_id,plane,hash)
-            //update 
-            crew.set(_id,cD)
-        })
-  })
-}
+    this.utils = ethers.utils
 
-const check = (app) => {
-  let {UI,utils,planes,planets,tokens,cooldown} = app
-  //save state 
-  app.save()
+    //cosmic claim 
+    this.claimTime = 22 * 60 * 60
 
-  if(network && block) {
-    provider.getNetwork().then(n=> { network = n})
-    //set data for later
-    provider.getBlock ( "latest" ).then(b => { block = b })
+    //initiate UI
+    UI(app)
 
-    if (typeof web3 !== 'undefined') {
+    window.ethereum.enable().then(()=>{
+      provider = new ethers.providers.Web3Provider(window.ethereum)
       signer = provider.getSigner()
+
+      provider.getNetwork().then(net=>{
+        this.net = app.UI.main.net = net.name
+
+        //check for network contracts
+        if (ContractAddresses[net.name]) {
+          loadContracts(net.name, signer)
+
+          this.poll(app.UI.main)
+
+          this.getAddress(app.UI.main)
+        }
+      }
+      )
+    }
+    )
+  }
+  setToken (id, neg, amt) {
+    if(!this._tokens[id]) {
+      this._tokens[id] = ethers.BigNumber.from(0)
     }
 
-    //trouble period
-    OutlandsTrouble.currentPeriod().then(d => UI.main.currentPeriod = d.toNumber())
-    //get day 
-    viewOutlandsRegistry.day().then(d => UI.main.day = d.toNumber())
-    //get range of tokens 
-    viewOutlandsRegistry.getTokenData().then(data => {
-      let {count} = data 
-      count = count.map(c => c.toNumber())
-      //set storage 
-      localStorage.setItem("nPlanes", count[0])
-      //find new planes 
-      let pids = d3.range(count[0]).map(i => i).filter(i => !planes.has(i))
-      //now pull data 
-      pids.forEach(i => utils.addPlaneData(i, app))
-    })
-    //cost 
-    viewOutlandsRegistry.cost(0).then(c => UI.main.searchCost = ethers.utils.formatEther(c))
-    viewOutlandsRegistry.cost(1).then(c => UI.main.recruitCost = ethers.utils.formatEther(c))
-    viewOutlandsRegistry.cost(2).then(c => UI.main.recruitCrewCost = ethers.utils.formatEther(c))
-    //check if plane selected
-    if(UI.main.tid>-1) {
-      //get available crew 
-      getPlaneCrewData(app, UI.main.planeData)
-      //check for time 
-      OutlandsRegistry.nextTimePlane(UI.main.planeData._id).then(t => {
-        t = t.toNumber() 
-        let _cool = cooldown[UI.main.planeData._id] || 0
-        //set cool for plane 
-        if(t > _cool) cooldown[UI.main.planeData._id] = t
-      })
+    if(neg == -1) {
+      this._tokens[id] = this._tokens[id].sub(amt)
+    }
+    else {
+      this._tokens[id] = this._tokens[id].add(amt)
     }
   }
+  get tokens () {
+    let aI = this.app.inventory, tInfo = aI.tokens;
+    //set unique tokens to empty arrays  
+    let _t = {}, uTokens = {};
+    aI.uniqeIds.forEach(id => {
+      uTokens[id] = {
+        name : tInfo[id].name,
+        ids: []
+      }
+    })
 
-  //scan for CPX
-  if(UI.main && signer) {
-    //get address 
-    let address = UI.main.address
+    //loop through tokes 
+    Object.entries(this._tokens).forEach(t => {
+      let id = t[0],
+        _u = aI.getUnique(id);
+      
+      if(_u) {
+        uTokens[_u[0]].ids.push(id)
+      }
+      else {
+        _t[id] = {
+          name : tInfo[id].name,
+          val : Number(ethers.utils.formatUnits(t[1], tInfo[id].units))
+        } 
+      }  
+    })
+    
+    return Object.assign(_t, uTokens) 
+  }
+  get contracts() {
+    return Contracts
+  }
+  get shards() {
+    return Shards
+  }
+  get shardArray () {
+    return Object.entries(Shards).map(s => {
+      let id = s[0],
+        data = s[1];
+      
+      return Object.assign({
+        id, 
+        text : Regions[data.region].name + ", " + data.seed.slice(0,9) + "..." 
+      },data)
+    })
+  }
+  get regions() {
+    return Regions
+  }
+  travelTime (from, to) {
+    let times = [22,8,2]
+    let fromRegion = Shards[from].region,
+      toRegion = Shards[to].region,
+      fromRealm = Regions[fromRegion].realm,
+      toRealm = Regions[toRegion].realm; 
+    
+    let time = times[0]
+    if(fromRegion == toRegion) time = times[2]
+    else if (fromRealm == toRealm) time = times[1]
+    
+    return time
+  }
+  get explorers () {
+    return this._explorers
+  }
+  approveGatekeeper() {
+    return this.submit("CPXToken1155", "setApprovalForAll", [ContractAddresses[this.net].Gatekeeper, true])
+  }
+  approveStaking() {
+    //approve(spender, ammount)
+    //1000000 ether 
+    let amt = "1000000000000000000000000"
+    return this.submit("CPXToken20", "increaseAllowance", [ContractAddresses[this.net].DiamondMinter, amt])
+  }
+  submit(_contract, _method, data) {
+    let method = Contracts[_contract][_method]
+    
+    return new Promise((res,rej) => {
+      method(...data).then(tx=>{
+        console.log(_method + " submitted: " + tx.hash)
+        //wait 
+        tx.wait(1).then(resTx=>{
+          console.log(_method + " confirmed: " + resTx.blockNumber)
 
-    signer.getAddress().then(a => {
-        if(a != UI.main.address) {
-          //set last address 
-          localStorage.setItem("lastAddress",a)
-          UI.main.address = a  
-          //redo contracts 
-          setContracts(signer)
-          //load data from db
-          app.load()
-          //reset poll 
-          tokens = new Map()
-          lastPoll = 0 
+          //resolve submit 
+          res(resTx)
         }
-      })
-      //get the eth balance  
-      signer.getBalance().then(b => {
-        UI.main.balance = ethers.utils.formatEther(b).slice(0,5)
-      }) 
+        )
+      }
+      )
+    })
+  }
+  getAddress(UI) {
+    if (!provider)
+      return
 
-    if(address == "local" || address == "" || network.name != "ropsten") return 
-    //get tokens 
-    getTokensOfAddress(app,address)
-    //get cpx 
-    CosmicRegistry.getCPX(address).then(res => UI.main.CPX = res.map(c => ethers.utils.formatEther(c)))
-    //poll hero data 
-    pollHeroes(app,address)
+    signer.getAddress().then(address=>{
+      //do something on change 
+      if (address != this.address) {
+        //update address
+        this.address = UI.address = address
+        //clear admin 
+        UI.isAdmin = []
 
-    //look if there is shares to claim 
-    OutlandsRegistry.fundsReceived(address).then(s => UI.main.shareToClaim = ethers.utils.formatEther(s))
-    //time 
-    OutlandsRegistry.nextTimePlayer(address).then(t => UI.main.nextSearch = t.toNumber())
-    if(UI.main.tid>-1) {
-      OutlandsTrouble.mayCompleteCheck(UI.main.planeData._id, address).then(res =>{
-        //claim it if it is done 
-        if(!res.mayComplete) {
-          app.makeClaim("trouble",UI.main.planeData.i,0)
+        //check for cosmic claim
+        Contracts.CPXSimpleMinter.last_mint(this.address).then(time=>{
+          UI.lastCPXClaim = time.toNumber()
         }
-      })
+        )
+
+        this.poll()
+      }
+
+      this.pollBalances(address)
+      this.pollAdmin(address)
+      this.pollAllowance(address)
+      this.pollExplorers()
+
     }
-  }  
+    )
+  }
+  async pollExplorer(id) {
+    let shard = await Contracts.CharacterLocation.shardLocation(id),
+      _shard = shard.toString(),
+      sd = Shards[shard],
+      rd = Regions[sd.region];
+
+    let cool = await Contracts.Cooldown.cooldown(id),
+      _cool = cool.toNumber();
+       
+    let e = this._explorers[id] = {
+      _shard,
+      shard : rd.name + ", " + sd.seed.slice(0,9) + "...",
+      _cool
+    }
+    
+    //set UI 
+    Vue.set(this.app.UI.main.explorers, id, e)
+  }
+  async pollExplorers () {
+    let UI = this.app.UI.main,
+      ids = this.tokens[1000000].ids || [],
+      E = this._explorers = {};
+
+    ids.forEach(id => this.pollExplorer(id))
+  }
+  pollBalances () {
+    let app = this.app
+      , UI = app.UI.main;
+
+    //get balances
+    Contracts.CPXToken20.balanceOf(this.address).then(bal=>Vue.set(UI.tokens, 0, ethers.utils.formatUnits(bal, "ether")))
+    
+    if(UI.show == "inventory"){
+      Contracts.DiamondMinter.getDeposit().then(deposit => {
+        Contracts.DiamondMinter.getMintAmount().then(_amt => {
+          let val = ethers.utils.formatUnits(deposit.value, "ether")
+          let amt = ethers.utils.formatUnits(_amt, "ether")
+          UI.staked = [Number(val),Number(amt)]
+        })
+      }) 
+    }
+  }
+  pollAdmin() {
+    let app = this.app
+      , UI = app.UI.main;
+
+    //check for admin 
+    Object.entries(Contracts).forEach(e=>{
+      let name = e[0]
+        , C = e[1];
+
+      if (C.hasRole) {
+        //check role 
+        C.hasRole(Roles.admin, this.address).then(_isAdm=>{
+          //push the contract to the list 
+          if (_isAdm && !UI.isAdmin.includes(name))
+            UI.isAdmin.push(name)
+        }
+        )
+      }
+    }
+    )
+  }
+  pollAllowance(address) {
+    let app = this.app
+      , UI = app.UI.main;
+
+    let approval = {
+      "Gatekeeper": ContractAddresses[this.net].Gatekeeper
+    }
+    let allowance = {
+      "DiamondMinter": ContractAddresses[this.net].DiamondMinter
+    }
+
+    //check for approval
+    Object.entries(approval).forEach(e=>{
+      Contracts.CPXToken1155.isApprovedForAll(address, e[1]).then(approved=>{
+        if (approved && !UI.approval.includes(e[0])) {
+          UI.approval.push(e[0])
+        }
+      }
+      )
+    }
+    )
+
+    //check for allowance
+    Object.entries(allowance).forEach(e=>{
+      Contracts.CPXToken20.allowance(address, e[1]).then(allowance=>{
+        Vue.set(UI.allowance, e[0], Number(ethers.utils.formatUnits(allowance, "ether")))
+      }
+      )
+    }
+    )
+  }
+  poll() {
+    if (!ContractAddresses[this.net]) return
+
+    let app = this.app
+      , UI = app.UI.main;
+    //poll for shards
+    poll(UI)
+    //poll for allowance
+    if(this.address != "") this.pollAllowance(this.address)
+
+    //tokens 
+    let T1155 = Contracts.CPXToken1155
+    //TransferSingle(operator, from, to, id, value)
+    //TransferBatch(operator, from, to, ids, values)
+    if(this.address != ""){
+      this._tokens = {}
+      //filter for tokens 
+      T1155.queryFilter("TransferSingle").then(res => {
+        res.forEach(r => {
+          //token info in the args 
+          let _args = r.args
+          if(_args.to == this.address){
+            //to address - add token 
+            this.setToken(_args.id.toString(), 1, _args.value)
+          }
+          if(r.args.from == this.address) {
+            //from address subtract token 
+            this.setToken(_args.id.toString(), -1, _args.value)
+          }
+        })
+
+        //now set tokens 
+        Object.entries(this.tokens).forEach(t => {
+          Vue.set(UI.tokens, t[0], t[1])
+        })
+      })
+      //filter for tokens 
+      T1155.queryFilter("TransferBatch").then(res => {
+        res.forEach(r => {
+          //token info in the args 
+          let _args = r.args
+          if(_args.to == this.address){
+            //to address - add token 
+            _args.ids.forEach((id,i) => {
+              this.setToken(id.toString(), 1, _args[4][i])
+            })
+          }
+          if(r.args.from == this.address) {
+            //from address subtract token 
+            _args.ids.forEach((id,i) => {
+              this.setToken(id.toString(), -1, _args[4][i])
+            })
+          }
+        })
+
+        //now set tokens 
+        Object.entries(this.tokens).forEach(t => {
+          Vue.set(UI.tokens, t[0], t[1])
+        })
+      })  
+    }
+  }
 }
 
-const getContracts = () => {
-    return {OutlandsToken,OutlandsRegistry,outlandsTrouble}
-}
-
-export {
-    provider,
-    check,
-    getContracts,
-    signData,
-    submitChallenge
-}
+export {ETHManager}
+//log blocks
+/*
+goerli.on("block", (blockNumber) => {
+    console.log("goerli: "+blockNumber)
+})
+*/

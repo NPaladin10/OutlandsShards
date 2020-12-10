@@ -2,330 +2,201 @@
 <html>
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>Ethereum Sea</title>
+    <title>Guilds of the Outlands</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Aclonica">
     <link rel="stylesheet" type="text/css" href="lib/noty.3.1.4.min.css">
     <link rel="stylesheet" type="text/css" href="lib/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="src/main.css">
+    <link rel="stylesheet" type="text/css" href="src/shards/main.css">
   </head>
   <body>
-    <div id="spinner" class="lds-dual-ring"></div>
-    <div id="ui-main" align="center">
+    <div id="ui-main" class="w-100" align="center">
       <!--MENU---------------------------------------------->
-      <div class="d-flex flex-row m-1" style="z-index:100;position:fixed;">
+      <div class="d-flex justify-content-between m-1" style="z-index:100">
         <div>
-          <a class="btn btn-info btn-sm" data-toggle="collapse" href="#menu-list" role="button">
-            <img src="media/md-menu.svg" height="20" width="20">
-          </a>
+          <h1>Shards of the Outlands</h1>
         </div>
-        <div>
-          <div class="card collapse" id="menu-list" style="width:200px;">
-            <div class="card card-body p-1">
-              <button type="button" class="btn btn-block btn-info" @click="conductSearch()" v-if="address.length>0" :disabled="nextSearchTime>0">
-                Claim New Plane <span v-if="nextSearchTime>0">({{nextSearchTime}}s)</span>
-              </button>
-              <button type="button" class="btn btn-block btn-info" v-if="heroIds.length>0" @click="show=1" data-toggle="collapse" href="#menu-list">View Heroes</button>
-              <button type="button" class="btn btn-block btn-info" v-if="crewIds.length>0" @click="show=5" data-toggle="collapse" href="#menu-list">View Crew</button>
-              <button type="button" class="btn btn-block btn-info" v-if="completedChallenges.length>0" @click="show=3" data-toggle="collapse" href="#menu-list">View Challenges</button>
-              <button type="button" class="btn btn-block btn-success" @click="claimHeroFunds()" v-if="shareToClaim>0" data-toggle="collapse" href="#menu-list">
-                Claim <span class="font-weight-bold">Ξ</span>
-                <span>{{shareToClaim}}</span>
-              </button>
-              <button type="button" class="btn btn-block btn-info" @click="show=6" data-toggle="collapse" href="#menu-list">About</button>
-              <button type="button" class="btn btn-block btn-danger" @click="reset()" data-toggle="collapse" href="#menu-list">Reset Game</button>
+        <div class="d-flex align-items-center">
+          <div class="mx-1 p-1 border">{{net}}</div>
+          <div class="p-1 border">{{address.slice(0,5)+'...'+address.slice(-5)}}</div>
+          <div class="d-flex flex-row-reverse">
+            <div class="m-2">
+              <a class="btn btn-info btn-sm" data-toggle="collapse" href="#menu-list" role="button">
+                <img src="media/md-menu.svg" height="20" width="20">
+              </a>
+            </div>
+            <div class="card collapse" id="menu-list" style="position: absolute;width:200px;right:50px;z-index:100">
+              <div class="card card-body p-1">
+                <button type="button" class="btn btn-block btn-info" @click="show=''" data-toggle="collapse" href="#menu-list">Home</button>
+                <button type="button" class="btn btn-block btn-info" @click="show='explorers'" data-toggle="collapse" href="#menu-list">Explorers</button>
+                <button type="button" class="btn btn-block btn-info" @click="show='inventory'" data-toggle="collapse" href="#menu-list">Inventory</button>
+                <button type="button" class="btn btn-block btn-info" @click="show='admin'" data-toggle="collapse" href="#menu-list" v-if="isAdmin.length>0">Admin</button>
+                <button type="button" class="btn btn-block btn-info" @click="show='about'" data-toggle="collapse" href="#menu-list">About</button>
+                <a type="button" class="btn btn-block btn-info mt-3" href="index.html">Astrum Aurum</a>
+              </div>
             </div>
           </div>
         </div>
       </div>
       <!--END MENU---------------------------------------------->
-      <!--OVERHEAD---------------------------------------------->
-      <div class="overlay m-1 p-1" style="top:0;" v-if="show>-1" v-cloak>
-        <!--PLANE INFO---------------------------------------------->
-        <div v-if="tid>-1 && show<1" style="min-width:300px;" v-cloak>
-          <h5 class="m-0">
-            {{planeData.name}} (#{{tid}})
-                        <a class="btn btn-info btn-sm" role="button" :href="'shards.html?tid='+tid">View</a>
-            <button type="button" class="close" @click="tid=-1,show=-1">&times;</button>
-          </h5>
-          <h6 class="my-0" v-if="planeData.SR != ''" v-cloak>Resource: {{planeData.SR}}</h6>
-          <div>People: {{planeData.people.join(" // ")}}</div>
-          <div v-if="nextRecruitTime>0" v-cloak>Next Recruit in {{nextRecruitTime+1}} min</div>
-          <div class="btn-group mb-1" role="group">
-            <button class="btn btn-success" type="button" v-if="CPX[0] > Number(recruitCostCPX)" @click="Recruit(false)" :disabled="nextRecruitTime>0">Recruit Hero</button>
-            <button class="btn btn-success" type="button" v-if="address != ''" @click="Recruit()" :disabled="nextRecruitTime>0">Recruit Kovan Hero</button>
-          </div>
-          <div class="btn-group mb-1" role="group">
-            <button class="btn btn-success" type="button" v-if="CPX[0] > Number(recruitCrewCostCPX)" @click="show=4" :disabled="nextRecruitTime>0">Recruit Crew</button>
-            <button class="btn btn-success" type="button" v-if="address.length>0 && planeCrew.crew" @click="show=4" :disabled="nextRecruitTime>0">Recruit Kovan Crew</button>
-          </div>
-          <div class="mb-1" v-if="needSurplus.period && (needSurplus.need!=''||needSurplus.surplus!='')">
-            <button class="btn btn-info btn-block" type="button" data-toggle="collapse" href="#trade-list">
-              <h6 class="my-0">Trade</h6>
-              <h6 class="mx-1 my-0 d-flex justify-content-between">
-                <div v-if="needSurplus.need!=''" v-cloak>Need: {{needSurplus.need}}</div>
-                <div v-if="needSurplus.surplus!=''" v-cloak>Surplus: {{needSurplus.surplus}}</div>
-              </h6>
-            </button>
-            <div id="trade-list" class="input-group collapse">
-              <select class="custom-select" v-model="tradeId">
-                <option v-for="(p,i) in allPlanes" v-if="p.i != tid" :value="p._id">{{p.name}}</option>
-              </select>
-              <div class="input-group-append" v-if="tradeData.period" v-cloak>
-                <button class="btn" v-if="needSurplus.surplus!='' && tradeData.need!=''" :class="[tradeData.need==needSurplus.surplus ? 'btn-warning' : 'btn-outline-warning']" type="button" :disabled="tradeData.need!=needSurplus.surplus" @click="makeTrade(needSurplus,tradeData)">{{tradeData.need}}</button>
-                <button class="btn" v-if="needSurplus.need!='' && tradeData.surplus!=''" :class="[tradeData.surplus==needSurplus.need ? 'btn-success' : 'btn-outline-success']" type="button" :disabled="tradeData.surplus!=needSurplus.need" @click="makeTrade(tradeData,needSurplus)">{{tradeData.surplus}}</button>
-              </div>
-            </div>
-          </div>
-          <div class="mb-1" v-if="trouble.period">
-            <button class="btn btn-success btn-block" type="button" @click="show=2" :disabled="trouble.complete">
-              <h6 class="my-0">Solve Trouble</h6>
-              <h6 class="my-0">{{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
-            </button>
-          </div>
-        </div>
-        <!--END PLANE INFO---------------------------------------------->
-        <!--RECRUIT CREW---------------------------------------------->
-        <div class="p-1" v-if="show == 4" v-cloak>
-          <h5 class="m-0">Select New Crew Recruit</h5>
-          <div v-if="nextRecruitTime>0">Time Until Next Recruit: {{nextRecruitTime}} min</div>
-          <div v-for="(C,i) in planeCrew.crew" v-if="i < 2 && C.available">
-            <button class="btn btn-success btn-block my-1" type="button" @click="recruitCrew(i)" :disabled="nextRecruitTime > 0">{{C.people}} {{C.approaches[0]}} {{C.skill}} {{C.r}}</button>
-          </div>
-          <button type="button" class="btn btn-info btn-block" @click="show=-1">Close</button>
-        </div>
-        <!--END RECRUIT CREW---------------------------------------------->
-        <!--CHALLENGES---------------------------------------------->
-        <div v-if="show == 3" v-cloak>
-          <div v-for="C in completedChallenges">
-            <h5 class="my-0">Period {{C[1].period}} / Plane {{C[1].plane}}</h5>
-            <div>Heroes: {{C[1].heroes.join(', ')}}</div>
-          </div>
-          <button type="button" class="btn btn-info btn-block" @click="show=-1">Close</button>
-        </div>
-        <!--END CHALLENGES---------------------------------------------->
-        <!--TROUBLE---------------------------------------------->
-        <div v-if="show == 2" v-cloak>
-          <h5 class="my-0">Plane {{tid}} Trouble <button type="button" class="btn btn-sm btn-info" data-toggle="collapse" href="#troubleAbout">&#8520;</button></h5>
-          <h6 class="mx-1 my-0">{{trouble.approach}} {{trouble.skill}} [{{trouble.diff}}/{{trouble.sz}}]</h6>
-          <h6 class="mx-1 my-0" v-if="trouble.source">Cause: {{trouble.source.name}}</h6>
-          <div class="p-2 collapse" id="troubleAbout" align="left" style="max-width:450px;">Select a hero to solve each skill challenge. Not every skill may be faced
-            when solving the Trouble, the central skill ({{trouble.skill}}) will. If the hero 
-            fails to defeat a skill they will recieve stress which will require a period of 
-            cooldown, but they will also earn the listed XP for their effort. They will only 
-            earn XP once for every trouble they face. The chances of a hero solving a skill 
-            challenge is represented by the colored arc: green is success, blue is success with 
-            stress, and red is failure. If you successfully solve the trouble by facing 
-            {{trouble.sz}} skill challenges you will recive a reward of CPX.     
-          </div>
-          <div class="mt-2" v-if="troubleLeadFaction.name">
-            <h6 class="my-0">Lead Hero: {{troubleHeroes[trouble.skillId].name}}</h6>
-            <h6>Faction: {{troubleLeadFaction.name}}</h6>
-          </div>
-          <div class="mt-1" v-for="n in 6">
-            <h5 class="m-0">
-              {{skillNames[n-1]}} <span v-if="troubleHeroIds[n-1] != ''">({{troubleXP[n-1]}}XP)</span>
-            </h5>
-            <div class="d-flex justify-content-around align-items-center">
-              <div>
-                <div :class="troubleHeroIds[n-1] == -1 ? 'w-100' : ''">
-                  <div class="input-group">
-                    <div class="input-group-prepend">
-                      <span class="input-group-text">Hero</span>
-                    </div>
-                    <select class="custom-select" v-model="troubleHeroIds[n-1]" @change="drawArc()">
-                      <option v-for="(id,j) in heroIds" v-if="heroCanAct[j]" :value="id">{{allHeroes[j].name}}</option>
-                    </select>
-                    <div class="input-group-append" v-if="troubleHeroIds[n-1] != ''">
-                      <span class="input-group-text">{{troubleHeroes[n-1].skillsById[n-1]}}</span>
-                      <button type="button" class="btn btn-warning" @click="troubleHeroIds[n-1]='',drawArc()">&#10007;</button>
-                    </div>
-                  </div>
-                </div>
-                <div :class="troubleCrewIds[n-1] == -1 ? 'w-100' : ''">
-                  <div class="input-group">
-                    <div class="input-group-prepend">
-                      <span class="input-group-text">Crew</span>
-                    </div>
-                    <select class="custom-select" v-model="troubleCrewIds[n-1]" @change="drawArc()">
-                      <option v-for="(id,j) in crewIds" v-if="crewCanAct[j]" :value="id">{{allCrew[j].name}}</option>
-                    </select>
-                    <div class="input-group-append" v-if="troubleCrewIds[n-1] != ''">
-                      <span class="input-group-text">{{troubleCrew[n-1].skillsById[n-1]}}</span>
-                      <button type="button" class="btn btn-warning" @click="troubleCrewIds[n-1]='',drawArc()">&#10007;</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <svg :id="'dpArc-'+(n-1)" height="1" width="1"></svg>
-              </div>
-            </div>
-          </div>
-          <div class="btn-group btn-block" role="group">
-            <button type="button" class="btn btn-success btn-block" v-if="canSolveTrouble" @click="commitToSolveTrouble(),show=-1">Commit</button>
-            <button type="button" class="btn btn-info" :class="canSolveTrouble ? '' : 'btn-block'" @click="show=-1">Close</button>
-          </div>
-        </div>
-        <!--END TROUBLE---------------------------------------------->
-        <!--CREW 5---------------------------------------------->
-        <div class="mt-2" v-if="show == 5" v-cloak>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text">Crew</span>
-            </div>
-            <select class="custom-select" v-model="crid">
-              <option v-for="(id,i) in crewIds" :value="id">{{allCrew[i].name}}</option>
-            </select>
-          </div>
-          <div v-if="crid != ''">
-            <input class="form-control" type="text" placeholder="Crew Name" v-model="crewData._name">
-            <div>A {{crewData.people}} from {{crewData.planeName}}</div>
-            <div>{{crewData.approaches[0]}} {{crewData.skill}} {{crewData.r}}</div>
-          </div>
-          <div class="btn-group btn-block" role="group">
-            <button type="button" class="btn btn-success btn-block">Save</button>
-            <button type="button" class="btn btn-info" @click="show=-1">Close</button>
-          </div>
-        </div>
-        <!--END CREW---------------------------------------------->
-        <!--HEROES---------------------------------------------->
-        <div class="mt-2" v-if="show == 1" v-cloak>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text">Heroes</span>
-            </div>
-            <select class="custom-select" v-model="hid">
-              <option v-for="(id,i) in heroIds" :value="id">{{allHeroes[i].name}}</option>
-            </select>
-          </div>
-          <div v-if="hid != ''">
-            <input class="form-control" type="text" placeholder="Hero Name" v-model="heroData._name">
-            <div>Home Plane: {{heroData.planeName}}</div>
-            <div>People: {{heroData.ppl}}</div>
-            <div>Aspects: {{heroData.approaches.join(', ')}}</div>
-            <h6 class="m-0">Skills (XP {{heroData._xp}})</h6>
-            <div class="d-flex justify-content-between mx-1" v-for="s in heroData.skills">
-              <div>[{{s[0]}}]</div>
-              <div>{{s.slice(1).join(", ")}}</div>
-            </div>
-            <div class="input-group mt-1" v-if="cooldown!=''">
-              <div class="input-group-prepend">
-                <span class="input-group-text">Cooldown</span>
-              </div>
-              <div class="input-group-append">
-                <span class="input-group-text">{{cooldown}} hrs</span>
-                <button type="button" class="btn btn-warning" v-if="CPX[0]>=1" @click="reduceCool()">
-                  Reduce (1<span class="font-weight-bold diamond">&#10023;</span>
-                  )
-                
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="btn-group btn-block" role="group">
-            <button type="button" class="btn btn-success btn-block" @click="saveHero()">Save</button>
-            <button type="button" class="btn btn-info" @click="show=-1">Close</button>
-          </div>
-        </div>
-        <!--END HEROES---------------------------------------------->
-        <!--FACTIONS 7---------------------------------------------->
-        <factions class="mt-2 p-1" v-if="show==7" v-cloak></factions>
-        <!--END FACTIONS---------------------------------------------->
-        <!--ABOUT (6)---------------------------------------------->
-        <div class="mt-2 p-1" v-if="show==6" v-cloak>
-          <h3>Welcome to the Outlands!</h3>
-          <p align="left">The last Cosmic War ended with the shattering of countless worlds. 
-                    As they were torn apart an attempt was made to save some of their populations. 
-                    Shards of the shattered worlds were pushed into an artificial dimensional construct, 
-                    and the Outlands was born.</p>
-          <p align="left">The Outlands is a place to explore and adventure with the heroes and 
-          crew that you recruit from the planes. Discover new planes, 
-          overcome troubles that plague the Outlands, search through ruins of the 
-          past, and uncover cosmic relics.  </p>
-          <p align="left">This is an experimental game built upon Ethereum - an emerging technology. 
-          For those familiar - it is a dApp. You do not need to use Ethereum to play 
-          the game. However, if you do use Ethereum you can unlock more functionality, 
-          and you can help shape the game as you play. Currently the game runs on the 
-          Kovan network - and if you want to utilize all aspects of the game you should pick
-           up some Kovan Ether. </p>
-          <p align="left">You start with five heroes and a small amount of Diamond. Use it to recruit heroes, 
-          crew and buy gear. Spend it wisely. 
-          </p>
-          <div class="p-1">
-            <button type="button" class="btn btn-info" @click="show=7">Factions</button>
-          </div>
-          <div>
-            <button type="button" class="btn btn-info" @click="show=-1">Close</button>
-          </div>
-        </div>
-        <!--END ABOUT---------------------------------------------->
-        <!--OVERTEXT---------------------------------------------->
-        <over-text class="mt-2 p-1" v-if="overTextId != ''" v-cloak></over-text>
-        <!--END OVERTEXT---------------------------------------------->
+      <about v-if="show=='about'"></about>
+      <!--ADMIN---------------------------------------------->
+      <div class="m-1" align="left" v-if="show=='admin'">
+        <ui-eth-admin-gatekeeper v-if="isAdmin.includes('Gatekeeper')"></ui-eth-admin-gatekeeper>
+        <ui-eth-admin-storefront v-if="isAdmin.includes('Storefront1155')"></ui-eth-admin-storefront>
+        <ui-eth-admin-shards v-if="isAdmin.includes('OutlandsShards')"></ui-eth-admin-shards>
+        <ui-eth-admin-treasure v-if="isAdmin.includes('TreasureMinter')"></ui-eth-admin-treasure>
       </div>
-      <!--END OVERHEAD---------------------------------------------->
-      <div id="map">
-        <canvas height="0" width="0"></canvas>
+      <!--END ADMIN---------------------------------------------->
+      <ui-explorers v-if="show=='explorers'" :now="now" :explorers="explorers" :tokens="tokens"></ui-explorers>
+      <!--INVENTRORY/STORE---------------------------------------------->
+      <div class="m-1" align="center" v-if="show=='inventory'">
+        <div class="container my-2" align="right">
+          <h3 align="left">Cosmic Staking</h3>
+          <span v-if="tokens[0]">CPX: {{tokens[0]}}</span>
+          <span v-if="tokens[1]">DMD: {{tokens[1].val.toFixed(5)}}</span>
+          <div class="my-2">
+            <button class="btn btn-outline-success btn-block" type="button" @click="claimCosmic()" :disabled="!CPXdT.mayClaim">
+              <span v-if="!CPXdT.mayClaim">Claim Free Cosmic in {{CPXdT.h}}:{{CPXdT.m}}:{{CPXdT.s}}</span>
+              <span v-if="CPXdT.mayClaim">Claim Free Cosmic!</span>
+            </button>
+          </div>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text">CPX</span>
+            </div>
+            <input type="number" class="form-control" v-model="stakeAmt">
+            <div class="input-group-append">
+              <button class="btn btn-outline-success" type="button" @click="stake()" :disabled="stakeAmt>tokens[0]">Stake Cosmic</button>
+            </div>
+          </div>
+          <div v-if="staked[0]>0">Staked: {{staked[0]}} | Available Diamond: {{staked[1].toFixed(5)}}</div>
+          <div class="d-flex">
+            <div class="input-group w-50">
+              <div class="input-group-prepend">
+                <span class="input-group-text">CPX</span>
+              </div>
+              <input type="number" class="form-control" v-model="unstakeAmt">
+              <div class="input-group-append">
+                <button class="btn btn-outline-success" type="button" @click="unstake()" :disabled="unstakeAmt>staked[0]">Unstake Cosmic</button>
+              </div>
+            </div>
+            <button class="btn btn-outline-success w-50" type="button" @click="claimDiamond()" :disabled="staked[1]==0">Claim Diamond</button>
+          </div>
+        </div>
+        <button class="btn btn-block btn-info w-50" type="button" @click="approveGatekeeper()" v-if="!approval.includes('Gatekeeper')">Approve App to Spend Tokens</button>
+        <button class="btn btn-block btn-info w-50" type="button" @click="approveDiamondMinter()" v-if="allowance['DiamondMinter']<100000">Approve Staking</button>
+        <div class="container" v-if="approval.includes('Gatekeeper')">
+          <h3 align="left">Store</h3>
+          <div class="row align-items-center">
+            <div class="col">What</div>
+            <div class="col">Cost</div>
+            <div class="col">Item</div>
+            <div class="col"></div>
+          </div>
+          <div class="row border align-items-center py-1" v-for="(sku,id) in store">
+            <div class="col">{{sku.text}}</div>
+            <div class="col">{{sku.toPay}}</div>
+            <div class="col">{{sku.toBuy}}</div>
+            <div class="col" align="right">
+              <button class="btn btn-outline-success" type="button" @click="buySKU(id,sku)">Buy</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-2 container" align="left">
+          <h3>Inventory</h3>
+          <span class="mx-2 p-1 border" v-for="(t,id) in tokens" v-if="!['0','1','1000000'].includes(id)">{{t.name}}: {{t.val}}</span>
+        </div>
+      </div>
+      <!--END INVENTRORY/STORE---------------------------------------------->
+      <div class="m-1" align="left" v-if="show==''">
+        <div class="m-1 p-1 border" v-for="(Relm,i) in realms">
+          <h4>{{Relm.name}}</h4>
+          <div class="p-1 region" v-for="(R, key) in regions" v-if="regions && R.realm == i+1">
+            <h5>{{R.name}}</h5>
+            <div class="p-1 border-top" v-for="S in R.shards">
+              <div>{{S.seed}}</div>
+              <div>{{S.anchor.text}} [{{S.anchor.rarity}}], Risk/Reward: {{S.anchor.risk[1]}}</div>
+            </div>
+          </div>
+        </div>
       </div>
       <!--FOOTER---------------------------------------------->
       <!--END FOOTER---------------------------------------------->
-      <div class="overlay m-1 p-1" style="bottom:0;" align="center">
-        <div class="bg-light">
-          <div class="d-flex justify-content-center align-items-center">
-            <span class="font-weight-bold">Ξ</span>
-            <span>{{balance}}</span>
-            <span class="font-weight-bold diamond ml-3">&#10023;</span>
-            <span>{{CPX[0]}}</span>
-            <div class="input-group input-group-sm ml-2" style="width:175px;" v-if="maxCPX>0">
-              <input type="number" class="form-control" min="0" :max="maxCPX" step="0.1" v-model="toCombine">
-              <div class="input-group-append">
-                <button class="btn btn-info" type="button" @click="combineCPX()">Combine CPX</button>
+    </div>
+    <!--EXPLORERS---------------------------------------------->
+    <template id="ui-explorers">
+      <div class="m-1" align="left">
+        <h3>Explorers</h3>
+        <div class="container">
+          <div class="row">
+            <div class="col-1">ID</div>
+            <div class="col-2">Shard</div>
+            <div class="col-2">Cooldown</div>
+            <div class="col">Actions</div>
+          </div>
+          <div v-for="(ex, id) in explorers">
+            <div class="row align-items-center">
+              <div class="col-1">{{Number(id)-1000000}}</div>
+              <div class="col-2">{{ex.shard}}</div>
+              <div class="col-2">{{(ex._cool < now) ? 'Ready' : cool(ex._cool)}}</div>
+              <div class="col">
+                  <div class="input-group">
+                    <select class="custom-select" v-model="act">
+                      <option v-if="ex.shard==0" value="0">Initialize Location</option>
+                      <option v-for="(act,i) in actOpts" :value="i+1">{{act}}</option>
+                    </select>
+                    <div class="input-group-append">
+                      <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
+                    </div>
+                  </div>
               </div>
             </div>
+            <!--EXPLORER ACTIONS---------------------------------------------->
+            <div class="px-3" v-if="exid == id && act > -1">
+              <!--EXPLORER MOVE---------------------------------------------->
+              <div class="input-group" v-if="act == 1">
+                <div class="input-group-prepend">
+                  <span class="input-group-text">Shard</span>
+                </div>
+                <select class="custom-select" v-model="moveTo">
+                  <option v-for="s in shards" :value="s.id" v-if="s.id != Number(ex._shard)">{{s.text}}</option>
+                </select>
+                <div class="input-group-append">
+                  <span class="input-group-text" v-if="moveTime>0">{{moveTime}} hours</span>
+                  <button class="btn btn-outline-secondary" type="button" @click="move()">Move</button>
+                </div>
+              </div>
+              <!--EXPLORER COOLDOWN---------------------------------------------->
+              <div class="input-group" v-if="act == 2">
+                <div class="input-group-prepend">
+                  <span class="input-group-text">Reduce by</span>
+                </div>
+                <select class="custom-select" v-model="optsReduceCool.id">
+                  <option v-for="c in cooldown" :value="c[0]">{{c[1].name}} [{{c[1].val}}]</option>
+                </select>
+                <div class="input-group-prepend">
+                  <span class="input-group-text">#</span>
+                </div>
+                <input type="number" class="form-control" v-model="optsReduceCool.qty">
+                <div class="input-group-append">
+                  <button class="btn btn-outline-secondary" type="button" @click="reduceCool()">Reduce</button>
+                </div>
+              </div>
+            </div>
+            <!--END EXPLORER ACTIONS---------------------------------------------->
           </div>
-          <div class="mt-1" style="font-size: small;">
-            <span class="mr-1" v-for="n in 6">
-              <span class="font-weight-bold" :class="cpxNames[n].toLowerCase()">&#10023;</span>
-              <span>{{CPX[n].toFixed(1)}}</span>
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <template id="over-text">
-      <div>
-        <div v-html="content"></div>
-        <button type="button" class="btn btn-info" v-for="o in options">{{o[0]}}</button>
-        <div v-if="showClose" v-cloak>
-          <button type="button" class="btn btn-info" @click="show=-1">Close</button>
         </div>
       </div>
     </template>
-    <template id="factions">
-      <div align="left">
-        <h3>Player Factions</h3>
-        <faction-data :F="F" v-for="F in playerFactions"></faction-data>
-        <h3>Non-Player Factions</h3>
-        <faction-data :F="F" v-for="F in nonPlayerFactions"></faction-data>
-      </div>
-    </template>
-    <template id="faction-data">
-      <div class="p-1">
-        <h5 class="m-0">{{F.name}}</h5>
-        <div>{{F.text}}</div>
-        <div>
-          <span class="mx-2" v-for="(n,i) in ['Might','Reach','Slight']">{{n}}: {{F.stats[i]}}</span>
-        </div>
-      </div>
-    </template>
+    <!--END EXPLORERS---------------------------------------------->
   </body>
-  <script src="src/nameGenerate.js"></script>
-  <script src="lib/ethers-v4.min.js"></script>
-  <script src="lib/d3.v5.min.js"></script>
+  <script src="lib/d3.min.js"></script>
   <script src="lib/vue.2.5.16.min.js"></script>
   <script src="lib/noty.3.1.4.min.js"></script>
   <script src="lib/popper.1.12.3.min.js"></script>
   <script src="lib/jquery-3.3.1.min.js"></script>
   <script src="lib/bootstrap.min.js"></script>
-  <script type="module" src="src/main.js"></script>
+  <script type="module" src="src/shards/main.js"></script>
 </html>
