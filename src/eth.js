@@ -1,6 +1,6 @@
 import*as CONTRACTS from "./abi/index.js"
 //ethers js 
-import {ethers} from "../../lib/ethers-5.0.min.js"
+import {ethers} from "../lib/ethers-5.0.min.js"
 //outlands data 
 import*as OutlandsCore from "./outlands.js"
 //UI

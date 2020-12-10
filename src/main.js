@@ -1,7 +1,7 @@
 //chance
-import "../../lib/chance.min.js"
+import "../lib/chance.min.js"
 //localforage 
-import "../../lib/localforage.1.7.1.min.js";
+import "../lib/localforage.1.7.1.min.js";
 //Save db for Indexed DB - localforage
 const DB = localforage.createInstance({
   name: "Shards",

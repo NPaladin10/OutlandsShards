@@ -78,6 +78,22 @@ const TREASUREMINTER = `
 <div class="m-1 p-1 border">
     <h4>Treasure Minter</h4>
     <form class="p-1">
+        <h4>Set Allowable Tokens</h4>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">IDs</span>
+            </div>
+            <input type="text" class="form-control" placeholder="list of ids" v-model="allowIds">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Allow</span>
+            </div>
+            <input type="text" class="form-control" placeholder="list of true/false" v-model="allow">
+            <div class="input-group-append">
+                <button class="btn btn-outline-success" type="button" @click="setAllowableTreasure()">Submit</button>
+            </div>
+        </div>
+    </form>
+    <form class="p-1">
         <h4>Set Treasure</h4>
         <div class="input-group">
             <div class="input-group-prepend">
@@ -171,14 +187,24 @@ const UI = (app)=>{
     data: function() {
       return {
         ids : "",
-        tList : ""
+        tList : "",
+        allowIds : "",
+        allow: ""
       }
     },
     computed: {},
     methods: {
+      setAllowableTreasure() {
+        let ids = this.allowIds.split(",").map(s => s.trim()),
+          allow = this.allow.split(",").map(s => s.trim());
+        
+        app.ETH.submit("TreasureMinter", "setAllowableTokens", [ids,allow])
+      },
       setTreasure() {
-        let ids = this.ids.split(",")
-        let t = this.tList.split("],[")
+        let ids = this.ids.split(",").map(s => s.trim())
+        let treasure = this.tList.slice(1,-1).split("],[").map(t => t.split(","))
+
+        app.ETH.submit("TreasureMinter", "setTreasureBatch", [ids,treasure])
       },
     }
   })
