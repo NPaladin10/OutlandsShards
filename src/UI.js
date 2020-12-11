@@ -66,8 +66,7 @@ const UI = (app)=>{
       approval : [],
       allowance : {},
       //staking 
-      unstakeAmt : 0,
-      stakeAmt : 0,
+      cpxAmt : 0,
       staked : [0,0],
       //shards
       realms : OutlandsCore.REALMS,
@@ -143,11 +142,11 @@ const UI = (app)=>{
         app.ETH.submit("DiamondMinter", "mint", [])
       },
       stake () {
-        let amt = app.ETH.utils.parseEther(this.stakeAmt) 
+        let amt = app.ETH.utils.parseEther(this.cpxAmt) 
         app.ETH.submit("DiamondMinter", "stake", [amt.toString()])
       },
       unstake () {
-        let amt = app.ETH.utils.parseEther(this.unstakeAmt) 
+        let amt = app.ETH.utils.parseEther(this.cpxAmt) 
         app.ETH.submit("DiamondMinter", "unstake", [amt.toString()])
       },
       approveDiamondMinter () {

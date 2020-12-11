@@ -24,14 +24,16 @@ const ContractAddresses = {
     "DiamondMinter": "0x596E1E05161f994c92b356582E12Ef0fD2A86170",
     "CharacterLocation" : "0x6Ca442A4F8bAEfAc47e9710641b7F4d6B65Ee8c3",
     "Cooldown" : "0x1F8fEC5Cbf415ad6101Dd40326aAa2076964EE33",
-    "TreasureMinter" : "0x47033640766f9fe1Dac22a8EBB9595b3e764B73a"
+    "TreasureMinter" : "0x47033640766f9fe1Dac22a8EBB9595b3e764B73a",
+    "DailyTreasure" : "0x7BE9E681D3733F583e827B19942259Cafa7370CA"
   }
 }
 
 const Roles = {
   "admin": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "minter": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6",
-  "region_admin": "0xb0c6d6c98634bf90c5127f65c948b52cc8ad5f3b499bdb4170d0b685e60ee0df"
+  "region_admin": "0xb0c6d6c98634bf90c5127f65c948b52cc8ad5f3b499bdb4170d0b685e60ee0df",
+  "burner" : "0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848"
 }
 
 //Rarity calculations 
@@ -118,7 +120,8 @@ const poll = (UI)=>{
 
             Shards[start + i] = {
               id: start + i,
-              seed,
+              seed : seed.slice(2,7)+'...'+seed.slice(-4),
+              _seed : seed,
               anchor: {
                 id: anchor,
                 rarity: getRarity(seed, 1),
@@ -199,6 +202,13 @@ class ETHManager {
     }
     )
   }
+  get ABI () {
+    let abi = {}
+    Object.entries(CONTRACTS).forEach(e => {
+      abi[e[0]] = JSON.parse(e[1])
+    })
+    return abi
+  }
   setToken (id, neg, amt) {
     if(!this._tokens[id]) {
       this._tokens[id] = ethers.BigNumber.from(0)
@@ -253,7 +263,7 @@ class ETHManager {
       
       return Object.assign({
         id, 
-        text : Regions[data.region].name + ", " + data.seed.slice(0,9) + "..." 
+        text : Regions[data.region].name + ", " + data.seed
       },data)
     })
   }
@@ -290,6 +300,11 @@ class ETHManager {
     
     return new Promise((res,rej) => {
       method(...data).then(tx=>{
+        //if no hash it is a view function
+        if(!tx.hash) {
+          return res(tx)
+        }
+
         console.log(_method + " submitted: " + tx.hash)
         //wait 
         tx.wait(1).then(resTx=>{
@@ -343,7 +358,7 @@ class ETHManager {
        
     let e = this._explorers[id] = {
       _shard,
-      shard : rd.name + ", " + sd.seed.slice(0,9) + "...",
+      shard : rd.name + ", " + sd.seed,
       _cool
     }
     

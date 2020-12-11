@@ -41,6 +41,8 @@ const UI = (app)=>{
     },
     methods: {
       cool (cool) {
+        if(cool < this.now) return "Ready"
+        
         let ts = cool - this.now,
           hrs = Math.floor(ts / 3600),
           min = Math.floor((ts-(hrs*3600))/60),
