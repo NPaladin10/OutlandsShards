@@ -97,11 +97,10 @@
         <div class="m-1 p-1 border" v-for="(Relm,i) in realms">
           <h4>{{Relm.name}}</h4>
           <div class="p-1 region" v-for="(R, key) in regions" v-if="regions && R.realm == i+1">
-            <h5>{{R.name}}</h5>
-            <div class="p-1 border-top" v-for="S in R.shards">
-              <div>{{S.seed}}</div>
-              <div>{{S.anchor.text}} [{{S.anchor.rarity}}], Risk/Reward: {{S.anchor.risk[1]}}</div>
-            </div>
+            <h5>{{R.name}} ({{R.shards.length}})</h5>
+            <select class="custom-select">
+              <option v-for="S in R.shards">{{S.seed}}, {{S.anchor.text}} [{{S.anchor.rarity}}]</option>
+            </select>
           </div>
         </div>
       </div>

@@ -85,15 +85,7 @@ const UI = (app)=>{
         let _t = ++this.tick
         this.now = Math.round(Date.now() / 1000)
 
-        //every 2 seconds
-        if(_t % 4 == 0) {
-          app.ETH.getAddress(this)
-        }
-
-        //every 30 seconds
-        if(_t % 30 == 0) {
-          app.ETH.poll()
-        }
+        app.ETH.poll()
 
         //filter out what has been completed
         let done = queue.filter(q => q[q.length-1]<=this.now)

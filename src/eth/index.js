@@ -1,21 +1,24 @@
-import*as CONTRACTS from "./abi/index.js"
 //ethers js 
-import {ethers} from "../lib/ethers-5.0.min.js"
-//outlands data 
-import*as OutlandsCore from "./outlands.js"
+import {ethers} from "../../lib/ethers-5.0.min.js"
+//ABI 
+import*as CONTRACTS from "./abi/index.js"
 //UI
-import {UI} from "./uiETHAdmin.js"
+import {UI} from "./uiAdmin.js"
+//polling functions
+import {poll as shardPoll} from "./shards.js"
+import {poll as tokenPoll} from "./tokens.js"
 
 const Regions = {}
 const Shards = {}
+
+// ether 1000000000000000000
 
 //Contracts
 const Contracts = {}
 //deployed addresses 
 const ContractAddresses = {
   "goerli": {
-    "OutlandsShards": "0x7E4957eF381ce2744F8B9d3EAd2B74889143CbBF",
-    "MoveTime": "0xEd094d3eA4d6509D7DBbAaD616F0EbD6b744c17E",
+    "OutlandsShards": "0x0DA9265d5A9041eb639a2E03347614427f020432",
     "CPXToken1155": "0x753606cde5dd3EdD7995d9080020D5281a8C4956",
     "CPXToken20": "0x1897A9F9bbE164B257A394f2C65ad0BE348c33Aa",
     "Gatekeeper" : "0xF988ea224f4Dd6F73d4857D32C1F43375E7b15c4",
@@ -63,92 +66,8 @@ const getRarity = (seed,what)=>{
 }
 
 //Polling
-const poll = (UI)=>{
-  return new Promise((res,rej)=>{
-    let OS = Contracts.OutlandsShards
-
-    const pollRegions = (rids)=>{
-      let done = []
-
-      //loop through region ids 
-      rids.forEach(id=>{
-        OS.getRegion(id).then(region=>{
-          let realm = region.realm.toNumber()
-          //set region data 
-          Regions[id] = {
-            id,
-            name: OutlandsCore.REGIONS[id - 1].name,
-            realm,
-            realmName: OutlandsCore.REALMS[realm - 1],
-            anchors: region.anchors.slice(),
-            get shards() {
-              return Object.values(Shards).filter(s=>s.region == this.id)
-            }
-          }
-
-          //track what is done
-          done.push(id)
-          if (done.length == rids.length) {
-            //set 
-            UI.regions = Regions
-
-            res({
-              Shards,
-              Regions
-            })
-          }
-        }
-        )
-      }
-      )
-    }
-
-    //first get the shards 
-    OS.count().then(nS=>{
-      let pages = Array.from({
-        length: 1 + Math.floor(nS.toNumber() / 50)
-      }, (v,i)=>i)
-      let done = []
-      //pull data on the shards 
-      pages.forEach(p=>{
-        OS.getShardByPage(p).then(data=>{
-          let start = 1 + (p * 50)
-          //loop and set data
-          data.seeds.forEach((seed,i)=>{
-            let anchor = data.anchors[i]
-            let risk = OutlandsCore.ANCHORRISK[anchor - 1]
-
-            Shards[start + i] = {
-              id: start + i,
-              seed : seed.slice(2,7)+'...'+seed.slice(-4),
-              _seed : seed,
-              anchor: {
-                id: anchor,
-                rarity: getRarity(seed, 1),
-                text: OutlandsCore.ANCHORS[anchor - 1],
-                risk: [risk, OutlandsCore.RISK[risk]]
-              },
-              region: data.rids[i].toNumber()
-            }
-          }
-          )
-
-          //track what is done 
-          done.push(p)
-          if (pages.length = done.length) {
-            //reduce regions to unique values
-            let rids = [...new Set(Object.values(Shards).map(s=>s.region))]
-            //get region info
-            pollRegions(rids)
-          }
-        }
-        )
-      }
-      )
-    }
-    )
-  }
-  )
+const poll = (UI) => {
+  return new Promise((res,rej)=>{})
 }
 
 //provider & signer 
@@ -165,6 +84,12 @@ const loadContracts = (netName)=>{
 
 const goerli = ethers.getDefaultProvider("goerli")
 
+// encoding function 
+const keccak256 = (types, data) => {
+  let abiBytes = ethers.utils.defaultAbiCoder.encode(types, data)
+  return ethers.utils.keccak256(abiBytes)
+}
+
 class ETHManager {
   constructor(app) {
     this.app = app
@@ -175,6 +100,14 @@ class ETHManager {
     this._explorers = {}
 
     this.utils = ethers.utils
+    this.BN = ethers.BigNumber
+    this.keccak256 = keccak256
+    this.rarity = Rarity
+
+    //handle polling 
+    this._tick = 0
+    this.pollShards = shardPoll(this)
+    this.pollTokens = tokenPoll(this)
 
     //cosmic claim 
     this.claimTime = 22 * 60 * 60
@@ -209,6 +142,9 @@ class ETHManager {
     })
     return abi
   }
+  get contracts () {
+    return Contracts
+  }
   setToken (id, neg, amt) {
     if(!this._tokens[id]) {
       this._tokens[id] = ethers.BigNumber.from(0)
@@ -222,33 +158,7 @@ class ETHManager {
     }
   }
   get tokens () {
-    let aI = this.app.inventory, tInfo = aI.tokens;
-    //set unique tokens to empty arrays  
-    let _t = {}, uTokens = {};
-    aI.uniqeIds.forEach(id => {
-      uTokens[id] = {
-        name : tInfo[id].name,
-        ids: []
-      }
-    })
-
-    //loop through tokes 
-    Object.entries(this._tokens).forEach(t => {
-      let id = t[0],
-        _u = aI.getUnique(id);
-      
-      if(_u) {
-        uTokens[_u[0]].ids.push(id)
-      }
-      else {
-        _t[id] = {
-          name : tInfo[id].name,
-          val : Number(ethers.utils.formatUnits(t[1], tInfo[id].units))
-        } 
-      }  
-    })
-    
-    return Object.assign(_t, uTokens) 
+    return {} 
   }
   get contracts() {
     return Contracts
@@ -348,6 +258,7 @@ class ETHManager {
     )
   }
   async pollExplorer(id) {
+    return
     let shard = await Contracts.CharacterLocation.shardLocation(id),
       _shard = shard.toString(),
       sd = Shards[shard],
@@ -366,6 +277,7 @@ class ETHManager {
     Vue.set(this.app.UI.main.explorers, id, e)
   }
   async pollExplorers () {
+    return 
     let UI = this.app.UI.main,
       ids = this.tokens[1000000].ids || [],
       E = this._explorers = {};
@@ -444,10 +356,20 @@ class ETHManager {
   poll() {
     if (!ContractAddresses[this.net]) return
 
+    let _t = ++this._tick
+    //every 2 seconds
+    if(_t % 4 == 0) {
+      this.getAddress(this.app.UI.main)
+    }
+
+    //poll for shards
+    this.pollShards(Contracts.OutlandsShards)
+    if(this.address != "") this.pollTokens(Contracts.Gatekeeper)
+
+    /*
     let app = this.app
       , UI = app.UI.main;
-    //poll for shards
-    poll(UI)
+    
     //poll for allowance
     if(this.address != "") this.pollAllowance(this.address)
 
@@ -502,6 +424,8 @@ class ETHManager {
         })
       })  
     }
+
+    */
   }
 }
 

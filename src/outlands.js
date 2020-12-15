@@ -33,6 +33,8 @@ const REGIONS = [
   {
     "name": "Orchards of Arcadia",
     "parent": "outlands",
+    "realm" : 1,
+    "anchors" : [1,1,2,2,3,3,3,3,3,4,4,4,5,5,5,5],
     "info": `
     <p>Perfectly lined orchards; small, sleeping villages surrounded by fields; produce and fruit in abundance; communes dedicated to an ancient form of martial arts or magic.</p>
     `
@@ -40,6 +42,8 @@ const REGIONS = [
   {
     "name": "Forests of Sun and Starlight",
     "parent": "outlands",
+    "realm" : 1,
+    "anchors" : [1,1,1,1,2,2,2,2,3,3,4,4,5,5,5,5],
     "info":  `
     <p>A mystical forest that is home to the fey. Ancient groves; trees of every description; small villages that disappear when you leave; teeming wildlife; vine choked ruins; mysterious lights dancing in the night; songs heard from a distance; houses in the trees.</p>
     `
@@ -47,6 +51,8 @@ const REGIONS = [
   {
     "name": "Oceanus",
     "parent": "outlands",
+    "realm" : 1,
+    "anchors" : [1,1,2,2,2,3,3,3,3,3,4,4,4,5,5,5],
     "info":  `
     <p>A huge, sluggish river that connects the Outlands. A miles wide river; winding tributaries; lakes; isolated islands; river towns; swamps; catfish that can swallow boats.</p>
     `
@@ -54,6 +60,8 @@ const REGIONS = [
   {
     "name": "Mount Olympus",
     "parent": "outlands",
+    "realm" : 1,
+    "anchors" : [1,1,2,2,2,2,3,3,3,4,4,5,5,5,5,5],
     "info":  `
     <p>Home of the Olympians. Picturesque mountain valleys; stately alabaster towns on mountainsides; vineyards as far as they eye can see; ancient and crumbling cities forgotten by time; arenas and coliseums built for sports of all kinds.</p>
     `
@@ -61,6 +69,8 @@ const REGIONS = [
   {
     "name": "Islands Beyond the World",
     "parent": "outlands",
+    "realm" : 1,
+    "anchors" : [1,1,2,2,2,2,3,3,4,4,5,5,5,5,5,5],
     "info":  `
     <p>An endless ocean dotted with countless volcanic islands. Water as far as the eye can see; smoke rising from a slumbering volcano; isolated atolls; a pod of whales; small island villages.</p>
     `
@@ -68,6 +78,8 @@ const REGIONS = [
   {
     "name": "Bottomless Depths",
     "parent": "outlands",
+    "realm" : 1,
+    "anchors" : [1,1,2,2,2,2,3,3,4,4,5,5,5,5,5,5],
     "info":  `
     <p>An underwater realm where there is no sky. Blue above and black below; city sized coral reefs suspended in the currents; tangled forests of free-floating kelp; teeming schools of fish.</p>
     `
@@ -75,6 +87,8 @@ const REGIONS = [
   {
     "name": "Ice Heart",
     "parent": "outlands",
+    "realm" : 1,
+    "anchors" : [1,1,1,1,2,2,2,2,2,3,4,5,5,5,5,5],
     "info":  `
     <p>Endless winter; plains of drifting snow; jagged, frost covered peaks; chasms of ice that could swallow cities; lakes fed by thermal springs creating islands of life.</p>
     `
@@ -82,6 +96,8 @@ const REGIONS = [
   {
     "name": "Shores of the Silver Sea",
     "parent": "celestia",
+    "realm" : 2,
+    "anchors" : [1,2,2,2,3,3,3,3,3,4,4,5,5,5,5,5],
     "info":  `
     <p>The slopes of the great mountain of Celestia that touch the Sea. Small costal islands; isolated coves with quaint villages; sheer cliffs that fall into the Sea; hidden grottos.</p>
     `
@@ -89,6 +105,8 @@ const REGIONS = [
   {
     "name": "Atlantis",
     "parent": "celestia",
+    "realm" : 2,
+    "anchors" : [1,1,2,2,2,2,3,3,3,4,4,4,5,5,5,5],
     "info":  `
     <p>An endless chain of islands. Islands lost in the mist; cities rising from the waters; storms rolling in; island villas; villages whose life is the see; isolated wizard towers.</p>
     `
@@ -96,6 +114,8 @@ const REGIONS = [
   {
     "name": "Slopes of Tranquility",
     "parent": "celestia",
+    "realm" : 2,
+    "anchors" : [1,2,2,2,3,3,3,3,4,4,5,5,5,5,5,5],
     "info":  `
     <p>Winding mountain valleys; breathtaking waterfalls; crisp mountain air; quiet farms; and soaring granite peaks.</p>
     `
@@ -103,6 +123,8 @@ const REGIONS = [
   {
     "name": "Lakes of Molten Iron",
     "parent": "gehenna",
+    "realm" : 3,
+    "anchors" : [1,1,1,1,2,2,3,3,4,4,4,4,5,5,5,5],
     "info":  `
     <p>A vast lake of molten iron. Lakeside towns covered in soot; blistering heat; isolated smiths dedicated to their craft; water worth its weight in gold; endless sand dunes.</p>
     `
@@ -110,6 +132,8 @@ const REGIONS = [
   {
     "name": "Crags of Relentless Flame",
     "parent": "gehenna",
+    "realm" : 3,
+    "anchors" : [1,1,2,2,2,2,3,3,4,4,4,5,5,5,5,5],
     "info":  `
     <p>A mountain chain of titanic volcanoes. Rivers of lava; gorges spanned by bridges; cities built near rare sources of water; isolated fortified complexes; the constant smell of ash and sulfur.</p>
     `
@@ -117,6 +141,8 @@ const REGIONS = [
   {
     "name": "Great Undermountain",
     "parent": "underdark",
+    "realm" : 4,
+    "anchors" : [1,1,2,2,2,2,3,3,4,4,4,5,5,5,5,5],
     "info":  `
     <p>Caverns as big as mountains. Massive sunstones that turn bleak caverns into valleys of paradise; cities of hewn stone; smiths of fine metal and jewelry; villages of hard working people; forgotten tombs.</p>
     `
@@ -124,6 +150,8 @@ const REGIONS = [
   {
     "name": "Howling Caverns of Pandemonium",
     "parent": "underdark",
+    "realm" : 4,
+    "anchors" : [1,1,1,1,2,2,2,2,2,3,4,5,5,5,5,5],
     "info":  `
     <p>Winding tunnels without end; a constant wind; stone that seems to absorb light; cities tunneled out of the earth; rivers rushing through caverns; mushrooms and fungus of all varieties; isolated predators waiting for prey.</p>
     `
@@ -131,6 +159,8 @@ const REGIONS = [
   {
     "name": "Chasm of Lost Souls",
     "parent": "underdark",
+    "realm" : 4,
+    "anchors" : [1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5],
     "info":  `
     <p>An underground canyon complex that could cover the face of multiple worlds. Villages clinging to the side of cliffs; knife-edge trails; sheer drops into the dark; the sound of falling rock; massive crumbling bridges over nothingness; cliffs riddled with caves.</p>
     `
@@ -138,6 +168,7 @@ const REGIONS = [
   {
     "name": "Sunless Sea",
     "parent": "underdark",
+    "anchors" : [1,1,1,1,1,2,2,2,2,3,3,4,5,5,5,5],
     "info":  `
     <p>Submerged caverns; cities clinging to cavern ceilings over underground lakes; the constant sound of dripping water; slippery stone; strange lights; underwater cities lit by phosphorescence.</p>
     `

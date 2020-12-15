@@ -8,7 +8,7 @@ const DB = localforage.createInstance({
   storeName: "ShardsOfTheOutlands"
 })
 //eth
-import {ETHManager} from "./eth.js"
+import {ETHManager} from "./eth/index.js"
 //UI 
 import {UI} from "./UI.js"
 //inventorry 
