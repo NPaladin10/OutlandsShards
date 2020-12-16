@@ -144,19 +144,6 @@ const OutlandsShards = `
 	},
 	{
 		"inputs": [],
-		"name": "CURRENT_MINTER",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "DEFAULT_ADMIN_ROLE",
 		"outputs": [
 			{
@@ -224,35 +211,6 @@ const OutlandsShards = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "pid",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "j",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
-			}
-		],
-		"name": "addCurrentShard",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
 				"name": "time",
 				"type": "uint256"
 			}
@@ -303,7 +261,7 @@ const OutlandsShards = `
 				"type": "address"
 			}
 		],
-		"name": "addShard",
+		"name": "addShardByData",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -323,34 +281,25 @@ const OutlandsShards = `
 			},
 			{
 				"internalType": "uint256",
+				"name": "pOfi",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
 				"name": "j",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
 			}
 		],
-		"name": "claimCurrentShard",
+		"name": "addShardOfPeriod",
 		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "r",
-				"type": "uint256"
-			}
-		],
-		"name": "claimNewRegionShard",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
+				"name": "id",
 				"type": "uint256"
 			}
 		],
@@ -375,7 +324,26 @@ const OutlandsShards = `
 				"type": "uint256"
 			}
 		],
-		"name": "claimPastShard",
+		"name": "claimShardOfPeriod",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "r",
+				"type": "uint256"
+			}
+		],
+		"name": "claimShardOfRegion",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -388,7 +356,20 @@ const OutlandsShards = `
 	},
 	{
 		"inputs": [],
-		"name": "count",
+		"name": "countOfRegions",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "countOfShards",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -447,6 +428,35 @@ const OutlandsShards = `
 				"internalType": "uint8",
 				"name": "anchor",
 				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "page",
+				"type": "uint256"
+			}
+		],
+		"name": "getClaimedShardsByPage",
+		"outputs": [
+			{
+				"internalType": "bytes32[]",
+				"name": "seeds",
+				"type": "bytes32[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "rids",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "uint8[]",
+				"name": "anchors",
+				"type": "uint8[]"
 			}
 		],
 		"stateMutability": "view",
@@ -587,35 +597,6 @@ const OutlandsShards = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "page",
-				"type": "uint256"
-			}
-		],
-		"name": "getShardByPage",
-		"outputs": [
-			{
-				"internalType": "bytes32[]",
-				"name": "seeds",
-				"type": "bytes32[]"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "rids",
-				"type": "uint256[]"
-			},
-			{
-				"internalType": "uint8[]",
-				"name": "anchors",
-				"type": "uint8[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
 				"name": "pid",
 				"type": "uint256"
 			},
@@ -722,7 +703,7 @@ const OutlandsShards = `
 				"type": "bytes32"
 			}
 		],
-		"name": "getTime",
+		"name": "getTravelTime",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -834,19 +815,6 @@ const OutlandsShards = `
 	},
 	{
 		"inputs": [],
-		"name": "nRegions",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "pause",
 		"outputs": [],
 		"stateMutability": "nonpayable",
@@ -935,17 +903,12 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256[]",
-				"name": "ids",
-				"type": "uint256[]"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "amts",
-				"type": "uint256[]"
+				"internalType": "uint256[3]",
+				"name": "_p",
+				"type": "uint256[3]"
 			}
 		],
-		"name": "setPrices",
+		"name": "setPrice",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"

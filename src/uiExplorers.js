@@ -25,7 +25,7 @@ const UI = (app)=>{
     },
     computed: {
       moveTime () {
-        let from = this.explorers[this.exid]._shard
+        let from = this.explorers[this.exid]._shard._seed
         return this.moveTo > -1 ? app.ETH.travelTime(from, this.moveTo) : 0  
       },
       cooldown () {

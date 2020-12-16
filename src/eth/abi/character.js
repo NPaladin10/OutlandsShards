@@ -3,18 +3,18 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
-				"internalType": "contract CPXToken1155",
-				"name": "_cpx1155",
+				"internalType": "contract Gatekeeper",
+				"name": "gk",
 				"type": "address"
 			},
 			{
-				"internalType": "contract MoveTime",
-				"name": "_mt",
+				"internalType": "contract OutlandsShards",
+				"name": "os",
 				"type": "address"
 			},
 			{
 				"internalType": "contract Cooldown",
-				"name": "_cool",
+				"name": "cool",
 				"type": "address"
 			}
 		],
@@ -32,9 +32,9 @@ const CharacterLocation = `
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
-				"name": "loc",
-				"type": "uint256"
+				"internalType": "bytes32",
+				"name": "shard",
+				"type": "bytes32"
 			}
 		],
 		"name": "Move",
@@ -262,8 +262,13 @@ const CharacterLocation = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "id",
 				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
 			}
 		],
 		"name": "init",
@@ -275,13 +280,13 @@ const CharacterLocation = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "id",
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint256",
-				"name": "_shard",
-				"type": "uint256"
+				"internalType": "bytes32",
+				"name": "toShard",
+				"type": "bytes32"
 			}
 		],
 		"name": "move",
@@ -293,13 +298,13 @@ const CharacterLocation = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "id",
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint256",
-				"name": "_shard",
-				"type": "uint256"
+				"internalType": "bytes32",
+				"name": "toShard",
+				"type": "bytes32"
 			},
 			{
 				"internalType": "bool",
@@ -371,35 +376,22 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
-				"internalType": "contract CPXToken1155",
-				"name": "_cpx1155",
+				"internalType": "contract Gatekeeper",
+				"name": "gk",
 				"type": "address"
 			},
 			{
-				"internalType": "contract MoveTime",
-				"name": "_mt",
+				"internalType": "contract OutlandsShards",
+				"name": "os",
 				"type": "address"
 			},
 			{
 				"internalType": "contract Cooldown",
-				"name": "_cool",
+				"name": "cool",
 				"type": "address"
 			}
 		],
 		"name": "setContracts",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256[]",
-				"name": "loc",
-				"type": "uint256[]"
-			}
-		],
-		"name": "setInitialLocations",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -415,9 +407,9 @@ const CharacterLocation = `
 		"name": "shardLocation",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "bytes32",
 				"name": "",
-				"type": "uint256"
+				"type": "bytes32"
 			}
 		],
 		"stateMutability": "view",

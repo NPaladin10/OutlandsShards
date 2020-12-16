@@ -79,7 +79,8 @@ const poll = (eth)=>{
         text: OutlandsCore.ANCHORS[a - 1],
         risk: [risk, OutlandsCore.RISK[risk]]
       },
-      region : r  
+      region : r,
+      regionName : regions[r].name  
     }
   }
 
@@ -109,7 +110,7 @@ const poll = (eth)=>{
     }
     )
 
-    OS.nRegions().then(n => nRegions = n.toNumber())
+    OS.countOfRegions().then(n => nRegions = n.toNumber())
   }
 
   //update all the random shards of the period 
@@ -126,7 +127,8 @@ const poll = (eth)=>{
       //loop through a number of shards
       for(let j = 0; j < nsp; j++){
         let shard = shardDataOfPeriod(i, p, j)
-        //push to region 
+        //push to objects
+        shards[shard._seed] = shard 
         regions[shard.region].periodShards.push(shard)
       }
     }
@@ -134,6 +136,7 @@ const poll = (eth)=>{
 
     //update UI
     UI.regions = regions
+    eth.shards = shards
   }
 
   //return polling function 

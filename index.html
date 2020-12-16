@@ -26,6 +26,7 @@
           <div class="card collapse" id="menu-list" style="position: absolute;width:200px;right:50px;z-index:100">
             <div class="card card-body p-1">
               <a type="button" class="btn btn-block btn-info" href="index.html">Home</a>
+              <button type="button" class="btn btn-block btn-info" @click="show='staking'" data-toggle="collapse" href="#menu-list">Staking</button>
               <button type="button" class="btn btn-block btn-info" @click="show='inventory'" data-toggle="collapse" href="#menu-list">Inventory</button>
               <button type="button" class="btn btn-block btn-info" @click="show='explorers'" data-toggle="collapse" href="#menu-list">Explorers</button>
               <button type="button" class="btn btn-block btn-info" @click="show='admin'" data-toggle="collapse" href="#menu-list" v-if="isAdmin.length>0">Admin</button>
@@ -40,34 +41,11 @@
         <ui-eth-admin-multi></ui-eth-admin-multi>
       </div>
       <!--END ADMIN---------------------------------------------->
+      <ui-staking v-if="show=='staking'" :now="now" :tokens="tokens" :allowance="allowance"></ui-staking>
       <ui-explorers v-if="show=='explorers'" :now="now" :explorers="explorers" :tokens="tokens"></ui-explorers>
       <!--INVENTRORY/STORE---------------------------------------------->
       <div class="m-1" align="center" v-if="show=='inventory'">
-        <div class="container my-2" align="right">
-          <h3 align="left">Cosmic Staking</h3>
-          <span v-if="tokens[0]">CPX: {{tokens[0]}}</span>
-          <span v-if="tokens[1]">DMD: {{tokens[1].val.toFixed(2)}}</span>
-          <div class="my-2">
-            <button class="btn btn-outline-success btn-block" type="button" @click="claimCosmic()" :disabled="!CPXdT.mayClaim">
-              <span v-if="!CPXdT.mayClaim">Claim Free Cosmic in {{CPXdT.h}}:{{CPXdT.m}}:{{CPXdT.s}}</span>
-              <span v-if="CPXdT.mayClaim">Claim Free Cosmic!</span>
-            </button>
-          </div>
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text">CPX</span>
-            </div>
-            <input type="number" class="form-control" v-model="cpxAmt">
-            <div class="input-group-append">
-              <button class="btn btn-outline-success" type="button" @click="stake()" :disabled="cpxAmt == 0 || cpxAmt>tokens[0]">Stake Cosmic</button>
-              <button class="btn btn-outline-success" type="button" @click="unstake()" :disabled="cpxAmt == 0 || cpxAmt>staked[0]">Unstake Cosmic</button>
-            </div>
-          </div>
-          <div v-if="staked[0]>0">Staked: {{staked[0]}} | Available Diamond: {{staked[1].toFixed(5)}}</div>
-          <button class="btn btn-outline-success btn-block" type="button" @click="claimDiamond()" :disabled="staked[1]==0">Claim Diamond</button>
-        </div>
         <button class="btn btn-block btn-info w-50" type="button" @click="approveGatekeeper()" v-if="!approval.includes('Gatekeeper')">Approve App to Spend Tokens</button>
-        <button class="btn btn-block btn-info w-50" type="button" @click="approveDiamondMinter()" v-if="allowance['DiamondMinter']<100000">Approve Staking</button>
         <div class="container" v-if="approval.includes('Gatekeeper')">
           <h3 align="left">Store</h3>
           <div class="row align-items-center">
@@ -107,6 +85,34 @@
       <!--FOOTER---------------------------------------------->
       <!--END FOOTER---------------------------------------------->
     </div>
+    <!--STAKING---------------------------------------------->
+    <template id="ui-staking">
+      <div class="container my-2" align="right">
+        <h3 align="left">Cosmic Staking</h3>
+        <button class="btn btn-block btn-info w-50" type="button" @click="approveDiamondMinter()" v-if="allowance['DiamondMinter']<100000">Approve Staking</button>
+        <span v-if="tokens[0]">CPX: {{tokens[0]}}</span>
+        <span v-if="tokens[1]">DMD: {{tokens[1].val.toFixed(2)}}</span>
+        <div class="my-2">
+          <button class="btn btn-outline-success btn-block" type="button" @click="claimCosmic()" :disabled="!CPXdT.mayClaim">
+            <span v-if="!CPXdT.mayClaim">Claim Free Cosmic in {{CPXdT.h}}:{{CPXdT.m}}:{{CPXdT.s}}</span>
+            <span v-if="CPXdT.mayClaim">Claim Free Cosmic!</span>
+          </button>
+        </div>
+        <div class="input-group">
+          <div class="input-group-prepend">
+            <span class="input-group-text">CPX</span>
+          </div>
+          <input type="number" class="form-control" v-model="cpxAmt">
+          <div class="input-group-append">
+            <button class="btn btn-outline-success" type="button" @click="stake()" :disabled="cpxAmt == 0 || cpxAmt>tokens[0]">Stake Cosmic</button>
+            <button class="btn btn-outline-success" type="button" @click="unstake()" :disabled="cpxAmt == 0 || cpxAmt>staked[0]">Unstake Cosmic</button>
+          </div>
+        </div>
+        <div v-if="staked[0]>0">Staked: {{staked[0]}} | Available Diamond: {{staked[1].toFixed(5)}}</div>
+        <button class="btn btn-outline-success btn-block" type="button" @click="claimDiamond()" :disabled="staked[1]==0">Claim Diamond</button>
+      </div>
+    </template>
+    <!--END STAKING---------------------------------------------->
     <!--EXPLORERS---------------------------------------------->
     <template id="ui-explorers">
       <div class="m-1" align="left">
@@ -118,21 +124,21 @@
               <div class="col-sm-2">{{ex.shard}}</div>
               <div class="col-sm-2">{{cool(ex._cool)}}</div>
               <div class="col-sm">
-                  <div class="input-group">
-                    <select class="custom-select" v-model="act">
-                      <option v-if="ex.shard==0" value="0">Initialize Location</option>
-                      <option v-for="(act,i) in actOpts" :value="i+1">{{act}}</option>
-                    </select>
-                    <div class="input-group-append">
-                      <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
-                    </div>
+                <div class="input-group">
+                  <select class="custom-select" v-model="act">
+                    <option v-if="!ex.shard" value="0">Initialize Location</option>
+                    <option v-for="(act,i) in actOpts" :value="i+1">{{act}}</option>
+                  </select>
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
                   </div>
+                </div>
               </div>
             </div>
             <!--EXPLORER ACTIONS---------------------------------------------->
             <div class="px-3" v-if="exid == id && act > -1">
               <!--EXPLORER MOVE---------------------------------------------->
-              <div class="input-group" v-if="act == 1">
+              <div class="input-group" v-if="act == 1 || act == 0">
                 <div class="input-group-prepend">
                   <span class="input-group-text">Shard</span>
                 </div>

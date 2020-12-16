@@ -7,6 +7,10 @@ import {UI} from "./uiAdmin.js"
 //polling functions
 import {poll as shardPoll} from "./shards.js"
 import {poll as tokenPoll} from "./tokens.js"
+import {poll as addressPoll} from "./address.js"
+import {poll as explorerPoll} from "./explorers.js"
+
+const goerli = ethers.getDefaultProvider("goerli")
 
 const Regions = {}
 const Shards = {}
@@ -18,14 +22,14 @@ const Contracts = {}
 //deployed addresses 
 const ContractAddresses = {
   "goerli": {
-    "OutlandsShards": "0x0DA9265d5A9041eb639a2E03347614427f020432",
+    "OutlandsShards": "0x34109B71fb01046B514aBf23733e44439071c247",
     "CPXToken1155": "0x753606cde5dd3EdD7995d9080020D5281a8C4956",
     "CPXToken20": "0x1897A9F9bbE164B257A394f2C65ad0BE348c33Aa",
     "Gatekeeper" : "0xF988ea224f4Dd6F73d4857D32C1F43375E7b15c4",
     "Storefront1155": "0x6781b3215492B87fd90669719595E8bc3d0eE20A",
     "CPXSimpleMinter": "0x0fF715B78e0d6c92B09286bD2d3Ffa75F77b3E94",
     "DiamondMinter": "0x596E1E05161f994c92b356582E12Ef0fD2A86170",
-    "CharacterLocation" : "0x6Ca442A4F8bAEfAc47e9710641b7F4d6B65Ee8c3",
+    "CharacterLocation" : "0xf9b9c3b712334AA91CeAa47bC37202Bb863FddEe",
     "Cooldown" : "0x1F8fEC5Cbf415ad6101Dd40326aAa2076964EE33",
     "TreasureMinter" : "0x47033640766f9fe1Dac22a8EBB9595b3e764B73a",
     "DailyTreasure" : "0x7BE9E681D3733F583e827B19942259Cafa7370CA"
@@ -65,24 +69,14 @@ const getRarity = (seed,what)=>{
   return value
 }
 
-//Polling
-const poll = (UI) => {
-  return new Promise((res,rej)=>{})
-}
-
-//provider & signer 
-let provider, signer;
-
 //load contracts 
-const loadContracts = (netName)=>{
+const loadContracts = (netName, signer)=>{
   for (let x in CONTRACTS) {
     Contracts[x] = new ethers.Contract(ContractAddresses[netName][x],CONTRACTS[x],signer)
     //log 
     console.log("Contract " + x + " loaded.")
   }
 }
-
-const goerli = ethers.getDefaultProvider("goerli")
 
 // encoding function 
 const keccak256 = (types, data) => {
@@ -93,42 +87,45 @@ const keccak256 = (types, data) => {
 class ETHManager {
   constructor(app) {
     this.app = app
+
+    //core ethereum data 
+    this.provider = null
+    this.signer = null
     this.address = ""
     this.net = ""
 
-    this._tokens = {}
-    this._explorers = {}
-
+    //add utility reference 
     this.utils = ethers.utils
     this.BN = ethers.BigNumber
     this.keccak256 = keccak256
     this.rarity = Rarity
 
+    //tokens 
+    this._tokens = {}
+    this._explorers = {}
+
     //handle polling 
     this._tick = 0
+    this.pollAddress = addressPoll(this)
     this.pollShards = shardPoll(this)
     this.pollTokens = tokenPoll(this)
-
-    //cosmic claim 
-    this.claimTime = 22 * 60 * 60
+    this.pollExplorers = explorerPoll(this)
 
     //initiate UI
     UI(app)
 
     window.ethereum.enable().then(()=>{
-      provider = new ethers.providers.Web3Provider(window.ethereum)
-      signer = provider.getSigner()
+      this.provider = new ethers.providers.Web3Provider(window.ethereum)
+      this.signer = this.provider.getSigner()
 
-      provider.getNetwork().then(net=>{
+      this.provider.getNetwork().then(net=>{
         this.net = app.UI.main.net = net.name
 
         //check for network contracts
         if (ContractAddresses[net.name]) {
-          loadContracts(net.name, signer)
+          loadContracts(net.name, this.signer)
 
           this.poll(app.UI.main)
-
-          this.getAddress(app.UI.main)
         }
       }
       )
@@ -145,35 +142,14 @@ class ETHManager {
   get contracts () {
     return Contracts
   }
-  setToken (id, neg, amt) {
-    if(!this._tokens[id]) {
-      this._tokens[id] = ethers.BigNumber.from(0)
-    }
-
-    if(neg == -1) {
-      this._tokens[id] = this._tokens[id].sub(amt)
-    }
-    else {
-      this._tokens[id] = this._tokens[id].add(amt)
-    }
-  }
-  get tokens () {
-    return {} 
-  }
-  get contracts() {
-    return Contracts
-  }
-  get shards() {
-    return Shards
-  }
   get shardArray () {
-    return Object.entries(Shards).map(s => {
+    return Object.entries(this.shards).map(s => {
       let id = s[0],
         data = s[1];
       
       return Object.assign({
         id, 
-        text : Regions[data.region].name + ", " + data.seed
+        text : data.regionName + ", " + data.seed
       },data)
     })
   }
@@ -195,15 +171,6 @@ class ETHManager {
   }
   get explorers () {
     return this._explorers
-  }
-  approveGatekeeper() {
-    return this.submit("CPXToken1155", "setApprovalForAll", [ContractAddresses[this.net].Gatekeeper, true])
-  }
-  approveStaking() {
-    //approve(spender, ammount)
-    //1000000 ether 
-    let amt = "1000000000000000000000000"
-    return this.submit("CPXToken20", "increaseAllowance", [ContractAddresses[this.net].DiamondMinter, amt])
   }
   submit(_contract, _method, data) {
     let method = Contracts[_contract][_method]
@@ -228,208 +195,23 @@ class ETHManager {
       )
     })
   }
-  getAddress(UI) {
-    if (!provider)
-      return
-
-    signer.getAddress().then(address=>{
-      //do something on change 
-      if (address != this.address) {
-        //update address
-        this.address = UI.address = address
-        //clear admin 
-        UI.isAdmin = []
-
-        //check for cosmic claim
-        Contracts.CPXSimpleMinter.last_mint(this.address).then(time=>{
-          UI.lastCPXClaim = time.toNumber()
-        }
-        )
-
-        this.poll()
-      }
-
-      this.pollBalances(address)
-      this.pollAdmin(address)
-      this.pollAllowance(address)
-      this.pollExplorers()
-
-    }
-    )
-  }
-  async pollExplorer(id) {
-    return
-    let shard = await Contracts.CharacterLocation.shardLocation(id),
-      _shard = shard.toString(),
-      sd = Shards[shard],
-      rd = Regions[sd.region];
-
-    let cool = await Contracts.Cooldown.cooldown(id),
-      _cool = cool.toNumber();
-       
-    let e = this._explorers[id] = {
-      _shard,
-      shard : rd.name + ", " + sd.seed,
-      _cool
-    }
-    
-    //set UI 
-    Vue.set(this.app.UI.main.explorers, id, e)
-  }
-  async pollExplorers () {
-    return 
-    let UI = this.app.UI.main,
-      ids = this.tokens[1000000].ids || [],
-      E = this._explorers = {};
-
-    ids.forEach(id => this.pollExplorer(id))
-  }
-  pollBalances () {
-    let app = this.app
-      , UI = app.UI.main;
-
-    //get balances
-    Contracts.CPXToken20.balanceOf(this.address).then(bal=>Vue.set(UI.tokens, 0, ethers.utils.formatUnits(bal, "ether")))
-    
-    if(UI.show == "inventory"){
-      Contracts.DiamondMinter.getDeposit().then(deposit => {
-        Contracts.DiamondMinter.getMintAmount().then(_amt => {
-          let val = ethers.utils.formatUnits(deposit.value, "ether")
-          let amt = ethers.utils.formatUnits(_amt, "ether")
-          UI.staked = [Number(val),Number(amt)]
-        })
-      }) 
-    }
-  }
-  pollAdmin() {
-    let app = this.app
-      , UI = app.UI.main;
-
-    //check for admin 
-    Object.entries(Contracts).forEach(e=>{
-      let name = e[0]
-        , C = e[1];
-
-      if (C.hasRole) {
-        //check role 
-        C.hasRole(Roles.admin, this.address).then(_isAdm=>{
-          //push the contract to the list 
-          if (_isAdm && !UI.isAdmin.includes(name))
-            UI.isAdmin.push(name)
-        }
-        )
-      }
-    }
-    )
-  }
-  pollAllowance(address) {
-    let app = this.app
-      , UI = app.UI.main;
-
-    let approval = {
-      "Gatekeeper": ContractAddresses[this.net].Gatekeeper
-    }
-    let allowance = {
-      "DiamondMinter": ContractAddresses[this.net].DiamondMinter
-    }
-
-    //check for approval
-    Object.entries(approval).forEach(e=>{
-      Contracts.CPXToken1155.isApprovedForAll(address, e[1]).then(approved=>{
-        if (approved && !UI.approval.includes(e[0])) {
-          UI.approval.push(e[0])
-        }
-      }
-      )
-    }
-    )
-
-    //check for allowance
-    Object.entries(allowance).forEach(e=>{
-      Contracts.CPXToken20.allowance(address, e[1]).then(allowance=>{
-        Vue.set(UI.allowance, e[0], Number(ethers.utils.formatUnits(allowance, "ether")))
-      }
-      )
-    }
-    )
-  }
   poll() {
     if (!ContractAddresses[this.net]) return
 
-    let _t = ++this._tick
-    //every 2 seconds
-    if(_t % 4 == 0) {
-      this.getAddress(this.app.UI.main)
-    }
-
-    //poll for shards
-    this.pollShards(Contracts.OutlandsShards)
-    if(this.address != "") this.pollTokens(Contracts.Gatekeeper)
-
-    /*
-    let app = this.app
-      , UI = app.UI.main;
+    ++this._tick
     
-    //poll for allowance
-    if(this.address != "") this.pollAllowance(this.address)
-
-    //tokens 
-    let T1155 = Contracts.CPXToken1155
-    //TransferSingle(operator, from, to, id, value)
-    //TransferBatch(operator, from, to, ids, values)
-    if(this.address != ""){
-      this._tokens = {}
-      //filter for tokens 
-      T1155.queryFilter("TransferSingle").then(res => {
-        res.forEach(r => {
-          //token info in the args 
-          let _args = r.args
-          if(_args.to == this.address){
-            //to address - add token 
-            this.setToken(_args.id.toString(), 1, _args.value)
-          }
-          if(r.args.from == this.address) {
-            //from address subtract token 
-            this.setToken(_args.id.toString(), -1, _args.value)
-          }
-        })
-
-        //now set tokens 
-        Object.entries(this.tokens).forEach(t => {
-          Vue.set(UI.tokens, t[0], t[1])
-        })
-      })
-      //filter for tokens 
-      T1155.queryFilter("TransferBatch").then(res => {
-        res.forEach(r => {
-          //token info in the args 
-          let _args = r.args
-          if(_args.to == this.address){
-            //to address - add token 
-            _args.ids.forEach((id,i) => {
-              this.setToken(id.toString(), 1, _args[4][i])
-            })
-          }
-          if(r.args.from == this.address) {
-            //from address subtract token 
-            _args.ids.forEach((id,i) => {
-              this.setToken(id.toString(), -1, _args[4][i])
-            })
-          }
-        })
-
-        //now set tokens 
-        Object.entries(this.tokens).forEach(t => {
-          Vue.set(UI.tokens, t[0], t[1])
-        })
-      })  
-    }
-
-    */
+    //polling 
+    this.pollAddress()
+    this.pollShards(Contracts.OutlandsShards)
+    if(this.address != "") {
+      this.pollTokens(Contracts)
+      this.pollExplorers()
+    } 
   }
 }
 
 export {ETHManager}
+
 //log blocks
 /*
 goerli.on("block", (blockNumber) => {

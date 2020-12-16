@@ -1,12 +1,14 @@
 import * as OutlandsCore from "./outlands.js"
 import {UI as uiExplorers} from "./uiExplorers.js"
+import {UI as uiStaking} from "./uiStaking.js"
 
 /* 
 UI 
 */
 const UI = (app)=>{
   //initialize sub UI
-  uiExplorers(app) 
+  uiExplorers(app)
+  uiStaking(app) 
 
 
   let nQ = 0, queue = [], qDone = [];
@@ -60,14 +62,12 @@ const UI = (app)=>{
       //eth 
       net: "",
       address : "",
+      //admin 
       isAdmin : [],
-      lastCPXClaim : Math.floor(Date.now()/1000),
+      //tokens 
       tokens : {},
+      allowance: {},
       approval : [],
-      allowance : {},
-      //staking 
-      cpxAmt : 0,
-      staked : [0,0],
       //shards
       realms : OutlandsCore.REALMS,
       regions : null,
@@ -102,15 +102,6 @@ const UI = (app)=>{
       day() {
         return app.day
       },
-      CPXdT () {
-        let dT = this.now - this.lastCPXClaim, 
-          s_num = app.ETH.claimTime > dT ? app.ETH.claimTime - dT : 0,
-          hours   = Math.floor(s_num / 3600),
-          minutes = Math.floor((s_num - (hours * 3600)) / 60),
-          seconds = s_num - (hours * 3600) - (minutes * 60); 
-
-        return {h:hours,m:minutes,s:seconds,mayClaim:s_num == 0}
-      }
     },
     methods: {
       reset() {
@@ -127,25 +118,9 @@ const UI = (app)=>{
         queue.push([++nQ,"i+",id,what,rank,this.now + when])
         this.Q = queue.slice()
       },
-      claimCosmic() {
-        app.ETH.submit("CPXSimpleMinter", "mint", [])
-      },
-      claimDiamond () {
-        app.ETH.submit("DiamondMinter", "mint", [])
-      },
-      stake () {
-        let amt = app.ETH.utils.parseEther(this.cpxAmt) 
-        app.ETH.submit("DiamondMinter", "stake", [amt.toString()])
-      },
-      unstake () {
-        let amt = app.ETH.utils.parseEther(this.cpxAmt) 
-        app.ETH.submit("DiamondMinter", "unstake", [amt.toString()])
-      },
-      approveDiamondMinter () {
-        app.ETH.approveStaking()
-      },
       approveGatekeeper() {
-        app.ETH.approveGatekeeper().then(res => {
+        let eth = app.ETH
+        eth.submit("CPXToken1155", "setApprovalForAll", [eth.contracts.Gatekeeper.address, true]).then(res => {
           this.approval.push("Gatekeeper")
         })
       },

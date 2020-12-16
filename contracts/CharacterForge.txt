@@ -5,120 +5,110 @@ pragma solidity ^0.6.0;
 import "./ShardForge.sol";
 import "./Cooldown.sol";
 
-
 /*
     Deployed 
     Goerli 0.1 - 0x6Ca442A4F8bAEfAc47e9710641b7F4d6B65Ee8c3 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
+    Goerli 0.2 - 0xf9b9c3b712334AA91CeAa47bC37202Bb863FddEe (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
 */
 contract CharacterLocation is PausableCPX {
     // Create a new role identifier for the minter role
     bytes32 public constant MOVER_ROLE = keccak256("MOVER_ROLE");
     
     //contracts 
-    CPXToken1155 internal CPX1155;
-    MoveTime internal MT;
+    OutlandsShards internal OS; 
+    Gatekeeper internal GK;
     Cooldown internal Cool;
 
     //location - characetr => shard id  
-    mapping (uint256 => uint256) public shardLocation;
-    
-    //allowable initial locations
-    uint256[] internal initialLocations;
+    mapping (uint256 => bytes32) public shardLocation;
     
     //Events 
-    event Move(uint256 id, uint256 loc);
+    event Move(uint256 id, bytes32 shard);
     
     //constructor
-    constructor(CPXToken1155 _cpx1155, MoveTime _mt, Cooldown _cool)
+    constructor(Gatekeeper gk, OutlandsShards os, Cooldown cool)
         public
     {
-        CPX1155 = _cpx1155;
-        MT = _mt;
-        Cool = _cool;
+        GK = gk;
+        OS = os;
+        Cool = cool;
     }
     
     /*
         Internal Functions 
     */
     
-    function _move (uint256 _id, uint256 _shard)
+    function _move (uint256 id, bytes32 toShard)
         internal
     {
         require(!_isPaused, "The contract is paused.");
 
         //cooldown time
-        uint256 _time = block.timestamp + MT.getTime(shardLocation[_id], _shard);
+        uint256 _time = block.timestamp + OS.getTravelTime(shardLocation[id], toShard);
 
         //set cooldown
-        Cool.setIdCooldown(_id, _time);
+        Cool.setIdCooldown(id, _time);
         
         //set location
-        shardLocation[_id] = _shard;
+        shardLocation[id] = toShard;
         
         //emit 
-        emit Move(_id, _shard);
+        emit Move(id, toShard);
     }
 
     /*
         External Functions 
     */
     
-    function setContracts (CPXToken1155 _cpx1155, MoveTime _mt, Cooldown _cool)
+    function setContracts (Gatekeeper gk, OutlandsShards os, Cooldown cool)
         public
     {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "No permission.");
-        CPX1155 = _cpx1155;
-        MT = _mt;
-        Cool = _cool;
+        GK = gk;
+        OS = os;
+        Cool = cool;
     }
     
-    function setInitialLocations (uint256[] calldata loc)
-        public
-    {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "No permission.");
-        initialLocations = loc; 
-    }
-    
-    function moveFor (uint256 _id, uint256 _shard, bool useCooldown) 
+    function moveFor (uint256 id, bytes32 toShard, bool useCooldown) 
         public
     {
         require(hasRole(MOVER_ROLE, msg.sender), "Caller is not authorized.");
         
         if(useCooldown) {
-            _move(_id, _shard);
+            _move(id, toShard);
         }
         else {
             //set location
-            shardLocation[_id] = _shard;
+            shardLocation[id] = toShard;
             
             //emit 
-            emit Move(_id, _shard);
+            emit Move(id, toShard);
         }
     }
     
-    function init (uint256 _id) 
+    function init (uint256 id, bytes32 seed) 
         public
     {
-        require(shardLocation[_id] == 0, "Location is already set.");
+        require(!_isPaused, "The contract is paused.");
+        require(shardLocation[id] == bytes32(0), "Location is already set.");
         //check for ownership 
-        require(CPX1155.balanceOf(msg.sender, _id) == 1, "You do not own the character.");
+        require(GK.balanceOf(msg.sender, id) == 1, "You do not own the character.");
         
-        //random seed and location
-        uint256 seed = uint256(keccak256(abi.encode(address(this),_id,block.timestamp)));
-        shardLocation[_id] = initialLocations[seed % initialLocations.length];
-        
+        //set location
+        shardLocation[id] = seed;
+            
         //emit 
-        emit Move(_id, shardLocation[_id]);
+        emit Move(id, shardLocation[id]);
     }
     
-    function move (uint256 _id, uint256 _shard) 
+    function move (uint256 id, bytes32 toShard) 
         public
     {
         //check for ownership 
-        require(CPX1155.balanceOf(msg.sender, _id) == 1, "You do not own the character.");
-        //check cooldown
-        require(Cool.cooldown(_id) < block.timestamp, "Character is in cooldown.");
+        require(GK.balanceOf(msg.sender, id) == 1, "You do not own the character.");
+        require(Cool.cooldown(id) < block.timestamp, "Character is in cooldown.");
+        
         //move 
-        _move(_id, _shard);
+        _move(id, toShard);
     }
 }
