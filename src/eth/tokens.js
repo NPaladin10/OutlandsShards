@@ -40,8 +40,6 @@ const poll = (eth)=>{
         , start = nft[1].range[0]
         , T = tokens[id];
 
-      //reset token id array
-      T.ids = [] 
       //first get the count 
       GK.getCountOfNFT(id).then(res=>{
         let count = res[0].toNumber()
@@ -52,6 +50,8 @@ const poll = (eth)=>{
           , _accounts = _ids.map(id=>address);
 
         GK.balanceOfBatch(_accounts, _ids).then(bal => {
+          //reset token id array
+          T.ids = [] 
           //identify which belong to player 
           bal.forEach((b,i) => {
             if(b.toNumber() > 0) T.ids.push(_ids[i])

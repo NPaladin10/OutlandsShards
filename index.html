@@ -26,6 +26,7 @@
           <div class="card collapse" id="menu-list" style="position: absolute;width:200px;right:50px;z-index:100">
             <div class="card card-body p-1">
               <a type="button" class="btn btn-block btn-info" href="index.html">Home</a>
+              <button type="button" class="btn btn-block btn-info" @click="show='daily'" data-toggle="collapse" href="#menu-list">Free Treasure</button>
               <button type="button" class="btn btn-block btn-info" @click="show='staking'" data-toggle="collapse" href="#menu-list">Staking</button>
               <button type="button" class="btn btn-block btn-info" @click="show='inventory'" data-toggle="collapse" href="#menu-list">Inventory</button>
               <button type="button" class="btn btn-block btn-info" @click="show='explorers'" data-toggle="collapse" href="#menu-list">Explorers</button>
@@ -34,6 +35,9 @@
           </div>
         </div>
       </div>
+      <!--NET ALERT---------------------------------------------->
+      <div class="alert alert-warning mx-2" role="alert" v-if="net != 'goerli'">The app is active on the Goerli network. Please change your network.</div>
+      <!--END NET ALERT---------------------------------------------->
       <!--END MENU---------------------------------------------->
       <about v-if="show=='about'"></about>
       <!--ADMIN---------------------------------------------->
@@ -41,6 +45,7 @@
         <ui-eth-admin-multi></ui-eth-admin-multi>
       </div>
       <!--END ADMIN---------------------------------------------->
+      <ui-daily v-if="show=='daily'" :now="now"></ui-daily>
       <ui-staking v-if="show=='staking'" :now="now" :tokens="tokens" :allowance="allowance"></ui-staking>
       <ui-explorers v-if="show=='explorers'" :now="now" :explorers="explorers" :tokens="tokens"></ui-explorers>
       <!--INVENTRORY/STORE---------------------------------------------->
@@ -48,6 +53,7 @@
         <button class="btn btn-block btn-info w-50" type="button" @click="approveGatekeeper()" v-if="!approval.includes('Gatekeeper')">Approve App to Spend Tokens</button>
         <div class="container" v-if="approval.includes('Gatekeeper')">
           <h3 align="left">Store</h3>
+          <div align="right">DMD {{tokens[1].val.toFixed(2)}}</div>
           <div class="row align-items-center">
             <div class="col">What</div>
             <div class="col">Cost</div>
@@ -66,7 +72,7 @@
         <div class="mt-2 container" align="left">
           <h3>Inventory</h3>
           <div class="d-flex flex-wrap">
-            <div class="p-1 border w-50" v-for="(t,id) in tokens" v-if="!['0','1','1000000'].includes(id)">{{t.name}}: {{t.val}}</div>
+            <div class="p-1 border w-50" v-for="(t,id) in tokens" v-if="!['0','1000000'].includes(id)">{{t.name}}: {{t.val%1>0 ? t.val.toFixed(2) : t.val.toFixed(0)}}</div>
           </div>
         </div>
       </div>
@@ -116,18 +122,17 @@
     <!--EXPLORERS---------------------------------------------->
     <template id="ui-explorers">
       <div class="m-1" align="left">
-        <h3>Explorers</h3>
         <div class="container">
+          <h3>Explorers</h3>
           <div v-for="(ex, id) in explorers">
             <div class="row align-items-center">
-              <div class="col-sm-1">ID: {{Number(id)-1000000}}</div>
-              <div class="col-sm-2">{{ex.shard}}</div>
-              <div class="col-sm-2">{{cool(ex._cool)}}</div>
-              <div class="col-sm">
+              <div class="col-sm">ID: {{Number(id)-1000000}} <span v-if="ex._cool > now">({{cool(ex._cool)}})</span></div>
+              <div class="col-sm link" @click="act = 'Explore',exid = id">{{ex.shard}}</div>
+              <div class="col-sm-4">
                 <div class="input-group">
                   <select class="custom-select" v-model="act">
-                    <option v-if="!ex.shard" value="0">Initialize Location</option>
-                    <option v-for="(act,i) in actOpts" :value="i+1">{{act}}</option>
+                    <option v-if="!ex.shard" value="'initLoc'">Initialize Location</option>
+                    <option v-for="(act,i) in actOpts" :value="act">{{act}}</option>
                   </select>
                   <div class="input-group-append">
                     <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
@@ -136,22 +141,28 @@
               </div>
             </div>
             <!--EXPLORER ACTIONS---------------------------------------------->
-            <div class="px-3" v-if="exid == id && act > -1">
+            <div class="px-3" v-if="exid == id && act != ''">
               <!--EXPLORER MOVE---------------------------------------------->
-              <div class="input-group" v-if="act == 1 || act == 0">
+              <div class="input-group" v-if="act == 'initLoc' || act == 'Move'">
                 <div class="input-group-prepend">
                   <span class="input-group-text">Shard</span>
                 </div>
                 <select class="custom-select" v-model="moveTo">
-                  <option v-for="s in shards" :value="s.id" v-if="s.id != Number(ex._shard)">{{s.text}}</option>
+                  <option v-for="s in shards" :value="s.id" v-if="s._seed != ex._shardSeed">{{s.text}}</option>
                 </select>
                 <div class="input-group-append">
-                  <span class="input-group-text" v-if="moveTime>0">{{moveTime}} hours</span>
+                  <span class="input-group-text" v-if="moveTo != '' && moveTime>0">{{moveTime}} hours</span>
                   <button class="btn btn-outline-secondary" type="button" @click="move()">Move</button>
                 </div>
               </div>
+              <!--EXPLORE---------------------------------------------->
+              <div v-if="act == 'Explore'">
+                <div>{{ex.shard}}</div>
+                <div>{{ex._shard.anchor.text}} [{{ex._shard.anchor.rarity}}] {{ex._shard.anchor.risk[1]}} Risk</div>
+              </div>
+              <!--END EXPLORE---------------------------------------------->
               <!--EXPLORER COOLDOWN---------------------------------------------->
-              <div class="input-group" v-if="act == 2">
+              <div class="input-group" v-if="act == 'Reduce Cooldown'">
                 <div class="input-group-prepend">
                   <span class="input-group-text">Reduce by</span>
                 </div>
@@ -173,6 +184,23 @@
       </div>
     </template>
     <!--END EXPLORERS---------------------------------------------->
+    <!--DAILY TREASURE---------------------------------------------->
+    <template id="ui-daily">
+      <div class="m-1" align="left">
+        <div class="container">
+          <h3>Free Treasure</h3>
+          <div class="row">
+            <div class="col-sm" v-for="i in 3">
+              <button class="btn btn-outline-success btn-block" type="button" @click="claim(i-1)">
+                <span v-if="timeRemaining[i-1] == 0">Claim {{period[i-1]}}</span>
+                <span v-else>Ready in {{formatTime[i-1]}}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+    <!--END DAILY TREASURE---------------------------------------------->
   </body>
   <script src="lib/d3.min.js"></script>
   <script src="lib/vue.2.5.16.min.js"></script>

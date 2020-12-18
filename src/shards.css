@@ -1,3 +1,9 @@
+.link {
+  cursor: pointer;
+  color: blue;
+  text-decoration: underline;
+}
+
 .region {
   border-top: 5px double black;
 }

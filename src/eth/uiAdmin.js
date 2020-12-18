@@ -72,7 +72,16 @@ const UI = (app)=>{
           return d 
         })
 
-        app.ETH.submit(this.contract, f.name, data).then(console.log)
+        let eth = app.ETH
+          , T1155 = eth.contracts.CPXToken1155
+          , abi = ["event TransferBatch(address indexed operator, address indexed from, address indexed to, uint256[] ids, uint256[] values)"]
+          //event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)
+          , iface = new eth.utils.Interface(abi); 
+
+        app.ETH.submit(this.contract, f.name, data).then(res => {  
+          //let reward = res.logs.map((log) => iface.parseLog(log)) 
+          console.log(res)
+        })
       }
     }
   })

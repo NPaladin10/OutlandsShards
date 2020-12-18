@@ -1,6 +1,7 @@
 import * as OutlandsCore from "./outlands.js"
 import {UI as uiExplorers} from "./uiExplorers.js"
 import {UI as uiStaking} from "./uiStaking.js"
+import {UI as uiDaily} from "./uiDailyTreasure.js"
 
 /* 
 UI 
@@ -8,7 +9,8 @@ UI
 const UI = (app)=>{
   //initialize sub UI
   uiExplorers(app)
-  uiStaking(app) 
+  uiStaking(app)
+  uiDaily(app) 
 
 
   let nQ = 0, queue = [], qDone = [];

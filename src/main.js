@@ -62,6 +62,17 @@ const app = {
       timeout: 2500
     })
   },
+  // -------------- Formatting --------------------- //
+  timeFormat (time) {
+    let hrs = Math.floor(time/3600)
+            , hTxt = hrs > 0 ? hrs+"h " : ""
+            , min = Math.floor((time-hrs*3600)/60)
+            , mTxt = min > 0 ? min+"m " : ""
+            , s = time-hrs*3600-min*60
+            , sTxt = s > 0 ? s+"s" : "";
+
+    return hTxt+mTxt+sTxt
+  },
   // ----------- INIT ------------------------------ //
   init() {
     localStorage.setItem("lastPlayer", chance.hash())

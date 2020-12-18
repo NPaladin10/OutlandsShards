@@ -7,6 +7,19 @@ const poll = (eth)=>{
     , signer = eth.signer
     , Contracts = null;
 
+  //get when daily treasure was claimed 
+  eth.dailyTreasureTime = () => {
+    let lT = Contracts.DailyTreasure.lastTreasure
+
+    for(let i = 0; i < 3; i++) {
+      //call to see when claimed 
+      lT(eth.address, i).then(t => {
+        //set ui 
+        Vue.set(app.UI.dailyTreasure.lastClaim, i, t.toNumber())
+      })
+    }
+  } 
+
   //check allowances of contracts
   const pollAllowance = ()=>{
     //check for approval
@@ -75,6 +88,9 @@ const poll = (eth)=>{
         pollAllowance()
         pollAdmin()
       } 
+    }
+    if (UI.show == "daily" && tick % 120 == 0) {
+      eth.dailyTreasureTime()
     }
 
   }

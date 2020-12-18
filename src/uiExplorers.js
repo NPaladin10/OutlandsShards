@@ -7,13 +7,14 @@ const UI = (app)=>{
     data: function() {
       return {
         exid : "",
-        act : -1,
+        act : "",
         shards : [],
-        moveTo : -1,
+        moveTo : "",
         optsReduceCool : {
           id: "",
           qty : 0,
-        }
+        },
+        showShard : ["",""]
       }
     },
     mounted() {
@@ -25,14 +26,17 @@ const UI = (app)=>{
     },
     computed: {
       moveTime () {
-        let from = this.explorers[this.exid]._shard._seed
+        let _shard = this.explorers[this.exid]._shard
+        if(!_shard) return 0 
+
+        let from = _shard._seed
         return this.moveTo > -1 ? app.ETH.travelTime(from, this.moveTo) : 0  
       },
       cooldown () {
         return Object.entries(this.tokens).filter(t => cIds.includes(Number(t[0])))
       },
       actOpts () {
-        let actions = ["Move"]
+        let actions = ["Move", "Explore"]
 
         if(this.cooldown.length>0) actions.push("Reduce Cooldown")
 
@@ -48,13 +52,18 @@ const UI = (app)=>{
           min = Math.floor((ts-(hrs*3600))/60),
           s = ts-hrs*3600-min*60;
         
-        return hrs + " h "+min+" m "+s+" s"    
+        return hrs + "h "+min+"m "+s+"s"    
       },
-      initLoc(id) {
-        app.ETH.submit("CharacterLocation", "init", [id])
+      initLoc() {
+        app.ETH.submit("CharacterLocation", "init", [this.exid, this.moveTo])
+        this.act = -1
       },
       move () {
+        //initial move 
+        if(this.act == 0) return this.initLoc()
+
         app.ETH.submit("CharacterLocation", "move", [this.exid, this.moveTo])
+        this.act = -1
       },
       reduceCool()
       {
@@ -62,6 +71,7 @@ const UI = (app)=>{
         let ti = cIds.indexOf(Number(id))
         //useCooldownToken (uint256 _id, uint256 _ti, uint256 _qty)
         app.ETH.submit("Cooldown", "useCooldownToken", [this.exid, ti, qty])
+        this.act = -1
       }
     }
   })

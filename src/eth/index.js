@@ -12,9 +12,6 @@ import {poll as explorerPoll} from "./explorers.js"
 
 const goerli = ethers.getDefaultProvider("goerli")
 
-const Regions = {}
-const Shards = {}
-
 // ether 1000000000000000000
 
 //Contracts
@@ -22,6 +19,7 @@ const Contracts = {}
 //deployed addresses 
 const ContractAddresses = {
   "goerli": {
+    "OutlandsRegions": "0xd6fDb4Ed121c0F081F873E33Ced4752BE0379AC6",
     "OutlandsShards": "0x34109B71fb01046B514aBf23733e44439071c247",
     "CPXToken1155": "0x753606cde5dd3EdD7995d9080020D5281a8C4956",
     "CPXToken20": "0x1897A9F9bbE164B257A394f2C65ad0BE348c33Aa",
@@ -40,7 +38,8 @@ const Roles = {
   "admin": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "minter": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6",
   "region_admin": "0xb0c6d6c98634bf90c5127f65c948b52cc8ad5f3b499bdb4170d0b685e60ee0df",
-  "burner" : "0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848"
+  "burner" : "0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848",
+  "setter" : "0x61c92169ef077349011ff0b1383c894d86c5f0b41d986366b58a6cf31e93beda"
 }
 
 //Rarity calculations 
@@ -100,6 +99,10 @@ class ETHManager {
     this.keccak256 = keccak256
     this.rarity = Rarity
 
+    //regions shards
+    this._regions = {}
+    this._shards = {}
+
     //tokens 
     this._tokens = {}
     this._explorers = {}
@@ -125,7 +128,9 @@ class ETHManager {
         if (ContractAddresses[net.name]) {
           loadContracts(net.name, this.signer)
 
-          this.poll(app.UI.main)
+          this.poll()
+
+          this.init() 
         }
       }
       )
@@ -142,8 +147,14 @@ class ETHManager {
   get contracts () {
     return Contracts
   }
+  get regions () {
+    return this._regions
+  }
+  get shards () {
+    return this._shards
+  }
   get shardArray () {
-    return Object.entries(this.shards).map(s => {
+    return Object.entries(this._shards).map(s => {
       let id = s[0],
         data = s[1];
       
@@ -153,15 +164,21 @@ class ETHManager {
       },data)
     })
   }
-  get regions() {
-    return Regions
+  shardBySeed (seed) {
+    //return if exists
+    return this.shards[seed] ? this.shards[seed] : this.shardFromSeed(seed)
   }
   travelTime (from, to) {
-    let times = [22,8,2]
-    let fromRegion = Shards[from].region,
-      toRegion = Shards[to].region,
-      fromRealm = Regions[fromRegion].realm,
-      toRealm = Regions[toRegion].realm; 
+    let regions = this._regions
+      , times = [22,8,2];
+
+    let fromShard = this.shardBySeed(from)
+      , toShard = this.shardBySeed(to);
+
+    let fromRegion = fromShard.region,
+      toRegion = toShard.region,
+      fromRealm = regions[fromRegion].realm,
+      toRealm = regions[toRegion].realm; 
     
     let time = times[0]
     if(fromRegion == toRegion) time = times[2]
@@ -172,11 +189,12 @@ class ETHManager {
   get explorers () {
     return this._explorers
   }
-  submit(_contract, _method, data) {
+  submit(_contract, _method, data, overrides) {
     let method = Contracts[_contract][_method]
+    overrides = overrides || {}
     
     return new Promise((res,rej) => {
-      method(...data).then(tx=>{
+      method(...data, overrides).then(tx=>{
         //if no hash it is a view function
         if(!tx.hash) {
           return res(tx)
@@ -207,6 +225,46 @@ class ETHManager {
       this.pollTokens(Contracts)
       this.pollExplorers()
     } 
+  }
+  init () {
+    let getNFTId = this.app.inventory.getNFTId
+      , T = this.app.UI.main.tokens; 
+
+    //decode an array of bignumber token ids and values 
+    const tokenMapping = (ids, vals) => {
+      return ids.map((_id, i) => {
+        let id = _id.toNumber()
+          , NFTId = getNFTId(id)
+          , _t = NFTId ? T[NFTId] : T[id]
+          , val = Number(this.utils.formatUnits(vals[i], _t.units));
+
+        return {
+            id,
+            name : _t.name,
+            _t,
+            val,
+            notify : "Recieved " + val + " " + _t.name 
+          }
+      })
+    }
+
+    const transferListener = (op,from,to,ids,amts) => {
+      if(to != this.address) return
+
+      //make into arrays if not 
+      if(!Array.isArray(ids)) {
+        ids = [ids]
+        amts = [amts]
+      }
+
+      //map to tokens 
+      let _tokens = tokenMapping(ids, amts)
+      //notify 
+      _tokens.forEach(t => this.app.simpleNotify(t.notify))
+    } 
+    
+    this.contracts.CPXToken1155.on("TransferBatch",transferListener)
+    this.contracts.CPXToken1155.on("TransferSingle",transferListener)
   }
 }
 

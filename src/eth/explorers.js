@@ -10,7 +10,7 @@ const poll = (eth)=>{
 
   const pollExplorer = async(id)=>{
     let seed = await CL.shardLocation(id)
-      , _shard = eth.shards[seed];
+      , _shard = eth.shardBySeed(seed);
 
     let cool = await Cooldown.cooldown(id)
       , _cool = cool.toNumber();
@@ -18,6 +18,7 @@ const poll = (eth)=>{
     let e = {
       _shard,
       shard: _shard ? _shard.regionName + ", " + _shard.seed : null,
+      _shardSeed: seed, 
       _cool
     }
 
@@ -26,7 +27,9 @@ const poll = (eth)=>{
   }
 
   const pollExplorers = async()=>{
-    tokens[1000000].ids.forEach(id=> pollExplorer(id))
+    tokens[1000000].ids.forEach(id=> {
+      pollExplorer(id)
+    })
   }
 
   return ()=>{
@@ -37,7 +40,7 @@ const poll = (eth)=>{
     Cooldown = eth.contracts.Cooldown
 
     if(UI.show == "explorers" && tokens[1000000]){
-      pollExplorers()
+      if(tick % 4 == 0) pollExplorers()
     }
   }
 }

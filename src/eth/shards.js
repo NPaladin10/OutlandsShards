@@ -45,7 +45,8 @@ const poll = (eth)=>{
 
     //set region 
     regions[i+1] = Object.assign(R,r) 
-  })   
+  })
+  eth._regions = regions   
 
   //setup references
   let app = eth.app
@@ -54,14 +55,8 @@ const poll = (eth)=>{
     , keccak256 = eth.keccak256
     , hexZeroPad = eth.utils.hexZeroPad;
 
-  //shard data of a given period 
-  const shardDataOfPeriod = (pid, pOfi, j) => {
-    //format numbers 
-    let pt = BN.from(_periodTimes[pid]).toHexString()
-    pOfi = BN.from(pOfi).toHexString()
-    j = BN.from(j).toHexString()
-    //keccak256(abi.encode(address(this), pt, pOfi, j))
-    let seed = keccak256(["address", "uint256", "uint256", "uint256"], [OS.address, pt, pOfi, j]) 
+  //generate from seed 
+  eth.shardFromSeed = (seed) => {
     //region 
     let r = 1 + BN.from(seed).mod(nRegions).toNumber()
     //anchors 
@@ -82,6 +77,19 @@ const poll = (eth)=>{
       region : r,
       regionName : regions[r].name  
     }
+  }
+
+  //shard data of a given period 
+  const shardDataOfPeriod = (pid, pOfi, j) => {
+    //format numbers 
+    let pt = BN.from(_periodTimes[pid]).toHexString()
+    pOfi = BN.from(pOfi).toHexString()
+    j = BN.from(j).toHexString()
+    //keccak256(abi.encode(address(this), pt, pOfi, j))
+    let seed = keccak256(["address", "uint256", "uint256", "uint256"], [OS.address, pt, pOfi, j]) 
+    
+    //generate based upon seed 
+    return eth.shardFromSeed(seed)
   }
 
   //determine the number of shards in a period 
@@ -136,7 +144,7 @@ const poll = (eth)=>{
 
     //update UI
     UI.regions = regions
-    eth.shards = shards
+    eth._shards = shards
   }
 
   //return polling function 
