@@ -126,6 +126,19 @@ const OutlandsRegions = `
 	},
 	{
 		"inputs": [],
+		"name": "IDNFT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "MINTER_ROLE",
 		"outputs": [
 			{
@@ -164,29 +177,6 @@ const OutlandsRegions = `
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_realm",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8[]",
-				"name": "_anchors",
-				"type": "uint8[]"
-			},
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
-			}
-		],
-		"name": "addRegion",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [],
 		"name": "countOfRegions",
 		"outputs": [
@@ -194,6 +184,49 @@ const OutlandsRegions = `
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
+			}
+		],
+		"name": "genRegionFromSeed",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
+			}
+		],
+		"name": "genShardFromSeed",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "r",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint8",
+				"name": "a",
+				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -211,12 +244,12 @@ const OutlandsRegions = `
 		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "realm",
+				"name": "r",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint8[]",
-				"name": "anchors",
+				"name": "a",
 				"type": "uint8[]"
 			}
 		],
@@ -226,17 +259,27 @@ const OutlandsRegions = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
 			}
 		],
-		"name": "getRegionRealm",
+		"name": "getRegionFromSeed",
 		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "",
+				"name": "id",
 				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "r",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint8[]",
+				"name": "a",
+				"type": "uint8[]"
 			}
 		],
 		"stateMutability": "view",
@@ -347,6 +390,29 @@ const OutlandsRegions = `
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_realm",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint8[]",
+				"name": "_anchors",
+				"type": "uint8[]"
+			},
+			{
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
+			}
+		],
+		"name": "mintRegion",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "pause",
 		"outputs": [],
@@ -443,35 +509,15 @@ const OutlandsShards = `
 				"internalType": "contract Gatekeeper",
 				"name": "gk",
 				"type": "address"
+			},
+			{
+				"internalType": "contract OutlandsRegions",
+				"name": "or",
+				"type": "address"
 			}
 		],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "realm",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint8[]",
-				"name": "anchors",
-				"type": "uint8[]"
-			}
-		],
-		"name": "NewRegion",
-		"type": "event"
 	},
 	{
 		"anonymous": false,
@@ -633,7 +679,7 @@ const OutlandsShards = `
 	},
 	{
 		"inputs": [],
-		"name": "REGION_ADMIN",
+		"name": "SETTER_ROLE",
 		"outputs": [
 			{
 				"internalType": "bytes32",
@@ -647,121 +693,12 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "time",
-				"type": "uint256"
-			}
-		],
-		"name": "addPeriod",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_realm",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8[]",
-				"name": "_anchors",
-				"type": "uint8[]"
-			}
-		],
-		"name": "addRegion",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "bytes32",
-				"name": "_seed",
+				"name": "seed",
 				"type": "bytes32"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_region",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8",
-				"name": "_anchor",
-				"type": "uint8"
-			},
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
 			}
 		],
-		"name": "addShardByData",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "pid",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "pOfi",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "j",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
-			}
-		],
-		"name": "addShardOfPeriod",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "pid",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "pOfi",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "j",
-				"type": "uint256"
-			}
-		],
-		"name": "claimShardOfPeriod",
+		"name": "claimShard",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -770,38 +707,6 @@ const OutlandsShards = `
 			}
 		],
 		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "r",
-				"type": "uint256"
-			}
-		],
-		"name": "claimShardOfRegion",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "countOfRegions",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -812,59 +717,6 @@ const OutlandsShards = `
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "r",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
-			}
-		],
-		"name": "generateShard",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"name": "getClaimedShard",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "uint256",
-				"name": "region",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8",
-				"name": "anchor",
-				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -894,75 +746,6 @@ const OutlandsShards = `
 				"internalType": "uint8[]",
 				"name": "anchors",
 				"type": "uint8[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getCurrentPeriod",
-		"outputs": [
-			{
-				"internalType": "uint256[]",
-				"name": "p",
-				"type": "uint256[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getPeriodTimes",
-		"outputs": [
-			{
-				"internalType": "uint256[]",
-				"name": "",
-				"type": "uint256[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"name": "getRegion",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "realm",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8[]",
-				"name": "anchors",
-				"type": "uint8[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"name": "getRegionRealm",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -1034,16 +817,11 @@ const OutlandsShards = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "pid",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "j",
+				"name": "id",
 				"type": "uint256"
 			}
 		],
-		"name": "getShardDataOfCurrentPeriod",
+		"name": "getShardById",
 		"outputs": [
 			{
 				"internalType": "bytes32",
@@ -1067,36 +845,26 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "pid",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "pOfi",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "j",
-				"type": "uint256"
-			}
-		],
-		"name": "getShardDataOfPeriod",
-		"outputs": [
-			{
 				"internalType": "bytes32",
 				"name": "seed",
 				"type": "bytes32"
+			}
+		],
+		"name": "getShardBySeed",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
-				"name": "r",
+				"name": "region",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint8",
-				"name": "a",
+				"name": "anchor",
 				"type": "uint8"
 			}
 		],
@@ -1234,6 +1002,40 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
+				"internalType": "bytes32",
+				"name": "_seed",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_region",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint8",
+				"name": "_anchor",
+				"type": "uint8"
+			},
+			{
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
+			}
+		],
+		"name": "mintShardByData",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
@@ -1322,53 +1124,12 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "i",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "time",
-				"type": "uint256"
-			}
-		],
-		"name": "setPeriod",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256[3]",
+				"internalType": "uint256[2]",
 				"name": "_p",
-				"type": "uint256[3]"
+				"type": "uint256[2]"
 			}
 		],
 		"name": "setPrice",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_realm",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8[]",
-				"name": "_anchors",
-				"type": "uint8[]"
-			}
-		],
-		"name": "setRegion",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -1411,4 +1172,4 @@ const OutlandsShards = `
 ]
 `
 
-export {OutlandsShards}
+export {OutlandsShards, OutlandsRegions}

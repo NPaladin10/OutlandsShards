@@ -29,7 +29,7 @@ const poll = (eth)=>{
   let tick = 0
  
   //data to call later
-  let OS = null, nRegions = OutlandsCore.REGIONS.length, regions = {}, shards = {};
+  let OR = null, OS = null, nRegions = OutlandsCore.REGIONS.length, regions = {}, shards = {};
 
   //set regions
   OutlandsCore.REGIONS.forEach((r,i) => {
@@ -113,12 +113,11 @@ const poll = (eth)=>{
 
   //update period numbers 
   const periodPoll = ()=>{
-    OS.getCurrentPeriod().then(p=>{
-      app.periods = p.map(_p=>_p.toString())
-    }
-    )
+    let now = Date.now()/1000;
 
-    OS.countOfRegions().then(n => nRegions = n.toNumber())
+    app.periods = _periodTimes.map(_p=> Math.floor(now/_p))
+
+    OR.countOfRegions().then(n => nRegions = n.toNumber())
   }
 
   //update all the random shards of the period 
@@ -148,12 +147,13 @@ const poll = (eth)=>{
   }
 
   //return polling function 
-  return (_os)=>{
+  return (C)=>{
     let tenMin = 2*60*10
     //tick 
     tick++
     //set OS 
-    OS = _os
+    OS = C.OutlandsShards
+    OR = C.OutlandsRegions
 
     //poll after certain time 
     //10 minutes
@@ -161,7 +161,7 @@ const poll = (eth)=>{
       //poll for period 
       periodPoll()
     }
-    if((tick % tenMin) == 11) {
+    if((tick % tenMin) == 2) {
       //poll for period 
       updatePeriodShards()
     }

@@ -7,11 +7,12 @@ import "./Gatekeeper.sol";
 /*
     Deployed 
     Goerli 0.1 - 0xd6fDb4Ed121c0F081F873E33Ced4752BE0379AC6 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
+    Goerli 0.2 - 0x4141fbe02e62aD6D5ddA658D3a4d30d0C18Aa98e (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
 */
 contract OutlandsRegions is PausableCPX {
     //0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    //
+    //0x61c92169ef077349011ff0b1383c894d86c5f0b41d986366b58a6cf31e93beda
     bytes32 public constant SETTER_ROLE = keccak256("SETTER_ROLE");
 
     //contracts 
@@ -33,7 +34,7 @@ contract OutlandsRegions is PausableCPX {
     uint256 public countOfRegions;
     
     //NFT id 
-    uint256 internal IDNFT = 10**9 + 10**6;
+    uint256 public constant IDNFT = 10**9 + 10**6;
     
     //constructor
     constructor(Gatekeeper gk)
@@ -64,7 +65,7 @@ contract OutlandsRegions is PausableCPX {
         _setRegion(_id, _realm, _anchors);
     }
     
-    function addRegion (uint256 _realm, uint8[] calldata _anchors, address player) 
+    function mintRegion (uint256 _realm, uint8[] calldata _anchors, address player) 
         public
     {
         require(hasRole(MINTER_ROLE, msg.sender), "No permission.");
@@ -93,17 +94,54 @@ contract OutlandsRegions is PausableCPX {
     function getRegion (uint256 id) 
         public
         view
-        returns (uint256 realm, uint8[] memory anchors)
+        returns (uint256 r, uint8[] memory a)
     {
         return (_regions[id].r, _regions[id].a);
     }
     
-    function getRegionRealm (uint256 id) 
+        
+    function _genAnchorFromSeed (bytes32 seed, uint256 r)
+        internal
+        view
+        returns (uint8 a)
+    {
+        //anchor
+        uint8[] memory anchors = _regions[r].a;  
+        uint256 n = anchors.length;
+        return anchors[uint8(seed[1]) % n];        
+    }
+    
+    /*
+        random region depending upon current region count 
+        - thus it may change if regions are added 
+    */
+    function genRegionFromSeed (bytes32 seed)
         public
         view
-        returns (uint256)
+        returns (uint256 id)
     {
-        return _regions[id].r;
+        return 1 + (uint256(seed) % countOfRegions);
+    }
+    
+    //provides the whole region data from a seed
+    function getRegionFromSeed (bytes32 seed)
+        public
+        view
+        returns (uint256 id, uint256 r, uint8[] memory a)
+    {
+        id = genRegionFromSeed(seed);
+        r = _regions[id].r;
+        a = _regions[id].a;
+    }
+    
+    //generates a shard from a given seed 
+    function genShardFromSeed (bytes32 seed) 
+        public
+        view
+        returns (uint256 r, uint8 a)
+    {
+        r = genRegionFromSeed(seed);
+        a = _genAnchorFromSeed(seed, r);
     }
 }
 
@@ -113,11 +151,12 @@ contract OutlandsRegions is PausableCPX {
     Goerli 0.2 - 0x7E4957eF381ce2744F8B9d3EAd2B74889143CbBF (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
     Goerli 0.3 - 0x0DA9265d5A9041eb639a2E03347614427f020432 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
     Goerli 0.4 - 0x34109B71fb01046B514aBf23733e44439071c247 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
+    Goerli 0.5 - 0xEa6E5c8ABf8a46a85664431BC416C4caFA657C34 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
 */
 contract OutlandsShards is PausableCPX {
     //0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    //
+    //0x61c92169ef077349011ff0b1383c894d86c5f0b41d986366b58a6cf31e93beda
     bytes32 public constant SETTER_ROLE = keccak256("SETTER_ROLE");
 
     //contracts 
@@ -133,13 +172,13 @@ contract OutlandsShards is PausableCPX {
         a = anchor 
     */
     struct Shard {
-        bytes32 seed;
+        uint256 id;
         uint256 r;
         uint8 a; 
     }
     //shard mapping   
-    mapping (uint256 => Shard) internal _shards;
-    mapping (bytes32 => uint256) internal _seedToId;
+    mapping (bytes32 => Shard) internal _shards;
+    mapping (uint256 => bytes32) internal _idToSeed;
     
     uint256 public constant IDNFT = 10**9;
     uint256 public countOfShards;
@@ -153,26 +192,6 @@ contract OutlandsShards is PausableCPX {
     }
     
     /*
-        internal
-    */
-    
-    function _regionRealm (uint256 id)
-        internal
-        view 
-        returns  (uint256) 
-    {
-        return OR.getRegionRealm(id);
-    }
-    
-    function _regionAnchors (uint256 id)
-        internal
-        view 
-        returns  (uint8[] memory a) 
-    {
-        (, a) = OR.getRegion(id);
-    }
-    
-    /*
         View Functions 
     */
     
@@ -181,7 +200,7 @@ contract OutlandsShards is PausableCPX {
         view
         returns (bool)
     {
-        return _shards[id].seed != bytes32(0);
+        return _idToSeed[id] != bytes32(0);
     }
     
     function isClaimedBySeed (bytes32 seed) 
@@ -189,30 +208,33 @@ contract OutlandsShards is PausableCPX {
         view
         returns (bool)
     {
-        return _seedToId[seed] != 0;
+        return _shards[seed].r != 0;
     }
     
     function getShardById (uint256 id) 
         public
         view
-        returns (bytes32 seed, uint256 region, uint8 anchor)
+        returns (bytes32 seed, uint256 r, uint8 a)
     {
-        return (_shards[id].seed, _shards[id].r, _shards[id].a);
+        seed = _idToSeed[id];
+        return (seed, _shards[seed].r, _shards[seed].a);
     }
     
-    function getShardBySeed (bytes32 _seed) 
+    function getShardBySeed (bytes32 seed) 
         public
         view
-        returns (bytes32 seed, uint256 region, uint8 anchor)
+        returns (uint256 id, uint256 region, uint8 anchor)
     {
-        uint256 _id = _seedToId[_seed]; 
         //it is claimed 
-        if(_id > 0) {
-            return (_shards[_id].seed, _shards[_id].r, _shards[_id].a);
+        if(isClaimedBySeed(seed)) {
+            id = _shards[seed].id;
+            region = _shards[seed].r;
+            anchor = _shards[seed].a;
         }
         //generate 
         else {
-            return _getShardDataFromSeed(_seed); 
+            id = 0; 
+            (region, anchor) = OR.genShardFromSeed(seed);
         }
     }
     
@@ -241,9 +263,9 @@ contract OutlandsShards is PausableCPX {
             uint256 _id = IDNFT+start+i;
             
             //load array data 
-            seeds[i] = _shards[_id].seed;
-            rids[i] = _shards[_id].r;
-            anchors[i] = _shards[_id].a;
+            seeds[i] = _idToSeed[_id];
+            rids[i] = _shards[seeds[i]].r;
+            anchors[i] = _shards[seeds[i]].a;
         }
     }
     
@@ -258,17 +280,16 @@ contract OutlandsShards is PausableCPX {
         returns (uint256 id)
     {
         require(!_isPaused, "Contract is paused.");
-        require(_region != 0 && _regionRealm(_region) != 0, "Improper region.");
+        require(_region != 0, "Improper region.");
+        require(!isClaimedBySeed(_seed), "Shard has been claimed.");
         
         //increase count and check 
         id = ++countOfShards + IDNFT;
-        require(_shards[id].seed == bytes32(0) && _seedToId[_seed] == 0, "Shard has been claimed.");
-        
         
         //set shard 
-        _shards[id] = Shard(_seed, _region, _anchor);
+        _shards[_seed] = Shard(id, _region, _anchor);
         //set claim 
-        _seedToId[_seed] = id; 
+        _idToSeed[id] = _seed; 
         
         //grant token - IDNFT used in GK as NFT id 
         uint256[] memory ids = new uint256[](1);
@@ -281,20 +302,6 @@ contract OutlandsShards is PausableCPX {
         emit NewShard(id, _region, _anchor, _seed);
     }
     
-    //generate random shard based upon region 
-    function _generateShard (uint256 r, address player) 
-        internal
-        returns (uint256 id)
-    {
-        //seed 
-        bytes32 seed = keccak256(abi.encode(address(this), id, block.timestamp));
-        //anchor
-        uint8 a = _getShardAnchorFromSeed(seed, r); 
-
-        //set and emit 
-        return _addShard(seed, r, a, player); 
-    }
-    
     //admin level function to re-write data 
     function setShard (uint256 _id, bytes32 _seed, uint256 _region, uint8 _anchor) 
         public
@@ -302,16 +309,16 @@ contract OutlandsShards is PausableCPX {
         require(hasRole(SETTER_ROLE, msg.sender), "No permission.");
         
         //set shard 
-        _shards[_id] = Shard(_seed, _region, _anchor);
+        _shards[_seed] = Shard(_id, _region, _anchor);
         //set claim 
-        _seedToId[_seed] = _id;
+        _idToSeed[_id] = _seed;
     }
     
     /*
         external functions for use by other contracts 
     */
     
-    function addShardByData (bytes32 _seed, uint256 _region, uint8 _anchor, address player) 
+    function mintShardByData (bytes32 _seed, uint256 _region, uint8 _anchor, address player) 
         public
         returns (uint256 id)
     {
@@ -321,16 +328,6 @@ contract OutlandsShards is PausableCPX {
         return _addShard(_seed, _region, _anchor, player); 
     }
     
-    function generateShardInRegion (uint256 r, address player) 
-        public
-        returns (uint256 id)
-    {
-        require(hasRole(MINTER_ROLE, msg.sender), "No permission.");
-
-        //set and emit 
-        return _generateShard(r, player); 
-    }
-
     /*
     	Handle movement and determination of times 
     */
@@ -349,9 +346,8 @@ contract OutlandsShards is PausableCPX {
         view
         returns (uint256 region, uint256 realm)
     {
-        uint256 id = _seedToId[seed]; 
-        region = id > 0 ? region = _shards[id].r : _getShardRegionFromSeed(seed);  
-        realm = OR.getRegionRealm(region);
+        (, region, ) = getShardBySeed(seed);
+        (realm, ) = OR.getRegion(region);
     }
 
     // Get the time to move based upon starting shard and ending shard 
@@ -381,44 +377,6 @@ contract OutlandsShards is PausableCPX {
     }
     
     /*
-        RANDOM SHARDS 
-        Handle random shards for exploration
-    */
-    
-    /*
-        random region depending upon current region count 
-        - thus it may change if regions are added 
-    */
-    function _getShardRegionFromSeed (bytes32 _seed)
-        internal
-        view
-        returns (uint256)
-    {
-        return 1 + (uint256(_seed) % OR.countOfRegions());
-    }
-    
-    function _getShardAnchorFromSeed (bytes32 _seed, uint256 r)
-        internal
-        view
-        returns (uint8)
-    {
-        //anchor
-        uint8[] memory anchors = _regionAnchors(r);  
-        uint256 n = anchors.length;
-        return anchors[uint8(_seed[1]) % n];
-    }
-    
-    function _getShardDataFromSeed (bytes32 _seed) 
-	    internal
-	    view
-	    returns (bytes32 seed, uint256 r, uint8 a)
-    {
-        seed = _seed;
-        r = _getShardRegionFromSeed(_seed);
-        a = _getShardAnchorFromSeed(_seed, r);
-    }
-    
-    /*
         Using tokens to claim shards 
     */
     uint256[2] internal _price = [201, 100]; 
@@ -432,7 +390,7 @@ contract OutlandsShards is PausableCPX {
     
     
     //allow player to claim a shard by providing a seed   
-    function claimShardBySeed (bytes32 seed) 
+    function claimShard (bytes32 seed) 
         public
         returns (uint256)
     {
@@ -441,7 +399,7 @@ contract OutlandsShards is PausableCPX {
         GK.burn(msg.sender, _price[0], _price[1]);
         
         //get data 
-        (, uint256 r, uint8 a) = _getShardDataFromSeed(seed);
+        (, uint256 r, uint8 a) = getShardBySeed(seed);
         
         //set and emit 
         return _addShard(seed, r, a, msg.sender);

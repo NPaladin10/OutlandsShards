@@ -19,8 +19,8 @@ const Contracts = {}
 //deployed addresses 
 const ContractAddresses = {
   "goerli": {
-    "OutlandsRegions": "0xd6fDb4Ed121c0F081F873E33Ced4752BE0379AC6",
-    "OutlandsShards": "0x34109B71fb01046B514aBf23733e44439071c247",
+    "OutlandsRegions": "0x4141fbe02e62aD6D5ddA658D3a4d30d0C18Aa98e",
+    "OutlandsShards": "0xEa6E5c8ABf8a46a85664431BC416C4caFA657C34",
     "CPXToken1155": "0x753606cde5dd3EdD7995d9080020D5281a8C4956",
     "CPXToken20": "0x1897A9F9bbE164B257A394f2C65ad0BE348c33Aa",
     "Gatekeeper" : "0xF988ea224f4Dd6F73d4857D32C1F43375E7b15c4",
@@ -220,7 +220,7 @@ class ETHManager {
     
     //polling 
     this.pollAddress()
-    this.pollShards(Contracts.OutlandsShards)
+    this.pollShards(Contracts)
     if(this.address != "") {
       this.pollTokens(Contracts)
       this.pollExplorers()
