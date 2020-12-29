@@ -73,6 +73,10 @@ const UI = (app)=>{
       //shards
       realms : OutlandsCore.REALMS,
       regions : null,
+      sid: "",
+      mayClaim : false,
+      mayExplore : false,
+      shardCool : 0,
       //store
       store: {},
       //explorers
@@ -104,6 +108,38 @@ const UI = (app)=>{
       day() {
         return app.day
       },
+      selectedShard () {
+        if(this.sid == "") return null
+
+        this.mayClaim = false
+        //check claim 
+        app.ETH.submit("OutlandsShards", "isClaimedBySeed", [this.sid]).then(res => {
+          this.mayClaim = !res && this.tokens[201].val >= 100 
+        })
+
+        //check explore 
+        this.mayExplore = false
+        app.ETH.submit("ExploreShard", "shardTimer", [this.sid]).then(res => {
+          let dt = this.shardCool = res.toNumber()
+
+          //shard has to be ready 
+          if(this.now > dt) {
+            //loop through explorers 
+            Object.entries(this.explorers).forEach(e => {
+              let ex = e[1]
+              if(ex._shardSeed == this.sid && ex._cool < this.now) {
+                this.mayExplore = true
+              }
+            })
+          } 
+        })
+
+        return  app.ETH.shards[this.sid]
+      },
+      timeToCool () {
+        let dt = this.shardCool - this.now
+        return dt > 0 ? app.timeFormat(this.shardCool-this.now) : ""
+      }
     },
     methods: {
       reset() {
@@ -129,6 +165,17 @@ const UI = (app)=>{
       buySKU(id,sku) {
         //buy (id, qty)
         app.ETH.submit("Storefront1155", "buy", [id,1])
+      },
+      claimShard() {
+        //claimShard (bytes32 seed)
+        app.ETH.submit("OutlandsShards", "claimShard", [this.sid])
+      },
+      explore () {
+        //filter for the explorer 
+        let exid = Object.values(this.explorers).filter(e => e._cool < this.now && e._shardSeed == this.sid)[0].id
+        
+        app.ETH.submit("ExploreShard", "explore", [exid], {gasLimit:500000})
+        this.sid = ""
       }
     }
   })

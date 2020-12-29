@@ -25,6 +25,9 @@ const app = {
   DB,
   UI: {},
   params,
+  get now () {
+    return Date.now() / 1000
+  },
   get day() {
     let now = Date.now() / 1000
     return Math.round(now / (24 * 60 * 60))

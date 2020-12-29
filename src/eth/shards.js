@@ -1,6 +1,8 @@
 //outlands data 
 import*as OutlandsCore from "../outlands.js"
 
+const ZeroByte = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
 const _shardsPerPeriod = [[24, 3, 8], [24, 3, 8], [24, 3, 8]]
 const _periodTimes = [4 * 60 * 60, 8 * 60 * 60, 24 * 60 * 60]
 
@@ -35,12 +37,17 @@ const poll = (eth)=>{
   OutlandsCore.REGIONS.forEach((r,i) => {
     //data format
     let R = {
+      id : i+1,
       _shards : [],
       periodShards : [],
       realmName: OutlandsCore.REALMS[r.realm - 1],
       get shards () {
         return this._shards.concat(this.periodShards)
-      } 
+      },
+      get claimedShards () {
+        return this.shards.filter(s => s._claimed)
+      },
+      _vId : ""  
     }
 
     //set region 
@@ -57,6 +64,7 @@ const poll = (eth)=>{
 
   //generate from seed 
   eth.shardFromSeed = (seed) => {
+    if(seed == ZeroByte) return null
     //region 
     let r = 1 + BN.from(seed).mod(nRegions).toNumber()
     //anchors 
@@ -75,7 +83,8 @@ const poll = (eth)=>{
         risk: [risk, OutlandsCore.RISK[risk]]
       },
       region : r,
-      regionName : regions[r].name  
+      regionName : regions[r].name,
+      _claimed : false  
     }
   }
 
@@ -146,6 +155,59 @@ const poll = (eth)=>{
     eth._shards = shards
   }
 
+  const shardByPage = () => {
+    OS.countOfShards().then(n => {
+      //convert to numner 
+      n = n.toNumber()
+      let base = 1000000001
+        , pages = Array.from({length: 1+Math.floor(n/50)}, (v,i) => {
+            let m = n < i*50+50 ? n-(i*50) : 50 
+
+            return Array.from({length: m}, (w,j) => base + i*50 + j)
+        });
+
+      //loop through pages 
+      pages.forEach(p => {
+
+        OS.getClaimedShardsBatch(p).then(res => {
+          let {rids, anchors} = res 
+
+          //loop and set region 
+          res.seeds.forEach((seed, j) => {
+            let a = anchors[j],
+              risk = OutlandsCore.ANCHORRISK[a-1]
+              , r = rids[j].toNumber();
+
+            //data formatting 
+            let shard = {
+              _id : p[j],
+              _seed : seed,
+              seed : seed.slice(2,7)+'...'+seed.slice(-4),
+              anchor: {
+                id: a,
+                rarity: getRarity(seed, eth.rarity[1]),
+                text: OutlandsCore.ANCHORS[a - 1],
+                risk: [risk, OutlandsCore.RISK[risk]]
+              },
+              region : r,
+              regionName : regions[r].name,
+              _claimed : true   
+            }
+
+            //push to objects
+            shards[shard._seed] = shard 
+            //shard ids 
+            let sids = regions[shard.region].shards.map(s => s._seed)
+            if(!sids.includes(shard._seed)) {
+              regions[shard.region]._shards.push(shard) 
+            }
+          })
+        })
+
+      })
+    })
+  }
+
   //return polling function 
   return (C)=>{
     let tenMin = 2*60*10
@@ -168,6 +230,7 @@ const poll = (eth)=>{
     //every minute 
     if((tick % 2*60) == 0) {
       //poll for newly created shards 
+      shardByPage()
     }
   }
 }

@@ -8,6 +8,7 @@ import "./Pausable.sol";
 
 /*
     Deployed 
+    Local 0.1 - 0xd94990E65e17452Bf5de2B90890aA8a5c8E24509
     Goerli 0.1  0x596E1E05161f994c92b356582E12Ef0fD2A86170 -  (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
 */
 contract DiamondMinter is PausableCPX {

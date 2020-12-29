@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.0;
 
-import "./Pausable.sol";
-import "./CPXToken1155.sol";
+import "./Gatekeeper.sol";
 
 /*
     Deployed 
+    local 0.2 - 0x2329272320e346612698859e6aedA61B0016b4e1
     Goerli 0.1 - 0xfa003CEa1D28106Ea2F5aD7c8B0d2fC0267375D4 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
+    Goerli 0.2 - 0x1F8fEC5Cbf415ad6101Dd40326aAa2076964EE33 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
 */
 contract Cooldown is PausableCPX {
     // Create a new role identifier for the minter role
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     
     //contracts 
-    CPXToken1155 private CPX1155;
+    Gatekeeper private GK;
 
     //cooldown 
     mapping (uint256 => uint256) public cooldown;
@@ -24,21 +25,10 @@ contract Cooldown is PausableCPX {
     uint256[6] private steps = [5 * 1 minutes, 15 * 1 minutes, 1 hours, 3 * 1 hours, 8 * 1 hours, 1 days];
 
     //constructor
-    constructor(CPXToken1155 _cpx)
+    constructor(Gatekeeper gk)
         public
     {
-        CPX1155 = _cpx;
-    }
-    
-    function _checkApproval (address player, uint256 _token, uint256 price) 
-        internal
-        view
-    {
-        require(!_isPaused, "The contract is paused.");
-        //must be allowed 
-        require(CPX1155.isApprovedForAll(player, address(this)), "Please approve contract.");
-        //must have funds 
-        require(CPX1155.balanceOf(player, _token) >= price, "You don't have the tokens.");
+        GK = gk;
     }
     
     /*
@@ -99,15 +89,17 @@ contract Cooldown is PausableCPX {
         public
         returns (uint256)
     {
-        require (_ti < cooldownTokens.length);
+        require(!_isPaused, "The contract is paused.");
+        require (_ti < cooldownTokens.length, "Incorrect token.");
         //must be greater than time
         uint256 _time = steps[_ti] * _qty;
-        require(cooldown[_id] > _time);
+        require(cooldown[_id] > _time, "Cooldown past time.");
         //require approval 
-        _checkApproval(msg.sender, cooldownTokens[_ti], _qty);
+        address player = msg.sender;
+        require(GK.balanceOf(player, cooldownTokens[_ti]) >= _qty, "You don't have the tokens.");
         
         //burn
-        CPX1155.burn(msg.sender, cooldownTokens[_ti], _qty);
+        GK.burn(msg.sender, cooldownTokens[_ti], _qty);
         
         //reduce cooldown
         cooldown[_id] -= _time;

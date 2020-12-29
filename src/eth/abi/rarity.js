@@ -1,44 +1,9 @@
-const CharacterLocation = `
+const RarityCalculator = `
 [
 	{
-		"inputs": [
-			{
-				"internalType": "contract Gatekeeper",
-				"name": "gk",
-				"type": "address"
-			},
-			{
-				"internalType": "contract OutlandsShards",
-				"name": "os",
-				"type": "address"
-			},
-			{
-				"internalType": "contract Cooldown",
-				"name": "cool",
-				"type": "address"
-			}
-		],
+		"inputs": [],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "bytes32",
-				"name": "shard",
-				"type": "bytes32"
-			}
-		],
-		"name": "Move",
-		"type": "event"
 	},
 	{
 		"anonymous": false,
@@ -117,46 +82,7 @@ const CharacterLocation = `
 	},
 	{
 		"inputs": [],
-		"name": "COOL_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "DEFAULT_ADMIN_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MOVER_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "PAUSER_ROLE",
 		"outputs": [
 			{
 				"internalType": "bytes32",
@@ -170,17 +96,80 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
+				"internalType": "bytes32",
+				"name": "data",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint8",
+				"name": "start",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint8",
+				"name": "end",
+				"type": "uint8"
 			}
 		],
-		"name": "getCooldown",
+		"name": "bytesSlicer",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "slice",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes",
+				"name": "b",
+				"type": "bytes"
+			}
+		],
+		"name": "bytesToUint",
 		"outputs": [
 			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "getRarityIndex",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "max",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "start",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "stop",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "steps",
+				"type": "uint256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -251,45 +240,6 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "_id",
-				"type": "uint256"
-			}
-		],
-		"name": "getShardData",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "uint256",
-				"name": "r",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8",
-				"name": "a",
-				"type": "uint8"
-			},
-			{
-				"internalType": "uint256",
-				"name": "rare",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "bytes32",
 				"name": "role",
 				"type": "bytes32"
@@ -332,101 +282,22 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
 				"internalType": "bytes32",
 				"name": "seed",
 				"type": "bytes32"
-			}
-		],
-		"name": "init",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
 			},
 			{
 				"internalType": "uint256",
-				"name": "id",
+				"name": "_rarity",
 				"type": "uint256"
 			}
 		],
-		"name": "isOwnerOf",
+		"name": "rarity",
 		"outputs": [
 			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "toShard",
-				"type": "bytes32"
-			}
-		],
-		"name": "move",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "toShard",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bool",
-				"name": "useCooldown",
-				"type": "bool"
-			}
-		],
-		"name": "moveFor",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "pause",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "paused",
-		"outputs": [
-			{
-				"internalType": "bool",
 				"name": "",
-				"type": "bool"
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -471,66 +342,32 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
-				"internalType": "contract Gatekeeper",
-				"name": "gk",
-				"type": "address"
-			},
-			{
-				"internalType": "contract OutlandsShards",
-				"name": "os",
-				"type": "address"
-			},
-			{
-				"internalType": "contract Cooldown",
-				"name": "cool",
-				"type": "address"
-			}
-		],
-		"name": "setContracts",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "uint256",
 				"name": "id",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
-				"name": "cool",
+				"name": "max",
 				"type": "uint256"
-			}
-		],
-		"name": "setCooldown",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
+			},
 			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "shardLocation",
-		"outputs": [
+				"internalType": "uint8",
+				"name": "start",
+				"type": "uint8"
+			},
 			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
+				"internalType": "uint8",
+				"name": "stop",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "steps",
+				"type": "uint256[]"
 			}
 		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "unpause",
+		"name": "setRarity",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -538,4 +375,4 @@ const CharacterLocation = `
 ]
 `
 
-export {CharacterLocation}
+export {RarityCalculator}

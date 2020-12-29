@@ -3,9 +3,11 @@
 pragma solidity ^0.6.0;
 
 import "./Gatekeeper.sol";
+import "./Rarity.sol";
 
 /*
     Deployed 
+    local 0.2 - 0x23F91D9F1E0799ac4159a37E813Bc449C294Ade2
     Goerli 0.1 - 0xd6fDb4Ed121c0F081F873E33Ced4752BE0379AC6 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
     Goerli 0.2 - 0x4141fbe02e62aD6D5ddA658D3a4d30d0C18Aa98e (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
 */
@@ -147,11 +149,14 @@ contract OutlandsRegions is PausableCPX {
 
 /*
     Deployed 
+    local 0.5 - 0x8f3186299dB5058E771eAFDD0Ed5776764DF4872
+    local 0.6 - 0x782d52eC87e4690035824aE663FbBfaEBcEC6172
     Goerli 0.1 - 0x71F28DF03E4465844ad0eAc2E2DFBFD6A739aAde (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
     Goerli 0.2 - 0x7E4957eF381ce2744F8B9d3EAd2B74889143CbBF (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
     Goerli 0.3 - 0x0DA9265d5A9041eb639a2E03347614427f020432 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
     Goerli 0.4 - 0x34109B71fb01046B514aBf23733e44439071c247 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
     Goerli 0.5 - 0xEa6E5c8ABf8a46a85664431BC416C4caFA657C34 (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
+    Goerli 0.6 - 
 */
 contract OutlandsShards is PausableCPX {
     //0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6
@@ -162,6 +167,7 @@ contract OutlandsShards is PausableCPX {
     //contracts 
     Gatekeeper internal GK;
     OutlandsRegions internal OR;
+    RarityCalculator internal RC;
 
     //Events 
     event NewShard(uint256 id, uint256 region, uint256 anchor, bytes32 seed); 
@@ -184,11 +190,12 @@ contract OutlandsShards is PausableCPX {
     uint256 public countOfShards;
 
     //constructor
-    constructor(Gatekeeper gk, OutlandsRegions or)
+    constructor(Gatekeeper gk, OutlandsRegions or, RarityCalculator rc)
         public
     {
         GK = gk;
         OR = or;
+        RC = rc; 
     }
     
     /*
@@ -214,58 +221,54 @@ contract OutlandsShards is PausableCPX {
     function getShardById (uint256 id) 
         public
         view
-        returns (bytes32 seed, uint256 r, uint8 a)
+        returns (bytes32 seed, uint256 r, uint8 a, uint256 rare)
     {
         seed = _idToSeed[id];
-        return (seed, _shards[seed].r, _shards[seed].a);
+        return (seed, _shards[seed].r, _shards[seed].a, RC.rarity(seed, 1));
     }
     
     function getShardBySeed (bytes32 seed) 
         public
         view
-        returns (uint256 id, uint256 region, uint8 anchor)
+        returns (uint256 id, uint256 r, uint8 a, uint256 rare)
     {
+        rare = RC.rarity(seed, 1);
         //it is claimed 
         if(isClaimedBySeed(seed)) {
             id = _shards[seed].id;
-            region = _shards[seed].r;
-            anchor = _shards[seed].a;
+            r = _shards[seed].r;
+            a = _shards[seed].a;
         }
         //generate 
         else {
             id = 0; 
-            (region, anchor) = OR.genShardFromSeed(seed);
+            (r, a) = OR.genShardFromSeed(seed);
         }
     }
     
-    function getClaimedShardsByPage (uint256 page) 
+    function getClaimedShardsBatch (uint256[] calldata ids) 
         public
         view
-        returns (bytes32[] memory seeds, uint256[] memory rids, uint8[] memory anchors)
+        returns (bytes32[] memory seeds, uint256[] memory rids, uint8[] memory anchors, uint256[] memory rarity)
     {
-        uint256 start = (page * 50) + 1;
-        require(countOfShards > start);
+        uint256 l = ids.length;
+        require(l <= 50, "Cannot view too many.");
         
-        //set end point 
-        uint256 end = start + 49;
-        if(countOfShards < end){
-            end = countOfShards;
-        }
-
         //establish dynamic array size 
-        uint256 l = 1 + end - start;
         seeds = new bytes32[](l);
         rids = new uint256[](l);
         anchors = new uint8[](l);
+        rarity = new uint256[](l);
 
         //loop through mapping 
         for(uint256 i = 0; i < l; i++){
-            uint256 _id = IDNFT+start+i;
+            uint256 _id = ids[i];
             
             //load array data 
             seeds[i] = _idToSeed[_id];
             rids[i] = _shards[seeds[i]].r;
             anchors[i] = _shards[seeds[i]].a;
+            rarity[i] = RC.rarity(seeds[i], 1);
         }
     }
     
@@ -346,7 +349,7 @@ contract OutlandsShards is PausableCPX {
         view
         returns (uint256 region, uint256 realm)
     {
-        (, region, ) = getShardBySeed(seed);
+        (, region, , ) = getShardBySeed(seed);
         (realm, ) = OR.getRegion(region);
     }
 
@@ -399,7 +402,7 @@ contract OutlandsShards is PausableCPX {
         GK.burn(msg.sender, _price[0], _price[1]);
         
         //get data 
-        (, uint256 r, uint8 a) = getShardBySeed(seed);
+        (, uint256 r, uint8 a, ) = getShardBySeed(seed);
         
         //set and emit 
         return _addShard(seed, r, a, msg.sender);

@@ -16,10 +16,12 @@ const poll = (eth)=>{
       , _cool = cool.toNumber();
 
     let e = {
+      id,
       _shard,
       shard: _shard ? _shard.regionName + ", " + _shard.seed : null,
       _shardSeed: seed, 
-      _cool
+      _cool,
+      _act : ""
     }
 
     //set UI 
@@ -39,7 +41,7 @@ const poll = (eth)=>{
     CL = eth.contracts.CharacterLocation
     Cooldown = eth.contracts.Cooldown
 
-    if(UI.show == "explorers" && tokens[1000000]){
+    if(tokens[1000000]){
       if(tick % 4 == 0) pollExplorers()
     }
   }

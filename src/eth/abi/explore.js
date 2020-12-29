@@ -1,20 +1,15 @@
-const CharacterLocation = `
+const ExploreShard = `
 [
 	{
 		"inputs": [
 			{
-				"internalType": "contract Gatekeeper",
-				"name": "gk",
+				"internalType": "contract TreasureMinter",
+				"name": "tm",
 				"type": "address"
 			},
 			{
-				"internalType": "contract OutlandsShards",
-				"name": "os",
-				"type": "address"
-			},
-			{
-				"internalType": "contract Cooldown",
-				"name": "cool",
+				"internalType": "contract CharacterLocation",
+				"name": "cl",
 				"type": "address"
 			}
 		],
@@ -26,18 +21,68 @@ const CharacterLocation = `
 		"inputs": [
 			{
 				"indexed": false,
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
 				"internalType": "uint256",
 				"name": "id",
 				"type": "uint256"
 			},
 			{
 				"indexed": false,
-				"internalType": "bytes32",
-				"name": "shard",
-				"type": "bytes32"
+				"internalType": "uint256[]",
+				"name": "t",
+				"type": "uint256[]"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "cool",
+				"type": "uint256"
 			}
 		],
-		"name": "Move",
+		"name": "ExploredShard",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256[]",
+				"name": "tids",
+				"type": "uint256[]"
+			}
+		],
+		"name": "GaveTreasure",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "li",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256[]",
+				"name": "tids",
+				"type": "uint256[]"
+			}
+		],
+		"name": "ListSet",
 		"type": "event"
 	},
 	{
@@ -117,33 +162,7 @@ const CharacterLocation = `
 	},
 	{
 		"inputs": [],
-		"name": "COOL_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "DEFAULT_ADMIN_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MOVER_ROLE",
 		"outputs": [
 			{
 				"internalType": "bytes32",
@@ -175,15 +194,20 @@ const CharacterLocation = `
 				"type": "uint256"
 			}
 		],
-		"name": "getCooldown",
+		"name": "explore",
 		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "",
+				"name": "cool",
 				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "t",
+				"type": "uint256[]"
 			}
 		],
-		"stateMutability": "view",
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -252,36 +276,16 @@ const CharacterLocation = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "id",
 				"type": "uint256"
 			}
 		],
-		"name": "getShardData",
+		"name": "getTreasureList",
 		"outputs": [
 			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "uint256",
-				"name": "r",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8",
-				"name": "a",
-				"type": "uint8"
-			},
-			{
-				"internalType": "uint256",
-				"name": "rare",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
+				"internalType": "uint256[]",
+				"name": "list",
+				"type": "uint256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -308,6 +312,30 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "hasClaimedTreasure",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "bytes32",
 				"name": "role",
 				"type": "bytes32"
@@ -327,89 +355,6 @@ const CharacterLocation = `
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			}
-		],
-		"name": "init",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"name": "isOwnerOf",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "toShard",
-				"type": "bytes32"
-			}
-		],
-		"name": "move",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "toShard",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bool",
-				"name": "useCooldown",
-				"type": "bool"
-			}
-		],
-		"name": "moveFor",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -471,18 +416,57 @@ const CharacterLocation = `
 	{
 		"inputs": [
 			{
-				"internalType": "contract Gatekeeper",
-				"name": "gk",
-				"type": "address"
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
 			},
 			{
-				"internalType": "contract OutlandsShards",
-				"name": "os",
-				"type": "address"
+				"internalType": "uint256[20]",
+				"name": "tids",
+				"type": "uint256[20]"
+			}
+		],
+		"name": "setAnchorTreasure",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
 			},
 			{
-				"internalType": "contract Cooldown",
-				"name": "cool",
+				"internalType": "uint256",
+				"name": "dT",
+				"type": "uint256"
+			}
+		],
+		"name": "setClaimPeriod",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "contract TreasureMinter",
+				"name": "_tm",
+				"type": "address"
+			}
+		],
+		"name": "setContract",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "contract CharacterLocation",
+				"name": "cl",
 				"type": "address"
 			}
 		],
@@ -499,12 +483,25 @@ const CharacterLocation = `
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint256",
-				"name": "cool",
-				"type": "uint256"
+				"internalType": "uint256[]",
+				"name": "tids",
+				"type": "uint256[]"
 			}
 		],
-		"name": "setCooldown",
+		"name": "setList",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256[4][4]",
+				"name": "_cool",
+				"type": "uint256[4][4]"
+			}
+		],
+		"name": "setRiskCooldown",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -513,16 +510,42 @@ const CharacterLocation = `
 		"inputs": [
 			{
 				"internalType": "uint256",
+				"name": "_cool",
+				"type": "uint256"
+			}
+		],
+		"name": "setShardCooldown",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "shardCooldown",
+		"outputs": [
+			{
+				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
 			}
 		],
-		"name": "shardLocation",
-		"outputs": [
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
 				"internalType": "bytes32",
 				"name": "",
 				"type": "bytes32"
+			}
+		],
+		"name": "shardTimer",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -538,4 +561,4 @@ const CharacterLocation = `
 ]
 `
 
-export {CharacterLocation}
+export {ExploreShard}

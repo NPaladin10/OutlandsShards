@@ -78,13 +78,25 @@
       </div>
       <!--END INVENTRORY/STORE---------------------------------------------->
       <div class="m-1" align="left" v-if="show==''">
-        <div class="m-1 p-1 border" v-for="(Relm,i) in realms">
-          <h4>{{Relm.name}}</h4>
+        <div class="m-1 p-1 border" v-for="(Realm,i) in realms">
+          <h4>{{Realm.name}}</h4>
           <div class="p-1 region" v-for="(R, key) in regions" v-if="regions && R.realm == i+1">
             <h5>{{R.name}} ({{R.shards.length}})</h5>
-            <select class="custom-select">
-              <option v-for="S in R.shards">{{S.seed}}, {{S.anchor.text}} [{{S.anchor.rarity}}]</option>
-            </select>
+            <div class="input-group">
+              <select class="custom-select" v-model="R._vId">
+                <option v-for="S in R.shards" :value="S._seed">{{S.seed}}, {{S.anchor.text}} [{{S.anchor.rarity}}]</option>
+              </select>
+              <div class="input-group-append">
+                <button class="btn btn-info" type="button" @click="sid=R._vId">Info</button>
+              </div>
+            </div>
+            <div class="mx-2" v-if="selectedShard && selectedShard.region == R.id">
+              <div>{{selectedShard.seed}}, {{selectedShard.anchor.text}} [{{selectedShard.anchor.rarity}}]</div>
+              <div align="center">
+                <button class="btn btn-success" type="button" @click="explore()" :disabled="!mayExplore">Explore<span v-if="timeToCool != ''"> in {{timeToCool}}</span></button>
+                <button class="btn btn-success" type="button" @click="claimShard()" v-if="mayClaim">Claim [100 Shard Info]</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -124,14 +136,14 @@
       <div class="m-1" align="left">
         <div class="container">
           <h3>Explorers</h3>
-          <div v-for="(ex, id) in explorers">
+          <div class="border my-1 py-1" v-for="(ex, id) in explorers">
             <div class="row align-items-center">
               <div class="col-sm">ID: {{Number(id)-1000000}} <span v-if="ex._cool > now">({{cool(ex._cool)}})</span></div>
               <div class="col-sm link" @click="act = 'Explore',exid = id">{{ex.shard}}</div>
               <div class="col-sm-4">
                 <div class="input-group">
-                  <select class="custom-select" v-model="act">
-                    <option v-if="!ex.shard" value="'initLoc'">Initialize Location</option>
+                  <select class="custom-select" v-model="act[id]">
+                    <option v-if="!ex.shard" value="initLoc">Initialize Location</option>
                     <option v-for="(act,i) in actOpts" :value="act">{{act}}</option>
                   </select>
                   <div class="input-group-append">
@@ -141,9 +153,9 @@
               </div>
             </div>
             <!--EXPLORER ACTIONS---------------------------------------------->
-            <div class="px-3" v-if="exid == id && act != ''">
+            <div class="my-1 mx-3" v-if="exid == id && act[id] != ''">
               <!--EXPLORER MOVE---------------------------------------------->
-              <div class="input-group" v-if="act == 'initLoc' || act == 'Move'">
+              <div class="input-group" v-if="ex._act == 'initLoc' || act[id] == 'Move'">
                 <div class="input-group-prepend">
                   <span class="input-group-text">Shard</span>
                 </div>
@@ -156,13 +168,18 @@
                 </div>
               </div>
               <!--EXPLORE---------------------------------------------->
-              <div v-if="act == 'Explore'">
-                <div>{{ex.shard}}</div>
-                <div>{{ex._shard.anchor.text}} [{{ex._shard.anchor.rarity}}] {{ex._shard.anchor.risk[1]}} Risk</div>
+              <div v-if="act[id] == 'Explore'">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <div>{{ex.shard}}</div>
+                    <div>{{ex._shard.anchor.text}} [{{ex._shard.anchor.rarity}}] {{ex._shard.anchor.risk[1]}} Risk</div>
+                  </div>
+                  <button class="btn btn-outline-success" type="button" @click="explore()" :disabled="ex._cool > now">Explore</button>
+                </div>
               </div>
               <!--END EXPLORE---------------------------------------------->
               <!--EXPLORER COOLDOWN---------------------------------------------->
-              <div class="input-group" v-if="act == 'Reduce Cooldown'">
+              <div class="input-group" v-if="act[id] == 'Reduce Cooldown'">
                 <div class="input-group-prepend">
                   <span class="input-group-text">Reduce by</span>
                 </div>

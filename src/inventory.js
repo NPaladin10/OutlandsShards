@@ -49,15 +49,31 @@ const TOKENS = {
     units: "wei"
   },
   "201": {
-    name: "Shard Discovery",
+    name: "Shard Info",
     units: "wei"
+  },
+  "1000000000": {
+    name: "Shards",
+    units: "wei",
+    range : [1000000000,1000100000]
+  },
+  "1001000000": {
+    name: "Regions",
+    units: "wei",
+    range : [1001000000,1001100000]
   },
 }
 
 const SKU = {
   "1": ["Hire a band of Explorers.", "1 Diamond", "1 Explorer"],
-  "2": ["Split Diamond", "0.1 Diamond", "0.06 Emerald, 0.06 Ruby, 0.06 Sapphire"],
-  "3": ["Shard Discovery", "1 Diamond", "100 Shard Info"]
+  "2": ["Split Diamond", "0.1 Diamond", "0.5 Emerald/Ruby/Sapphire"],
+  "3": ["Shard Discovery", "1 Diamond", "100 Shard Info"],
+  "4": ["5 min cooldown", "5 mDiamond", "5 min cooldown"],
+  "5": ["15 min cooldown", "15 mDiamond", "15 min cooldown"],
+  "6": ["1 hr cooldown", "55 mDiamond", "1 hr cooldown"],
+  "7": ["3 hr cooldown", "160 mDiamond", "3 hr cooldown"],
+  "8": ["8 hr cooldown", "400 mDiamond", "8 hr cooldown"],
+  "9": ["1 day cooldown", "1 Diamond", "1 day cooldown"],
 }
 
 class InventoryManager {

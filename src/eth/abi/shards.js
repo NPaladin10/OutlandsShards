@@ -514,6 +514,11 @@ const OutlandsShards = `
 				"internalType": "contract OutlandsRegions",
 				"name": "or",
 				"type": "address"
+			},
+			{
+				"internalType": "contract RarityCalculator",
+				"name": "rc",
+				"type": "address"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -725,12 +730,12 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "page",
-				"type": "uint256"
+				"internalType": "uint256[]",
+				"name": "ids",
+				"type": "uint256[]"
 			}
 		],
-		"name": "getClaimedShardsByPage",
+		"name": "getClaimedShardsBatch",
 		"outputs": [
 			{
 				"internalType": "bytes32[]",
@@ -746,6 +751,11 @@ const OutlandsShards = `
 				"internalType": "uint8[]",
 				"name": "anchors",
 				"type": "uint8[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "rarity",
+				"type": "uint256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -837,6 +847,11 @@ const OutlandsShards = `
 				"internalType": "uint8",
 				"name": "a",
 				"type": "uint8"
+			},
+			{
+				"internalType": "uint256",
+				"name": "rare",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -859,13 +874,18 @@ const OutlandsShards = `
 			},
 			{
 				"internalType": "uint256",
-				"name": "region",
+				"name": "r",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint8",
-				"name": "anchor",
+				"name": "a",
 				"type": "uint8"
+			},
+			{
+				"internalType": "uint256",
+				"name": "rare",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",

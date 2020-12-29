@@ -157,6 +157,7 @@ contract TreasureGiver is PausableCPX {
 
 /*
     Deployed 
+    Local 0.1 - 0x4ED298E8b9576953810737D2aC0D245FB87d3Dd6
     Goerli 0.1 0x7BE9E681D3733F583e827B19942259Cafa7370CA -  (admin 0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c)
 */
 

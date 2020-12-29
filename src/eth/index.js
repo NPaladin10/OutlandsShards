@@ -10,6 +10,11 @@ import {poll as tokenPoll} from "./tokens.js"
 import {poll as addressPoll} from "./address.js"
 import {poll as explorerPoll} from "./explorers.js"
 
+/*
+./geth --datadir os-chain --rpc --dev --rpccorsdomain "https://remix.ethereum.org,http://remix.ethereum.org" console
+eth.sendTransaction({from:eth.coinbase, to:"0x13C5e101b3Dde6063FE68afD3DA18645F6060B2c", value: web3.toWei(5.0, "ether")})
+*/
+
 const goerli = ethers.getDefaultProvider("goerli")
 
 // ether 1000000000000000000
@@ -18,6 +23,22 @@ const goerli = ethers.getDefaultProvider("goerli")
 const Contracts = {}
 //deployed addresses 
 const ContractAddresses = {
+  "unknown" : {
+    "RarityCalculator" : "0xd4BAaD2477917664Ecd4C85E03eE3aFd209b7893",
+    "CPXToken20": "0x71F28DF03E4465844ad0eAc2E2DFBFD6A739aAde",
+    "CPXSimpleMinter": "0xb72b3C78Bc9176dD78034f12CD858377871C29d5",
+    "CPXToken1155": "0x7E65D25128f6F4156e6ec058525A2d746cDC0417",
+    "DiamondMinter": "0xd94990E65e17452Bf5de2B90890aA8a5c8E24509",
+    "Gatekeeper" : "0xCD8899dc6Ea7542a1c97C9B71ac4AbC8E91Df471",
+    "Storefront1155": "0x080e6904f51BFf1E4d231d9aA7A2aCC28A0Eb980",
+    "OutlandsRegions": "0x23F91D9F1E0799ac4159a37E813Bc449C294Ade2",
+    "OutlandsShards": "0x782d52eC87e4690035824aE663FbBfaEBcEC6172",
+    "Cooldown" : "0x2329272320e346612698859e6aedA61B0016b4e1",
+    "TreasureMinter" : "0xa5Bb27eA134A5d69621b6e4dBdB1807686BC44E7",
+    "DailyTreasure" : "0x4ED298E8b9576953810737D2aC0D245FB87d3Dd6",
+    "CharacterLocation" : "0x99aB2d91CF69021d51d69b465182F7Da95EaF0db",
+    "ExploreShard" : "0xF1dAE2f865Dc05B47F16Ff4874d95aC5f11FB482"
+  },
   "goerli": {
     "OutlandsRegions": "0x4141fbe02e62aD6D5ddA658D3a4d30d0C18Aa98e",
     "OutlandsShards": "0xEa6E5c8ABf8a46a85664431BC416C4caFA657C34",
@@ -39,7 +60,8 @@ const Roles = {
   "minter": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6",
   "region_admin": "0xb0c6d6c98634bf90c5127f65c948b52cc8ad5f3b499bdb4170d0b685e60ee0df",
   "burner" : "0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848",
-  "setter" : "0x61c92169ef077349011ff0b1383c894d86c5f0b41d986366b58a6cf31e93beda"
+  "setter" : "0x61c92169ef077349011ff0b1383c894d86c5f0b41d986366b58a6cf31e93beda",
+  "cool" : "0x8fa59863e4f05d398724705bbab4245b11d7346bacbefe73f85dac3a46097744"
 }
 
 //Rarity calculations 
@@ -147,6 +169,9 @@ class ETHManager {
   get contracts () {
     return Contracts
   }
+  get tokens () {
+    return this.app.UI.main.tokens
+  }
   get regions () {
     return this._regions
   }
@@ -228,7 +253,7 @@ class ETHManager {
   }
   init () {
     let getNFTId = this.app.inventory.getNFTId
-      , T = this.app.UI.main.tokens; 
+      , T = this.tokens; 
 
     //decode an array of bignumber token ids and values 
     const tokenMapping = (ids, vals) => {
@@ -262,9 +287,20 @@ class ETHManager {
       //notify 
       _tokens.forEach(t => this.app.simpleNotify(t.notify))
     } 
+
+    const exploreListener = (seed, id, t, cool) => {
+      id = id.toString()
+      cool = cool.toNumber()
+      //check that they own the explorer 
+      if(T[1000000] && T[1000000].ids.includes(id)) {
+        let coolText = this.app.timeFormat(cool - this.app.now)
+        this.app.simpleNotify(coolText)
+      }
+    }
     
     this.contracts.CPXToken1155.on("TransferBatch",transferListener)
     this.contracts.CPXToken1155.on("TransferSingle",transferListener)
+    this.contracts.ExploreShard.on("ExploredShard",exploreListener)
   }
 }
 
