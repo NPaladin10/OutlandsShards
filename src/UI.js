@@ -163,12 +163,26 @@ const UI = (app)=>{
         })
       },
       buySKU(id,sku) {
+        let data = null
+
+        if(id == 0) {
+          data = {
+            shard : chance.pickone(app.shardArray)._seed
+          } 
+        }
+
+        /*
         //buy (id, qty)
-        app.ETH.submit("Storefront1155", "buy", [id,1])
+        app.ETH.submit("Storefront1155", "buy", [id,1,bytes])
+        */
+
+        if(app.server.buy(id, data)){
+          app.simpleNotify("Received "+sku.toBuy)
+        }
       },
       claimShard() {
-        //claimShard (bytes32 seed)
-        app.ETH.submit("OutlandsShards", "claimShard", [this.sid])
+        //buy id 100, data = (bytes32 seed)
+        app.ETH.submit("Storefront1155", "buy", [100, 1, this.sid])
       },
       explore () {
         //filter for the explorer 

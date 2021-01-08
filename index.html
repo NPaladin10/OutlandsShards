@@ -50,8 +50,7 @@
       <ui-explorers v-if="show=='explorers'" :now="now" :explorers="explorers" :tokens="tokens"></ui-explorers>
       <!--INVENTRORY/STORE---------------------------------------------->
       <div class="m-1" align="center" v-if="show=='inventory'">
-        <button class="btn btn-block btn-info w-50" type="button" @click="approveGatekeeper()" v-if="!approval.includes('Gatekeeper')">Approve App to Spend Tokens</button>
-        <div class="container" v-if="approval.includes('Gatekeeper')">
+        <div class="container">
           <h3 align="left">Store</h3>
           <div align="right">DMD {{tokens[1].val.toFixed(2)}}</div>
           <div class="row align-items-center">
@@ -139,7 +138,7 @@
           <div class="border my-1 py-1" v-for="(ex, id) in explorers">
             <div class="row align-items-center">
               <div class="col-sm">ID: {{Number(id)-1000000}} <span v-if="ex._cool > now">({{cool(ex._cool)}})</span></div>
-              <div class="col-sm link" @click="act = 'Explore',exid = id">{{ex.shard}}</div>
+              <div class="col-sm link" @click="act[id] = 'Explore',exid = id">{{ex.shard}}</div>
               <div class="col-sm-4">
                 <div class="input-group">
                   <select class="custom-select" v-model="act[id]">
@@ -152,23 +151,30 @@
                 </div>
               </div>
             </div>
+            <div class="m-1" v-if="search[id]" align="center">
+              <button class="btn btn-success" type="button" v-if="search[id].cool > now" disabled>Search: {{search[id].what}} ({{searchTime(search[id].cool)}})</button>
+              <div class="mx-2 d-flex justify-content-between" v-if="search[id].cool < now">
+                <div>An {{search[id].res.skills.text.join('/')}} is willing to work for you.</div>
+                <button class="btn btn-success" type="button" @click="hireAdventurer(id)">Hire Them ({{search[id].res.cost}} DMD)</button>
+              </div>
+            </div>
             <!--EXPLORER ACTIONS---------------------------------------------->
             <div class="my-1 mx-3" v-if="exid == id && act[id] != ''">
               <!--EXPLORER MOVE---------------------------------------------->
-              <div class="input-group" v-if="ex._act == 'initLoc' || act[id] == 'Move'">
+              <div class="input-group" v-if="act[id] == 'initLoc' || act[id] == 'Move'">
                 <div class="input-group-prepend">
                   <span class="input-group-text">Shard</span>
                 </div>
                 <select class="custom-select" v-model="moveTo">
-                  <option v-for="s in shards" :value="s.id" v-if="s._seed != ex._shardSeed">{{s.text}}</option>
+                  <option v-for="s in shards" :value="s._seed" v-if="s._seed != ex._shardSeed">{{s.text}}</option>
                 </select>
                 <div class="input-group-append">
                   <span class="input-group-text" v-if="moveTo != '' && moveTime>0">{{moveTime}} hours</span>
-                  <button class="btn btn-outline-secondary" type="button" @click="move()">Move</button>
+                  <button class="btn btn-outline-secondary" type="button" @click="move()" :disabled="ex._cool > now">Move</button>
                 </div>
               </div>
               <!--EXPLORE---------------------------------------------->
-              <div v-if="act[id] == 'Explore'">
+              <div v-if="act[id] == 'Explore' && ex.shard">
                 <div class="d-flex justify-content-between">
                   <div>
                     <div>{{ex.shard}}</div>
@@ -194,6 +200,19 @@
                   <button class="btn btn-outline-secondary" type="button" @click="reduceCool()">Reduce</button>
                 </div>
               </div>
+              <!--END COOLDOWN---------------------------------------------->
+              <!--EXPLORER HIRE ADVENTURERS---------------------------------------------->
+              <div v-if="act[id] == 'Hire Adventurers'">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <div>{{ex.shard}}</div>
+                    <div>{{ex._shard.anchor.text}} [{{ex._shard.anchor.rarity}}] {{ex._shard.anchor.risk[1]}} Risk</div>
+                    <div>To hire them, you first have to find them. The time it takes depends upon the anchor of the shard.</div>
+                  </div>
+                  <button class="btn btn-outline-success" type="button" @click="searchForAdventurers()" :disabled="ex._cool > now">Search</button>
+                </div>
+              </div>
+              <!--END HIRE ADVENTURERS---------------------------------------------->
             </div>
             <!--END EXPLORER ACTIONS---------------------------------------------->
           </div>

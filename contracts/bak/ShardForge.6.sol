@@ -218,6 +218,15 @@ contract OutlandsShards is PausableCPX {
         return _shards[seed].r != 0;
     }
     
+    //check ownership
+    function isOwnerOf (address player, uint256 id) 
+        public
+        view
+        returns (bool)
+    {
+        return GK.balanceOf(player, id) == 1; 
+    }
+    
     function getShardById (uint256 id) 
         public
         view

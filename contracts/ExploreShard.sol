@@ -1,19 +1,24 @@
-// CharacterForge.sol
-// SPDX-License-Identifier: MIT
+/*
+    ExploreShard.sol
+    V0.3
+    SPDX-License-Identifier: MIT
+*/
 pragma solidity ^0.6.0;
 
+import "./TreasureMinter.sol";
 import "./TreasureGiver.sol";
-import "./ShardForge.sol";
-import "./CharacterForge.sol";
+import "./Characters.sol";
 
 /*
     Deployed 
     local 0.1 - 0xF1dAE2f865Dc05B47F16Ff4874d95aC5f11FB482
+    local 0.2 - 0xf238e7C3dB42049F72B5781d35C26D174B621258
+    local 0.3 - 0x16665f69a2a543a59FcD069Bcee1caeD7833aB31
 */
 
 contract ExploreShard is TreasureGiver {
     //contracts
-    CharacterLocation internal CL;
+    Characters internal CL;
 
     //number of treasures to be generated 
     uint8[] nT = [1,1,1,1,2,2,2,3];
@@ -40,7 +45,7 @@ contract ExploreShard is TreasureGiver {
     event ExploredShard (bytes32 seed, uint256 id, uint256[] t, uint256 cool);
     
     //constructor
-    constructor(TreasureMinter tm, CharacterLocation cl)
+    constructor(TreasureMinter tm, Characters cl)
         public
         TreasureGiver(tm)
     {
@@ -66,7 +71,7 @@ contract ExploreShard is TreasureGiver {
         internal calculations  
     */
     //cooldown calculation 
-    function _getCool (uint8 _type, uint256 r) 
+    function _getCool (int256 _type, uint256 r) 
         internal
         returns (uint256 cool) 
     {
@@ -75,13 +80,13 @@ contract ExploreShard is TreasureGiver {
         uint256 d4 = uint256(rand)%4;
         
         //cool calc 
-        uint256 risk = _anchorRisk[_type-1];
+        uint256 risk = _anchorRisk[uint256(_type)-1];
         uint256 d8 = r-1+d4;
         //cooldown is based on risk, the rarity = size and d4 
         cool = _riskCooldown[risk][_d8Tod4[d8]];
     }
     
-    function _getReward (uint8 _type, uint256 r) 
+    function _getReward (int256 _type, uint256 r) 
         internal
         returns (uint256[] memory t) 
     {
@@ -91,7 +96,7 @@ contract ExploreShard is TreasureGiver {
         uint256 ti = 5*(r-1) + subTi;
         
         //anchor treasure  
-        uint256 risk = _anchorRisk[_type-1];
+        uint256 risk = _anchorRisk[uint256(_type)-1];
         uint256 _t = _anchorTreasure[risk][ti];
         
         //function _generateTreasure (uint256[] memory list, uint8[] memory nT) returns (uint256[] memory treasure)
@@ -102,11 +107,12 @@ contract ExploreShard is TreasureGiver {
         admin functions 
     */
     
-    function setContracts (CharacterLocation cl)
+    function setContracts (TreasureMinter tm, Characters cl)
         public
     {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "No permission.");
         CL = cl;
+        TM = tm; 
     }
     
     //set base cooldown of a shard
@@ -146,17 +152,17 @@ contract ExploreShard is TreasureGiver {
         
         //require cool 
         uint256 _now = block.timestamp; 
-        require(_now > CL.getCooldown(id), "Character srequires cooldown.");
+        require(_now > uint256(CL.getCooldown(id)), "Character srequires cooldown.");
         
         //pull data 
-        (bytes32 seed, , uint8 _type, uint256 _rarity, ) = CL.getShardData(id);
+        (bytes32 seed, , int256 _type, uint256 _rarity, ) = CL.getShardData(id);
         require(_now > shardTimer[seed], "Shard is not ready.");
 
         //get cooldown 
         cool = _now + (_getCool(_type, _rarity) * 1 hours);
         
         //set cooldown for character and shard 
-        CL.setCooldown(id, cool);
+        CL.setCooldown(id, int256(cool));
         shardTimer[seed] = _now + (shardCooldown/_rarity);
         
         //generate treasure & mint 
@@ -173,49 +179,3 @@ contract ExploreShard is TreasureGiver {
 }
 
 
-contract ClaimShardExplore is TreasureGiver {
-    //contracts
-    ExploreShard internal ES;
-    OutlandsShards internal OS;
-    
-    //number of treasures to be generated 
-    uint8[] nT = [1,1,1,1,2,2,2,3];
-    
-    //track claims 
-    mapping (bytes32 => uint256) internal _claims; 
-    
-    //constructor
-    constructor(TreasureMinter tm, ExploreShard es, OutlandsShards os)
-        public
-        TreasureGiver(tm)
-    {
-        ES = es; 
-        OS = os; 
-    }
-    
-    function claimReward (bytes32 seed) 
-        public
-    {
-        //get the shard data 
-        (uint256 id, , , uint256 _rare) = OS.getShardBySeed(seed);
-        
-        //require id 
-        require(id > 0, "Shard is not claimed.");
-        //require ownership
-        require(OS.isOwnerOf(msg.sender, id), "Not the owner of the shard.");
-        //check claims vs available 
-        uint256 _n = ES.countExploreByShard(seed) - _claims[seed];  
-        require(_n > 0, "All the rewards are claimed.");
-        
-        //update claims 
-        _claims[seed] = ES.countExploreByShard(seed);
-        
-        //loop for every claim 
-        for(uint256 i = 0; i < _n; i++) {
-            //generate treasure & mint
-            //_generateTreasure (uint256[] memory list, uint8[] memory nT) returns (uint256[] memory treasure)
-            uint256[] memory t = _generateTreasure(_treasureLists[_rare], nT);
-            _mint(msg.sender, t);
-        }
-    }
-}

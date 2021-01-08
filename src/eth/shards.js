@@ -31,7 +31,11 @@ const poll = (eth)=>{
   let tick = 0
  
   //data to call later
-  let OR = null, OS = null, nRegions = OutlandsCore.REGIONS.length, regions = {}, shards = {};
+  let OR = null
+    , OS = null
+    , nRegions = OutlandsCore.REGIONS.length
+    , regions = {}
+    , shards = {};
 
   //set regions
   OutlandsCore.REGIONS.forEach((r,i) => {
@@ -57,6 +61,7 @@ const poll = (eth)=>{
 
   //setup references
   let app = eth.app
+    , appSeed = app.params.seed 
     , UI = app.UI.main
     , BN = eth.BN
     , keccak256 = eth.keccak256
@@ -95,7 +100,7 @@ const poll = (eth)=>{
     pOfi = BN.from(pOfi).toHexString()
     j = BN.from(j).toHexString()
     //keccak256(abi.encode(address(this), pt, pOfi, j))
-    let seed = keccak256(["address", "uint256", "uint256", "uint256"], [OS.address, pt, pOfi, j]) 
+    let seed = keccak256(["address", "uint256", "uint256", "uint256"], [appSeed, pt, pOfi, j]) 
     
     //generate based upon seed 
     return eth.shardFromSeed(seed)
@@ -107,7 +112,7 @@ const poll = (eth)=>{
       , ofPi = BN.from(p).toHexString();
     //seed for generation
     //abi.encode(address(this), pt, ofPi) 
-    let seed = keccak256(["address", "uint256", "uint256"], [OS.address, pt, ofPi])
+    let seed = keccak256(["address", "uint256", "uint256"], [appSeed, pt, ofPi])
 
     let spp = _shardsPerPeriod[i]
     //start with base 
@@ -123,10 +128,7 @@ const poll = (eth)=>{
   //update period numbers 
   const periodPoll = ()=>{
     let now = Date.now()/1000;
-
     app.periods = _periodTimes.map(_p=> Math.floor(now/_p))
-
-    OR.countOfRegions().then(n => nRegions = n.toNumber())
   }
 
   //update all the random shards of the period 
@@ -156,7 +158,7 @@ const poll = (eth)=>{
   }
 
   const shardByPage = () => {
-    OS.countOfShards().then(n => {
+    OS.getCount().then(n => {
       //convert to numner 
       n = n.toNumber()
       let base = 1000000001
@@ -176,7 +178,7 @@ const poll = (eth)=>{
           res.seeds.forEach((seed, j) => {
             let a = anchors[j],
               risk = OutlandsCore.ANCHORRISK[a-1]
-              , r = rids[j].toNumber();
+              , r = rids[j].toNumber()-1001000000;
 
             //data formatting 
             let shard = {
@@ -222,6 +224,11 @@ const poll = (eth)=>{
     if((tick % tenMin) == 1) {
       //poll for period 
       periodPoll()
+
+      //Region poll 
+      if(OR) {
+        OR.getCount().then(n => { nRegions = n.toNumber() })
+      }
     }
     if((tick % tenMin) == 2) {
       //poll for period 
@@ -230,7 +237,7 @@ const poll = (eth)=>{
     //every minute 
     if((tick % 2*60) == 0) {
       //poll for newly created shards 
-      shardByPage()
+      if(OS) shardByPage()
     }
   }
 }

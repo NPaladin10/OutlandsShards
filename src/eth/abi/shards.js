@@ -22,9 +22,9 @@ const OutlandsRegions = `
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "realm",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
 				"indexed": false,
@@ -33,7 +33,7 @@ const OutlandsRegions = `
 				"type": "uint8[]"
 			}
 		],
-		"name": "NewRegion",
+		"name": "Mint",
 		"type": "event"
 	},
 	{
@@ -126,12 +126,12 @@ const OutlandsRegions = `
 	},
 	{
 		"inputs": [],
-		"name": "IDNFT",
+		"name": "MINTER_ROLE",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "bytes32",
 				"name": "",
-				"type": "uint256"
+				"type": "bytes32"
 			}
 		],
 		"stateMutability": "view",
@@ -139,12 +139,12 @@ const OutlandsRegions = `
 	},
 	{
 		"inputs": [],
-		"name": "MINTER_ROLE",
+		"name": "NFTID",
 		"outputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "uint256",
 				"name": "",
-				"type": "bytes32"
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -165,6 +165,19 @@ const OutlandsRegions = `
 	},
 	{
 		"inputs": [],
+		"name": "REALM_ID",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "SETTER_ROLE",
 		"outputs": [
 			{
@@ -178,12 +191,12 @@ const OutlandsRegions = `
 	},
 	{
 		"inputs": [],
-		"name": "countOfRegions",
+		"name": "callMint",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "bool",
 				"name": "",
-				"type": "uint256"
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
@@ -233,6 +246,19 @@ const OutlandsRegions = `
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "getCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -243,9 +269,9 @@ const OutlandsRegions = `
 		"name": "getRegion",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "r",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
 				"internalType": "uint8[]",
@@ -272,14 +298,33 @@ const OutlandsRegions = `
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "r",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
 				"internalType": "uint8[]",
 				"name": "a",
 				"type": "uint8[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "getRegionRealm",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "r",
+				"type": "int256"
 			}
 		],
 		"stateMutability": "view",
@@ -390,15 +435,46 @@ const OutlandsRegions = `
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "init",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_realm",
+				"name": "id",
 				"type": "uint256"
 			},
 			{
+				"internalType": "bytes",
+				"name": "data",
+				"type": "bytes"
+			}
+		],
+		"name": "mint",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "int256",
+				"name": "_realm",
+				"type": "int256"
+			},
+			{
 				"internalType": "uint8[]",
-				"name": "_anchors",
+				"name": "_a",
 				"type": "uint8[]"
 			},
 			{
@@ -409,6 +485,64 @@ const OutlandsRegions = `
 		],
 		"name": "mintRegion",
 		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
+			},
+			{
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
+			}
+		],
+		"name": "modStat",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "int256[]",
+				"name": "_vals",
+				"type": "int256[]"
+			}
+		],
+		"name": "modStatBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
@@ -476,18 +610,76 @@ const OutlandsRegions = `
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "_realm",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
 				"internalType": "uint8[]",
-				"name": "_anchors",
+				"name": "_a",
 				"type": "uint8[]"
 			}
 		],
 		"name": "setRegion",
 		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
+			},
+			{
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
+			}
+		],
+		"name": "setStat",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "int256[]",
+				"name": "_vals",
+				"type": "int256[]"
+			}
+		],
+		"name": "setStatBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "",
+				"type": "int256[]"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
@@ -514,11 +706,6 @@ const OutlandsShards = `
 				"internalType": "contract OutlandsRegions",
 				"name": "or",
 				"type": "address"
-			},
-			{
-				"internalType": "contract RarityCalculator",
-				"name": "rc",
-				"type": "address"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -528,22 +715,22 @@ const OutlandsShards = `
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
 				"name": "id",
 				"type": "uint256"
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "region",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "anchor",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
 				"indexed": false,
@@ -552,7 +739,7 @@ const OutlandsShards = `
 				"type": "bytes32"
 			}
 		],
-		"name": "NewShard",
+		"name": "Mint",
 		"type": "event"
 	},
 	{
@@ -632,12 +819,12 @@ const OutlandsShards = `
 	},
 	{
 		"inputs": [],
-		"name": "DEFAULT_ADMIN_ROLE",
+		"name": "ANCHOR_ID",
 		"outputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "uint8",
 				"name": "",
-				"type": "bytes32"
+				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -645,12 +832,12 @@ const OutlandsShards = `
 	},
 	{
 		"inputs": [],
-		"name": "IDNFT",
+		"name": "DEFAULT_ADMIN_ROLE",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "bytes32",
 				"name": "",
-				"type": "uint256"
+				"type": "bytes32"
 			}
 		],
 		"stateMutability": "view",
@@ -671,12 +858,51 @@ const OutlandsShards = `
 	},
 	{
 		"inputs": [],
+		"name": "NFTID",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "PAUSER_ROLE",
 		"outputs": [
 			{
 				"internalType": "bytes32",
 				"name": "",
 				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "REGION_ID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "SEED_ID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -696,32 +922,13 @@ const OutlandsShards = `
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			}
-		],
-		"name": "claimShard",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [],
-		"name": "countOfShards",
+		"name": "callMint",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "bool",
 				"name": "",
-				"type": "uint256"
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
@@ -743,19 +950,32 @@ const OutlandsShards = `
 				"type": "bytes32[]"
 			},
 			{
-				"internalType": "uint256[]",
+				"internalType": "int256[]",
 				"name": "rids",
-				"type": "uint256[]"
+				"type": "int256[]"
 			},
 			{
-				"internalType": "uint8[]",
+				"internalType": "int256[]",
 				"name": "anchors",
-				"type": "uint8[]"
+				"type": "int256[]"
 			},
 			{
 				"internalType": "uint256[]",
 				"name": "rarity",
 				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -839,14 +1059,14 @@ const OutlandsShards = `
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "r",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
-				"internalType": "uint8",
+				"internalType": "int256",
 				"name": "a",
-				"type": "uint8"
+				"type": "int256"
 			},
 			{
 				"internalType": "uint256",
@@ -873,14 +1093,14 @@ const OutlandsShards = `
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "r",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
-				"internalType": "uint8",
+				"internalType": "int256",
 				"name": "a",
-				"type": "uint8"
+				"type": "int256"
 			},
 			{
 				"internalType": "uint256",
@@ -902,14 +1122,14 @@ const OutlandsShards = `
 		"name": "getShardRegionRealm",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "region",
-				"type": "uint256"
+				"type": "int256"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "int256",
 				"name": "realm",
-				"type": "uint256"
+				"type": "int256"
 			}
 		],
 		"stateMutability": "view",
@@ -984,25 +1204,6 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"name": "isClaimedById",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "bytes32",
 				"name": "seed",
 				"type": "bytes32"
@@ -1022,32 +1223,80 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32",
-				"name": "_seed",
-				"type": "bytes32"
-			},
-			{
 				"internalType": "uint256",
-				"name": "_region",
+				"name": "id",
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint8",
-				"name": "_anchor",
-				"type": "uint8"
-			},
-			{
-				"internalType": "address",
-				"name": "player",
-				"type": "address"
+				"internalType": "bytes",
+				"name": "data",
+				"type": "bytes"
 			}
 		],
-		"name": "mintShardByData",
+		"name": "mint",
 		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "shard",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
 				"internalType": "uint256",
 				"name": "id",
 				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
+			},
+			{
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
+			}
+		],
+		"name": "modStat",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "int256[]",
+				"name": "_vals",
+				"type": "int256[]"
+			}
+		],
+		"name": "modStatBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -1131,12 +1380,17 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256[3]",
-				"name": "_times",
-				"type": "uint256[3]"
+				"internalType": "contract Gatekeeper",
+				"name": "gk",
+				"type": "address"
+			},
+			{
+				"internalType": "contract OutlandsRegions",
+				"name": "or",
+				"type": "address"
 			}
 		],
-		"name": "setMoveTimes",
+		"name": "setContract",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -1144,12 +1398,12 @@ const OutlandsShards = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256[2]",
-				"name": "_p",
-				"type": "uint256[2]"
+				"internalType": "uint256[3]",
+				"name": "_times",
+				"type": "uint256[3]"
 			}
 		],
-		"name": "setPrice",
+		"name": "setMoveTimes",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -1167,18 +1421,76 @@ const OutlandsShards = `
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256",
-				"name": "_region",
-				"type": "uint256"
+				"internalType": "int256",
+				"name": "_r",
+				"type": "int256"
 			},
 			{
-				"internalType": "uint8",
-				"name": "_anchor",
-				"type": "uint8"
+				"internalType": "int256",
+				"name": "_a",
+				"type": "int256"
 			}
 		],
 		"name": "setShard",
 		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
+			},
+			{
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
+			}
+		],
+		"name": "setStat",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "int256[]",
+				"name": "_vals",
+				"type": "int256[]"
+			}
+		],
+		"name": "setStatBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "",
+				"type": "int256[]"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},

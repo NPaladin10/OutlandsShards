@@ -1,7 +1,13 @@
-const RarityCalculator = `
+const Adventurers = `
 [
 	{
-		"inputs": [],
+		"inputs": [
+			{
+				"internalType": "contract Gatekeeper",
+				"name": "gk",
+				"type": "address"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
 	},
@@ -94,85 +100,40 @@ const RarityCalculator = `
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "PAUSER_ROLE",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "bytes32",
-				"name": "data",
+				"name": "seed",
 				"type": "bytes32"
 			},
 			{
 				"internalType": "uint8",
-				"name": "start",
+				"name": "i",
 				"type": "uint8"
-			},
+			}
+		],
+		"name": "_d6",
+		"outputs": [
 			{
 				"internalType": "uint8",
-				"name": "end",
+				"name": "",
 				"type": "uint8"
 			}
 		],
-		"name": "bytesSlicer",
-		"outputs": [
-			{
-				"internalType": "bytes",
-				"name": "slice",
-				"type": "bytes"
-			}
-		],
 		"stateMutability": "pure",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bytes",
-				"name": "b",
-				"type": "bytes"
-			}
-		],
-		"name": "bytesToUint",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "pure",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"name": "getRarityIndex",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "max",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "start",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "stop",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "steps",
-				"type": "uint256[]"
-			}
-		],
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -282,22 +243,74 @@ const RarityCalculator = `
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			},
-			{
 				"internalType": "uint256",
-				"name": "_rarity",
+				"name": "id",
 				"type": "uint256"
 			}
 		],
-		"name": "rarity",
+		"name": "idSplit",
+		"outputs": [
+			{
+				"internalType": "uint256[3]",
+				"name": "s",
+				"type": "uint256[3]"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "exId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "advIds",
+				"type": "uint256[]"
+			}
+		],
+		"name": "link",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
+			}
+		],
+		"name": "mint",
 		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "",
+				"name": "id",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "pause",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "paused",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
@@ -342,32 +355,37 @@ const RarityCalculator = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
+				"internalType": "contract Gatekeeper",
+				"name": "gk",
+				"type": "address"
+			}
+		],
+		"name": "setContract",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "max",
+				"name": "exId",
 				"type": "uint256"
-			},
-			{
-				"internalType": "uint8",
-				"name": "start",
-				"type": "uint8"
-			},
-			{
-				"internalType": "uint8",
-				"name": "stop",
-				"type": "uint8"
 			},
 			{
 				"internalType": "uint256[]",
-				"name": "steps",
+				"name": "advIds",
 				"type": "uint256[]"
 			}
 		],
-		"name": "setRarity",
+		"name": "unlink",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "unpause",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -375,4 +393,4 @@ const RarityCalculator = `
 ]
 `
 
-export {RarityCalculator}
+export {Adventurers}

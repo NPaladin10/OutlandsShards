@@ -8,7 +8,7 @@ const ExploreShard = `
 				"type": "address"
 			},
 			{
-				"internalType": "contract CharacterLocation",
+				"internalType": "contract Characters",
 				"name": "cl",
 				"type": "address"
 			}
@@ -181,6 +181,44 @@ const ExploreShard = `
 				"internalType": "bytes32",
 				"name": "",
 				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "countExploreByExplorer",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "countExploreByShard",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -465,7 +503,12 @@ const ExploreShard = `
 	{
 		"inputs": [
 			{
-				"internalType": "contract CharacterLocation",
+				"internalType": "contract TreasureMinter",
+				"name": "tm",
+				"type": "address"
+			},
+			{
+				"internalType": "contract Characters",
 				"name": "cl",
 				"type": "address"
 			}

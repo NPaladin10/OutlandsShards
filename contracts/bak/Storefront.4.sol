@@ -25,14 +25,12 @@ contract Storefront1155 is PausableCPX {
      * 1 - price 
      * 2 - token ID for sale  
      * 3 - token sale quantity
-     * 4 - call NFT contract address
      */
     struct SKUData {
         uint256[] priceIds;
         uint256[] priceAmts;
         uint256[] ids;
         uint256[] amounts;
-        address NFTKeeper;
     }
     mapping (uint256 => SKUData) internal _SKU;
 
@@ -40,7 +38,7 @@ contract Storefront1155 is PausableCPX {
     mapping (uint256 => uint256[2]) internal _lock;
 
     //Events 
-    event Bought(address indexed buyer, uint256 when, uint256 indexed sku, uint256 qty); 
+    event Bought(address buyer, uint256 when, uint256 sku, uint256 qty); 
     
     //constructor
     constructor(Gatekeeper gk)
@@ -62,6 +60,15 @@ contract Storefront1155 is PausableCPX {
         }
     }
     
+    function _isUnlocked (address player, uint256 id)
+        internal
+        view
+        returns (bool)
+    {
+        if(_lock[id][0] == 0) return true;
+        else return GK.balanceOf(player, _lock[id][0]) >= _lock[id][1];
+    }
+    
     /*
         admin set functions 
     */
@@ -73,19 +80,21 @@ contract Storefront1155 is PausableCPX {
         GK = gk;
     }
 
-    function setSKU (uint256 id, uint256[] calldata priceIds, uint256[] calldata priceAmts, uint256[] calldata ids, uint256[] calldata amounts, address nft)
+    function setSKU (uint256 id, uint256[] calldata priceIds, uint256[] calldata priceAmts, uint256[] calldata ids, uint256[] calldata amounts)
         public
     {
         //only admin
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "No permission.");
-
+        require(ids.length == amounts.length, "Array length mismatch.");
+        require(priceIds.length == priceAmts.length, "Price array length mismatch.");
+        
         //validate prices 
         for(uint256 i = 0; i < priceIds.length; i++){
             require(priceIds[i] != 0 && priceAmts[i] != 0, "Token cost not allowed.");
         }
         
         //set sku data 
-        _SKU[id] = SKUData(priceIds, priceAmts, ids, amounts, nft);
+        _SKU[id] = SKUData(priceIds, priceAmts, ids, amounts);
     }
     
     function setLock (uint256 id, uint256[2] calldata lockData) 
@@ -110,49 +119,40 @@ contract Storefront1155 is PausableCPX {
         amounts = _SKU[id].amounts;
     }
     
-    function getLocks (uint256[] calldata _ids) 
+    function getLocks (uint256[] calldata _lids) 
         public
         view
         returns (uint256[] memory ids, uint256[] memory values)
     {
-        uint256 l = _ids.length;
-        ids = new uint256[](l);
-        values = new uint256[](l);
+        uint256 len = _lids.length;
+        ids = new uint256[](len);
+        values = new uint256[](len);
         
-        for(uint256 i = 0; i < l; i++){
-            ids[i] = _lock[_ids[i]][0];
-            values[i] = _lock[_ids[i]][1];
+        for(uint256 i = 0; i < len; i++){
+            ids[i] = _lock[_lids[i]][0];
+            values[i] = _lock[_lids[i]][1];
         }
     }
     
-    function isUnlocked (address player, uint256 id)
-        internal
-        view
-        returns (bool)
-    {
-        if(_lock[id][0] == 0) return true;
-        else return GK.balanceOf(player, _lock[id][0]) >= _lock[id][1];
-    }
-    
-    function isUnlockedBatch (address player, uint256[] memory ids) 
+    function isUnlocked (address player, uint256[] memory ids) 
         public
         view
         returns (bool[] memory unlocked)
     {
-        uint256 l = ids.length;
-        unlocked = new bool[](l);
+        uint256 len = ids.length;
+        unlocked = new bool[](len);
 
         //loop through checking locks 
-        for(uint256 i = 0; i < l; i++){
-            unlocked[i] = isUnlocked(player, ids[i]);
+        for(uint256 i = 0; i < len; i++){
+            unlocked[i] = _isUnlocked(player, ids[i]);
         }
     }
     
     /*
         Primary functon 
     */
-
-    function buy (uint256 id, uint256 qty, bytes calldata data) 
+    
+    function buy (uint256 id, uint256 qty) 
         public
     {
         //not paused
@@ -163,30 +163,22 @@ contract Storefront1155 is PausableCPX {
         //has data 
         require(sku.priceIds.length > 0, "SKU not for sale.");
         
-        address player = msg.sender;
         //loop through for qty 
         for(uint256 i = 0; i < qty; i++) {
             //require tokens 
-            _hasTokens(player, sku.priceIds, sku.priceAmts);
+            _hasTokens(msg.sender, sku.priceIds, sku.priceAmts);
             
             //check if unlocked
-            require(isUnlocked(player, id), "Item is locked.");
+            require(_isUnlocked(msg.sender, id), "Item is locked.");
     
             //burn
-            GK.burnBatch(player, sku.priceIds, sku.priceAmts);
+            GK.burnBatch(msg.sender, sku.priceIds, sku.priceAmts);
             
             //mint token 
-            if(sku.NFTKeeper == address(0)) {
-                //fungible
-                GK.mintBatch(player, sku.ids, sku.amounts);
-            }
-            else {
-                //NFT
-                GK.mintNFT(player, sku.ids[0], sku.NFTKeeper, data);
-            }
+            GK.mint(msg.sender, sku.ids, sku.amounts);
         }
 
         //emit 
         emit Bought(msg.sender, block.timestamp, id, qty);
     }
-}
+}s

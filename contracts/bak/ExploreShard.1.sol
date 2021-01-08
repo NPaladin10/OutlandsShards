@@ -1,8 +1,10 @@
 // CharacterForge.sol
+// V0.1
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.0;
 
 import "./TreasureGiver.sol";
+import "./ShardForge.sol";
 import "./CharacterForge.sol";
 
 /*
@@ -10,7 +12,6 @@ import "./CharacterForge.sol";
     local 0.1 - 0xF1dAE2f865Dc05B47F16Ff4874d95aC5f11FB482
 */
 
-    
 contract ExploreShard is TreasureGiver {
     //contracts
     CharacterLocation internal CL;
@@ -141,6 +142,9 @@ contract ExploreShard is TreasureGiver {
         public
         returns (uint256 cool, uint256[] memory t)
     {
+        //require ownership
+        require(CL.isOwnerOf(msg.sender, id), "You do not own the explorer.");
+        
         //require cool 
         uint256 _now = block.timestamp; 
         require(_now > CL.getCooldown(id), "Character srequires cooldown.");
@@ -170,3 +174,49 @@ contract ExploreShard is TreasureGiver {
 }
 
 
+contract ClaimShardExplore is TreasureGiver {
+    //contracts
+    ExploreShard internal ES;
+    OutlandsShards internal OS;
+    
+    //number of treasures to be generated 
+    uint8[] nT = [1,1,1,1,2,2,2,3];
+    
+    //track claims 
+    mapping (bytes32 => uint256) internal _claims; 
+    
+    //constructor
+    constructor(TreasureMinter tm, ExploreShard es, OutlandsShards os)
+        public
+        TreasureGiver(tm)
+    {
+        ES = es; 
+        OS = os; 
+    }
+    
+    function claimReward (bytes32 seed) 
+        public
+    {
+        //get the shard data 
+        (uint256 id, , , uint256 _rare) = OS.getShardBySeed(seed);
+        
+        //require id 
+        require(id > 0, "Shard is not claimed.");
+        //require ownership
+        require(OS.isOwnerOf(msg.sender, id), "Not the owner of the shard.");
+        //check claims vs available 
+        uint256 _n = ES.countExploreByShard(seed) - _claims[seed];  
+        require(_n > 0, "All the rewards are claimed.");
+        
+        //update claims 
+        _claims[seed] = ES.countExploreByShard(seed);
+        
+        //loop for every claim 
+        for(uint256 i = 0; i < _n; i++) {
+            //generate treasure & mint
+            //_generateTreasure (uint256[] memory list, uint8[] memory nT) returns (uint256[] memory treasure)
+            uint256[] memory t = _generateTreasure(_treasureLists[_rare], nT);
+            _mint(msg.sender, t);
+        }
+    }
+}

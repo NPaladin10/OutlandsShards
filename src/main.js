@@ -9,6 +9,7 @@ const DB = localforage.createInstance({
 })
 //eth
 import {ETHManager} from "./eth/index.js"
+import {LocalServer} from "./local/index.js"
 //UI 
 import {UI} from "./UI.js"
 //inventorry 
@@ -17,16 +18,18 @@ import {InventoryManager} from "./inventory.js"
 //core params
 const params = {
   //Seed for generation
-  seed: "Compendium2020",
+  seed: "0x40F35e140392265b3D1791f6aa5036EFFfE0deE5",
 }
 
 //generic application 
 const app = {
   DB,
+  utils : {},
+  constants : {},
   UI: {},
   params,
   get now () {
-    return Date.now() / 1000
+    return Math.floor(Date.now() / 1000)
   },
   get day() {
     let now = Date.now() / 1000
@@ -120,8 +123,11 @@ const app = {
 UI(app)
 app.inventory = new InventoryManager(app)
 app.ETH = new ETHManager(app)
+LocalServer(app)
 
-//setInterval(()=>app.save(), 5000)
+setInterval(()=>{
+  app.server.poll()
+}, 500)
 
 
 //new player

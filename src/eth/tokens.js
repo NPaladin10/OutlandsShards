@@ -41,8 +41,8 @@ const poll = (eth)=>{
         , T = tokens[id];
 
       //first get the count 
-      GK.getCountOfNFT(id).then(res=>{
-        let count = res[0].toNumber()
+      GK.countOfNFT(id).then(res=>{
+        let count = res.toNumber()
         //create an array and check balances
         let _ids = Array.from({
           length: count

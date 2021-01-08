@@ -15,7 +15,7 @@ const Storefront1155 = `
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "buyer",
 				"type": "address"
@@ -27,7 +27,7 @@ const Storefront1155 = `
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
 				"name": "sku",
 				"type": "uint256"
@@ -154,6 +154,11 @@ const Storefront1155 = `
 				"internalType": "uint256",
 				"name": "qty",
 				"type": "uint256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "data",
+				"type": "bytes"
 			}
 		],
 		"name": "buy",
@@ -165,7 +170,7 @@ const Storefront1155 = `
 		"inputs": [
 			{
 				"internalType": "uint256[]",
-				"name": "_lids",
+				"name": "_ids",
 				"type": "uint256[]"
 			}
 		],
@@ -336,7 +341,7 @@ const Storefront1155 = `
 				"type": "uint256[]"
 			}
 		],
-		"name": "isUnlocked",
+		"name": "isUnlockedBatch",
 		"outputs": [
 			{
 				"internalType": "bool[]",
@@ -460,6 +465,11 @@ const Storefront1155 = `
 				"internalType": "uint256[]",
 				"name": "amounts",
 				"type": "uint256[]"
+			},
+			{
+				"internalType": "address",
+				"name": "nft",
+				"type": "address"
 			}
 		],
 		"name": "setSKU",

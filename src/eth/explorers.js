@@ -1,3 +1,10 @@
+const hexToNumber = (hex,start,stop)=>{
+  let slice = hex.slice(2).slice(start * 2, stop * 2)
+  return parseInt(slice, 16)
+}
+
+const ADVENTURERSKILLS = ["Academic","Diplomat","Explorer","Engineer","Rogue","Soldier"]
+
 const poll = (eth)=>{
   //count ticks 
   let tick = 0
@@ -5,14 +12,45 @@ const poll = (eth)=>{
   let app = eth.app
     , UI = app.UI.main
     , tokens
-    , CL
-    , Cooldown;
+    , C;
+
+  eth.adventurerFromSeed = (seed) => {
+    const _d6 = (i) => {
+      return 1 + (hexToNumber(seed,i,i+1) % 6)
+    } 
+
+    //skill 
+    let skills = [0,0,0]
+    skills[0] = _d6(0) 
+    if(hexToNumber(seed,1,2)%16 == 0){
+      //two skills
+      skills[1] = _d6(2)
+
+      //three skills  
+      if(hexToNumber(seed,3,4)%64 == 0){
+        skills[2] = _d6(4)
+      }
+    }
+
+    //text
+    let text = skills.filter(id => id>0).map(id => ADVENTURERSKILLS[id-1])
+    
+    //data formatting 
+    return {
+      _seed : seed,
+      skills : {
+        ids : skills,
+        text
+      },
+      cost : Math.pow(10,-2+text.length)
+    }
+  }
 
   const pollExplorer = async(id)=>{
-    let seed = await CL.shardLocation(id)
+    let seed = await C.getCurrentLocation(id)
       , _shard = eth.shardBySeed(seed);
 
-    let cool = await Cooldown.cooldown(id)
+    let cool = await C.getCooldown(id)
       , _cool = cool.toNumber();
 
     let e = {
@@ -38,8 +76,7 @@ const poll = (eth)=>{
     tick++
 
     tokens = UI.tokens
-    CL = eth.contracts.CharacterLocation
-    Cooldown = eth.contracts.Cooldown
+    C = eth.contracts.Characters
 
     if(tokens[1000000]){
       if(tick % 4 == 0) pollExplorers()

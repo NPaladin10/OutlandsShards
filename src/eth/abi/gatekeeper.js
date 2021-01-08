@@ -87,6 +87,68 @@ const Gatekeeper = `
 		"type": "event"
 	},
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "operator",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "stat",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
+			}
+		],
+		"name": "StatChange",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "operator",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256[]",
+				"name": "stats",
+				"type": "uint256[]"
+			},
+			{
+				"indexed": false,
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
+			}
+		],
+		"name": "StatChangeBatch",
+		"type": "event"
+	},
+	{
 		"inputs": [],
 		"name": "BURNER_ROLE",
 		"outputs": [
@@ -127,7 +189,46 @@ const Gatekeeper = `
 	},
 	{
 		"inputs": [],
+		"name": "NFT_ID",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "NFT_MINTER_ROLE",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "PAUSER_ROLE",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "SETTER_ROLE",
 		"outputs": [
 			{
 				"internalType": "bytes32",
@@ -236,21 +337,117 @@ const Gatekeeper = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "id",
+				"name": "",
 				"type": "uint256"
 			}
 		],
-		"name": "getCountOfNFT",
+		"name": "countOfNFT",
 		"outputs": [
 			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "getNFT",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "keeper",
+				"type": "address"
 			},
+			{
+				"internalType": "uint256",
+				"name": "nftId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "getNFTId",
+		"outputs": [
 			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "seed",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "start",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "stop",
+				"type": "uint256"
+			}
+		],
+		"name": "getRarity",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "getRarityIndex",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "steps",
+				"type": "uint256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -313,6 +510,97 @@ const Gatekeeper = `
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "getSeed",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
+			}
+		],
+		"name": "getStat",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			}
+		],
+		"name": "getStatBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "ids",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			}
+		],
+		"name": "getStatsOfBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -387,14 +675,38 @@ const Gatekeeper = `
 				"type": "address"
 			},
 			{
-				"internalType": "uint256[]",
-				"name": "ids",
-				"type": "uint256[]"
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"name": "isOwnerOf",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
 			},
 			{
-				"internalType": "uint256[]",
-				"name": "amounts",
-				"type": "uint256[]"
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
 			}
 		],
 		"name": "mint",
@@ -422,6 +734,98 @@ const Gatekeeper = `
 		],
 		"name": "mintBatch",
 		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "nft",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "keeper",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes",
+				"name": "data",
+				"type": "bytes"
+			}
+		],
+		"name": "mintNFT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "i",
+				"type": "uint256"
+			},
+			{
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
+			}
+		],
+		"name": "modStat",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "int256[]",
+				"name": "_vals",
+				"type": "int256[]"
+			}
+		],
+		"name": "modStatBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
@@ -484,20 +888,32 @@ const Gatekeeper = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
+				"internalType": "contract CPXToken1155",
+				"name": "_cpx",
+				"type": "address"
 			}
 		],
-		"name": "seeds",
-		"outputs": [
+		"name": "setContract",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "steps",
+				"type": "uint256[]"
 			}
 		],
-		"stateMutability": "view",
+		"name": "setRarity",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -509,12 +925,52 @@ const Gatekeeper = `
 			},
 			{
 				"internalType": "uint256",
-				"name": "max",
+				"name": "i",
 				"type": "uint256"
+			},
+			{
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
 			}
 		],
-		"name": "setNFT",
-		"outputs": [],
+		"name": "setStat",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "int256[]",
+				"name": "_vals",
+				"type": "int256[]"
+			}
+		],
+		"name": "setStatBatch",
+		"outputs": [
+			{
+				"internalType": "int256[]",
+				"name": "",
+				"type": "int256[]"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},

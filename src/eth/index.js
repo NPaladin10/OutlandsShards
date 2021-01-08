@@ -19,25 +19,28 @@ const goerli = ethers.getDefaultProvider("goerli")
 
 // ether 1000000000000000000
 
+/*
+  TODO
+*/
+
 //Contracts
 const Contracts = {}
 //deployed addresses 
 const ContractAddresses = {
   "unknown" : {
-    "RarityCalculator" : "0xd4BAaD2477917664Ecd4C85E03eE3aFd209b7893",
     "CPXToken20": "0x71F28DF03E4465844ad0eAc2E2DFBFD6A739aAde",
     "CPXSimpleMinter": "0xb72b3C78Bc9176dD78034f12CD858377871C29d5",
-    "CPXToken1155": "0x7E65D25128f6F4156e6ec058525A2d746cDC0417",
+    "CPXToken1155": "0x09BE358421D5397D8EA764321fce63472E07dB98",
     "DiamondMinter": "0xd94990E65e17452Bf5de2B90890aA8a5c8E24509",
-    "Gatekeeper" : "0xCD8899dc6Ea7542a1c97C9B71ac4AbC8E91Df471",
-    "Storefront1155": "0x080e6904f51BFf1E4d231d9aA7A2aCC28A0Eb980",
-    "OutlandsRegions": "0x23F91D9F1E0799ac4159a37E813Bc449C294Ade2",
-    "OutlandsShards": "0x782d52eC87e4690035824aE663FbBfaEBcEC6172",
-    "Cooldown" : "0x2329272320e346612698859e6aedA61B0016b4e1",
+    "Gatekeeper" : "0x257C9B613dE179b22e8639ba23819c7dF716A141",
+    "Storefront1155": "0x871b170f80c6b4315382bd821EB7f1aea2b2Df2D",
+    "OutlandsRegions": "0xeB4141432F26D9d14743F3AF15cD301Ea8cE5443",
+    "OutlandsShards": "0x40F35e140392265b3D1791f6aa5036EFFfE0deE5",
     "TreasureMinter" : "0xa5Bb27eA134A5d69621b6e4dBdB1807686BC44E7",
     "DailyTreasure" : "0x4ED298E8b9576953810737D2aC0D245FB87d3Dd6",
-    "CharacterLocation" : "0x99aB2d91CF69021d51d69b465182F7Da95EaF0db",
-    "ExploreShard" : "0xF1dAE2f865Dc05B47F16Ff4874d95aC5f11FB482"
+    "Characters" : "0x6cd3C3cDECAc988127DC7431c43dCf8752DE6Ec1",
+    "ExploreShard" : "0x16665f69a2a543a59FcD069Bcee1caeD7833aB31",
+    "Adventurers" : "0x104c4755FfA1D5E51be39C35ad500DDB123C0880"
   },
   "goerli": {
     "OutlandsRegions": "0x4141fbe02e62aD6D5ddA658D3a4d30d0C18Aa98e",
@@ -58,36 +61,12 @@ const ContractAddresses = {
 const Roles = {
   "admin": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "minter": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6",
+  "nft_minter" : "0x3a5b873628a2c49bf313473942acc8932f6f84c76b74bf3db0e4d8b51277a623",
   "region_admin": "0xb0c6d6c98634bf90c5127f65c948b52cc8ad5f3b499bdb4170d0b685e60ee0df",
   "burner" : "0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848",
   "setter" : "0x61c92169ef077349011ff0b1383c894d86c5f0b41d986366b58a6cf31e93beda",
-  "cool" : "0x8fa59863e4f05d398724705bbab4245b11d7346bacbefe73f85dac3a46097744"
-}
-
-//Rarity calculations 
-const Rarity = {
-  "1": {
-    "what": "Anchor Rarity",
-    "max": 1024,
-    "start": 0,
-    "stop": 2,
-    "steps": [410, 717, 922, 1023]
-  }
-}
-const getRarity = (seed,what)=>{
-  let R = Rarity[what]
-  let slice = seed.slice(2).slice(R.start, R.stop * 2)
-  let reduced = parseInt(slice, 16) % R.max
-  let value = R.steps.length + 1
-
-  for (let i = 0; i < R.steps.length; i++) {
-    if (reduced < R.steps[i]) {
-      value = i + 1
-      break
-    }
-  }
-
-  return value
+  "cool" : "0x8fa59863e4f05d398724705bbab4245b11d7346bacbefe73f85dac3a46097744",
+  "mover" : "0xe5ed70e23144309ce456cb48bf5e6d0d8e160f094a6d65ecf1d5b03cf292d8e6"
 }
 
 //load contracts 
@@ -97,12 +76,6 @@ const loadContracts = (netName, signer)=>{
     //log 
     console.log("Contract " + x + " loaded.")
   }
-}
-
-// encoding function 
-const keccak256 = (types, data) => {
-  let abiBytes = ethers.utils.defaultAbiCoder.encode(types, data)
-  return ethers.utils.keccak256(abiBytes)
 }
 
 class ETHManager {
@@ -118,8 +91,7 @@ class ETHManager {
     //add utility reference 
     this.utils = ethers.utils
     this.BN = ethers.BigNumber
-    this.keccak256 = keccak256
-    this.rarity = Rarity
+    this.constants = ethers.constants
 
     //regions shards
     this._regions = {}
@@ -139,25 +111,34 @@ class ETHManager {
     //initiate UI
     UI(app)
 
-    window.ethereum.enable().then(()=>{
-      this.provider = new ethers.providers.Web3Provider(window.ethereum)
-      this.signer = this.provider.getSigner()
+    if(window.ethereum) {
+      window.ethereum.enable().then(()=>{
+        this.provider = new ethers.providers.Web3Provider(window.ethereum)
+        this.signer = this.provider.getSigner()
 
-      this.provider.getNetwork().then(net=>{
-        this.net = app.UI.main.net = net.name
+        this.provider.getNetwork().then(net=>{
+          this.net = app.UI.main.net = net.name
 
-        //check for network contracts
-        if (ContractAddresses[net.name]) {
-          loadContracts(net.name, this.signer)
+          //check for network contracts
+          if (ContractAddresses[net.name]) {
+            loadContracts(net.name, this.signer)
 
-          this.poll()
+            this.poll()
 
-          this.init() 
+            this.init() 
+          }
         }
+        )
       }
-      )
+      ) 
     }
-    )
+  }
+  abiBytes (types, data) {
+    return ethers.utils.defaultAbiCoder.encode(types, data)
+  }
+  keccak256 (types, data) { 
+    let bytes = ethers.utils.defaultAbiCoder.encode(types, data)
+    return ethers.utils.keccak256(bytes)
   }
   get ABI () {
     let abi = {}
@@ -239,13 +220,15 @@ class ETHManager {
     })
   }
   poll() {
+    return
+    this.pollShards(Contracts)
+    
     if (!ContractAddresses[this.net]) return
 
     ++this._tick
     
     //polling 
     this.pollAddress()
-    this.pollShards(Contracts)
     if(this.address != "") {
       this.pollTokens(Contracts)
       this.pollExplorers()

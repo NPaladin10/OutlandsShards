@@ -68,6 +68,9 @@ const UI = (app)=>{
             //regular array
             return d.split(",").map(s => s.trim()) 
           }
+          else if (input.type == "address") {
+            return  d == "" ? app.ETH.constants.AddressZero : d 
+          }
 
           return d 
         })

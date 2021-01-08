@@ -1,5 +1,9 @@
-// CharacterForge.sol
-// SPDX-License-Identifier: MIT
+/*
+    RarityCalculator.sol
+    v0.2
+    
+    SPDX-License-Identifier: MIT
+*/
 pragma solidity ^0.6.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/AccessControl.sol";
@@ -11,66 +15,38 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 */
 contract RarityCalculator is AccessControl {
 
-    struct Rarity {
-        uint256 max;
-        uint8 start;
-        uint8 stop; 
-        uint256[] steps;
-    }
-    mapping (uint256 => Rarity) rarityIndex;
+    //keeps the steps of rarity for calculation 
+    mapping (uint256 => uint256[]) internal _rarityIndex;
     
     //constructor
     constructor()
         public
     {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        
+        //sets up core rarity 
+        _rarityIndex[1] = [410,717,922,1023];
     }
     
     /*
-        Set Functions for internal data   
+        internal 
+        functions for generation  
     */
     
-    function setRarity (uint256 id, uint256 max, uint8 start, uint8 stop, uint256[] calldata steps) 
-        public
-    {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not allowed.");
-        require(max > 0, "Must supply a maximum.");
-        require(stop-start >= 1 && stop <= 32, "hex index must be within bounds.");
-
-        rarityIndex[id] = Rarity(max, start, stop, steps);
-    }
-    
-    /*
-        View functions internal variables  
-    */
-    
-    function getRarityIndex (uint256 id) 
-        public
-        view
-        returns (uint256 max, uint256 start, uint256 stop, uint256[] memory steps)
-    {
-        Rarity memory R = rarityIndex[id];
-        return (R.max, R.start, R.stop, R.steps);
-    }
-    
-    /*
-        View functions for generation  
-    */
-    
-    function bytesSlicer (bytes32 data, uint8 start, uint8 end)
-        public
+    function _bytesSlicer (bytes32 data, uint256 start, uint256 end)
+        internal
         pure
         returns (bytes memory slice)
     {
-        uint8 l = end-start;
+        uint256 l = end-start;
         slice = new bytes(l);
-        for(uint8 i = start; i < end; i++){
+        for(uint256 i = start; i < end; i++){
             slice[i-start] = data[i];
         }
     }
     
-    function bytesToUint (bytes memory b) 
-        public
+    function _bytesToUint (bytes memory b) 
+        internal
         pure
         returns (uint256)
     {
@@ -81,27 +57,69 @@ contract RarityCalculator is AccessControl {
         return number;
     }
     
-    /*
-        External calculation   
-    */
-    
-    function rarity (bytes32 seed, uint256 _rarity) 
-        public
+    //make the calculation 
+    function _rarity (bytes32 seed, uint256 i, uint256 start, uint256 stop) 
+        internal
         view
-        returns (uint256)
+        returns (uint256 value)
     {
-        Rarity memory R = rarityIndex[_rarity];
-        uint256 sliced = bytesToUint(bytesSlicer(seed, R.start, R.stop));
-        uint256 reduced = sliced % R.max;
-        uint256 value = R.steps.length+1;
+        require(stop < 32, "Out of bounds.");
         
-        for(uint256 i = 0; i < R.steps.length; i++){
-            if(reduced < R.steps[i]) {
+        //pull max 
+        uint256[] memory _r = _rarityIndex[i]; 
+        uint256 l = _r.length;
+        uint256 max = _r[l-1] + 1; 
+        
+        //check for sufficient range 
+        require(max < 256**(stop-start), "Insufficient sample range.");
+        
+        uint256 sliced = _bytesToUint(_bytesSlicer(seed, start, stop));
+        uint256 reduced = sliced % max;
+        value = l+1;
+        
+        for(uint256 j = 0; j < l; j++){
+            if(reduced < _r[j]) {
                 value = i+1;
                 break; 
             }
         }
 
         return value;
+    }
+    
+    /*
+        Set Functions for internal data   
+    */
+    
+    function setRarity (uint256 id, uint256[] calldata steps) 
+        public
+    {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Caller is not allowed.");
+    
+        _rarityIndex[id] = steps;
+    }
+    
+    /*
+        View functions internal variables  
+    */
+    
+    function getRarityIndex (uint256 id) 
+        public
+        view
+        returns (uint256[] memory steps)
+    {
+        return _rarityIndex[id];
+    }
+    
+    /*
+        external calls 
+    */
+    
+    function getRarity (bytes32 seed, uint256 i, uint256 start, uint256 stop)
+        public
+        view
+        returns (uint256)
+    {
+        return _rarity(seed, i, start, stop);
     }
 }
