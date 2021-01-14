@@ -1,3 +1,7 @@
+import {formatTokenText} from "../data/tokenlist.js"
+//treasure
+import {FREETREASURE} from "../data/sku.js"
+
 const UI = (app)=>{
 
   Vue.component("ui-daily", {
@@ -5,18 +9,27 @@ const UI = (app)=>{
     props: ["now"],
     data: function() {
       return {
-        period : ["Daily","4 hours","10 minutes"],
-        periodTimes : [22*3600,4*3600,10*60],
+        period : ["10 minutes","4 hours","Daily"],
+        periodTimes : [10*60,4*3600,22*3600],
         lastClaim : [0,0,0],
+        free : FREETREASURE,
+        hasClaimed : []
       }
     },
     mounted() {
       app.UI.dailyTreasure = this
       this.lastClaim = [this.now,this.now,this.now]
-      //update 
-      app.ETH.dailyTreasureTime()
+      this.checkClaims()
     },
     computed : {
+      hasFree () {
+        //see if free treasure is available
+        return Object.entries(this.free).reduce((_free, e, i) => {
+          if(_free) return _free
+          if(e[1].until > this.now && !this.hasClaimed.includes(e[0])) _free = true 
+          return _free
+        },false)
+      },
       timeRemaining () {
         let pT = this.periodTimes
 
@@ -31,7 +44,47 @@ const UI = (app)=>{
       }
     },
     methods : {
+      formatTokenText(list) {
+        return formatTokenText(list)
+      },
+      checkClaims () {
+        app.submit("dailyClaims").then(res => {
+          //update UI
+          this.lastClaim = res.data.lastMint.slice()
+          this.hasClaimed = res.data.hasClaimed.slice()
+        })  
+      },
+      claimFree (id) {
+        app.submit("claimFreeTreasure", {id}).then(res => {
+          //format and notify
+          formatTokenText(res.data.T).forEach(t => {
+            //notify
+            app.simpleNotify("Received "+t)
+          })
+
+          //update times 
+          this.hasClaimed = res.data.hasClaimed.slice()
+        })
+      },
       claim(i) {
+        app.submit("dailyTreasureMint", {i}).then(res => {
+          //format and notify
+          formatTokenText(res.data.T).forEach(t => {
+            //notify
+            app.simpleNotify("Received "+t)
+          })
+
+          //update times 
+          this.lastClaim = res.data.lastMint.slice()
+        })
+      }
+    }
+  })
+}
+
+export {UI}
+
+/*
         let eth = app.ETH
           , T1155 = eth.contracts.CPXToken1155.address
           , gasLimit = 250000; //override gas limit
@@ -40,9 +93,4 @@ const UI = (app)=>{
           //set time 
           Vue.set(this.lastClaim, i, this.now-3)
         })
-      }
-    }
-  })
-}
-
-export {UI}
+        */

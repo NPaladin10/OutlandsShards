@@ -1,8 +1,9 @@
-import {TOKENS} from "./local/tokenlist.js"
-import {SKU} from "./local/sku.js"
+import {TOKENS, NFT} from "../data/tokenlist.js"
+import {SKU} from "../data/sku.js"
 
 const tokenFormat = (arr) => {
-  return arr[1]+" "+TOKENS[arr[0]].name
+  let name = TOKENS[arr[0]] ? TOKENS[arr[0]].name : NFT[arr[0]].name
+  return arr[1]+" "+name
 }
 
 class InventoryManager {

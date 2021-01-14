@@ -1,5 +1,5 @@
 //outlands data 
-import*as OutlandsCore from "../outlands.js"
+import*as OutlandsCore from "../data/outlands.js"
 
 const ZeroByte = "0x0000000000000000000000000000000000000000000000000000000000000000"
 

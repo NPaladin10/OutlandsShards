@@ -4,12 +4,12 @@ import "../lib/chance.min.js"
 import "../lib/localforage.1.7.1.min.js";
 //Save db for Indexed DB - localforage
 const DB = localforage.createInstance({
-  name: "Shards",
-  storeName: "ShardsOfTheOutlands"
+  name: "Shards"
 })
 //eth
-import {ETHManager} from "./eth/index.js"
-import {LocalServer} from "./local/index.js"
+import {ETHManager} from "../eth/index.js"
+import {LocalServer} from "../local/index.js"
+import {PollManager} from "./poll.js"
 //UI 
 import {UI} from "./UI.js"
 //inventorry 
@@ -17,15 +17,27 @@ import {InventoryManager} from "./inventory.js"
 
 //core params
 const params = {
+  dbName : "Shards",
   //Seed for generation
   seed: "0x40F35e140392265b3D1791f6aa5036EFFfE0deE5",
+  shardPeriodTimes : [4 * 60 * 60, 16 * 60 * 60, 32 * 60 * 60],
+  shardsPerPeriod : [12,20,16],
+  travelTimes : [2*3600, 8*3600, 22*3600], // in seconds
+  version : {
+    srd : 1,
+    exp : 1 
+  }
 }
 
 //generic application 
 const app = {
   DB,
-  utils : {},
-  constants : {},
+  utils : {
+    hexToNumber (hex,start,stop) {
+      let slice = hex.slice(2).slice(start * 2, stop * 2)
+      return parseInt(slice, 16)
+    }
+  },
   UI: {},
   params,
   get now () {
@@ -34,6 +46,9 @@ const app = {
   get day() {
     let now = Date.now() / 1000
     return Math.round(now / (24 * 60 * 60))
+  },
+  get player () {
+    return this.eth.address || localStorage.getItem("lastPlayer")
   },
   // ----------- LOAD/SAVE -------------------------- //
   reset () {
@@ -49,7 +64,6 @@ const app = {
   load() {   
   },
   save() {
-
   },
   // ----------- NOTIFY ------------------------------ //
   notify(text, opts) {
@@ -81,7 +95,7 @@ const app = {
   },
   // ----------- INIT ------------------------------ //
   init() {
-    localStorage.setItem("lastPlayer", chance.hash())
+    //localStorage.setItem("lastPlayer", chance.hash())
   },
   // ----------- dice rolls ------------------------------ //
   roll : {
@@ -122,11 +136,13 @@ const app = {
 //initialize 
 UI(app)
 app.inventory = new InventoryManager(app)
-app.ETH = new ETHManager(app)
+app.eth = new ETHManager(app)
 LocalServer(app)
+PollManager(app)
 
 setInterval(()=>{
   app.server.poll()
+  app.poll()
 }, 500)
 
 

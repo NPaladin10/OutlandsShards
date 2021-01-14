@@ -1,4 +1,4 @@
-import * as OutlandsCore from "./outlands.js"
+import * as OutlandsCore from "../data/outlands.js"
 import {UI as uiExplorers} from "./uiExplorers.js"
 import {UI as uiStaking} from "./uiStaking.js"
 import {UI as uiDaily} from "./uiDailyTreasure.js"
@@ -73,6 +73,7 @@ const UI = (app)=>{
       //shards
       realms : OutlandsCore.REALMS,
       regions : null,
+      shards : null,
       sid: "",
       mayClaim : false,
       mayExplore : false,
@@ -91,7 +92,7 @@ const UI = (app)=>{
         let _t = ++this.tick
         this.now = Math.round(Date.now() / 1000)
 
-        app.ETH.poll()
+        app.eth.poll()
 
         //filter out what has been completed
         let done = queue.filter(q => q[q.length-1]<=this.now)
@@ -107,6 +108,9 @@ const UI = (app)=>{
     computed: {
       day() {
         return app.day
+      },
+      regionArray () {
+        return 
       },
       selectedShard () {
         if(this.sid == "") return null
@@ -163,22 +167,23 @@ const UI = (app)=>{
         })
       },
       buySKU(id,sku) {
-        let data = null
+        let data = {id}
 
         if(id == 0) {
-          data = {
-            shard : chance.pickone(app.shardArray)._seed
-          } 
+          data.shard = chance.pickone(this.shards).id
         }
 
         /*
         //buy (id, qty)
         app.ETH.submit("Storefront1155", "buy", [id,1,bytes])
         */
-
-        if(app.server.buy(id, data)){
-          app.simpleNotify("Received "+sku.toBuy)
-        }
+        app.submit("buy", data)
+          .then(res => {
+            app.simpleNotify("Received "+sku.toBuy)
+          })
+          .catch(rej => {
+            console.log(rej)
+          })
       },
       claimShard() {
         //buy id 100, data = (bytes32 seed)

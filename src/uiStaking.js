@@ -53,3 +53,34 @@ const UI = (app)=>{
 }
 
 export {UI}
+
+/*
+<!--STAKING---------------------------------------------->
+    <template id="ui-staking">
+      <div class="container my-2" align="right">
+        <h3 align="left">Cosmic Staking</h3>
+        <button class="btn btn-block btn-info w-50" type="button" @click="approveDiamondMinter()" v-if="allowance['DiamondMinter']<100000">Approve Staking</button>
+        <span v-if="tokens[0]">CPX: {{tokens[0]}}</span>
+        <span v-if="tokens[1]">DMD: {{tokens[1].val.toFixed(2)}}</span>
+        <div class="my-2">
+          <button class="btn btn-outline-success btn-block" type="button" @click="claimCosmic()" :disabled="!CPXdT.mayClaim">
+            <span v-if="!CPXdT.mayClaim">Claim Free Cosmic in {{CPXdT.h}}:{{CPXdT.m}}:{{CPXdT.s}}</span>
+            <span v-if="CPXdT.mayClaim">Claim Free Cosmic!</span>
+          </button>
+        </div>
+        <div class="input-group">
+          <div class="input-group-prepend">
+            <span class="input-group-text">CPX</span>
+          </div>
+          <input type="number" class="form-control" v-model="cpxAmt">
+          <div class="input-group-append">
+            <button class="btn btn-outline-success" type="button" @click="stake()" :disabled="cpxAmt == 0 || cpxAmt>tokens[0]">Stake Cosmic</button>
+            <button class="btn btn-outline-success" type="button" @click="unstake()" :disabled="cpxAmt == 0 || cpxAmt>staked[0]">Unstake Cosmic</button>
+          </div>
+        </div>
+        <div v-if="staked[0]>0">Staked: {{staked[0]}} | Available Diamond: {{staked[1].toFixed(5)}}</div>
+        <button class="btn btn-outline-success btn-block" type="button" @click="claimDiamond()" :disabled="staked[1]==0">Claim Diamond</button>
+      </div>
+    </template>
+    <!--END STAKING---------------------------------------------->
+*/
