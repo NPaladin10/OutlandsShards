@@ -4,33 +4,89 @@ import*as OutlandsCore from "../data/outlands.js"
 import {TOKENS} from "../data/tokenlist.js"
 //generators 
 import {ShardGen} from "../gen/shard.js"
+import {AdventurerGen} from "../gen/adventurer.js"
 
-const ADVENTURERSKILLS = ["Academic","Diplomat","Explorer","Engineer","Rogue","Soldier"]
+const ADVENTURERSKILLS = ["Academic", "Diplomat", "Explorer", "Engineer", "Rogue", "Soldier"]
 
-const ID_EID = 0, ID_OWNER = 1, ID_HOME = 2, ID_LOCATION = 3, ID_COOL = 4, ID_XP = 5;
+const ID_EID = 0
+  , ID_OWNER = 1
+  , ID_HOME = 2
+  , ID_LOCATION = 3
+  , ID_COOL = 4
+  , ID_XP = 5;
+
+/*
+  Text Formatting
+*/
+
+const formatAdventurer = (app,_adv)=>{
+  _adv.skills = {
+    ids: _adv._skills,
+    text: Object.keys(_adv._skills).map(si=>ADVENTURERSKILLS[Number(si)]).join("/")
+  }
+
+  return Object.assign({
+    _shard: _adv._shard || null,
+    get shard() {
+      return this._shard ? formatShard(app, ShardGen(app, this._shard.split("."))) : null
+    }
+  }, _adv)
+}
+
+const formatShard = (app,_shard)=>{
+  //handle anchor 
+  let {id, rarity} = _shard.anchor
+  let risk = OutlandsCore.ANCHORRISK[id - 1]
+
+  //add information 
+  Object.assign(_shard.anchor, {
+    text: OutlandsCore.ANCHORS[id - 1],
+    risk: [risk, OutlandsCore.RISK[risk]]
+  })
+
+  //text and formatting 
+  return Object.assign({
+    alignment: OutlandsCore.ALIGNMENTS[_shard._alignment],
+    safety: OutlandsCore.SAFETY[_shard._safety],
+    climate: OutlandsCore.CLIMATES[_shard._temp],
+    realmName: OutlandsCore.REALMS[_shard._realm].name,
+    //find any adventurers for hire 
+    get advForHire() {
+      //get any adventurers for hire 
+      let advSeed = localStorage.getItem("adv." + this.id)
+      return !advSeed ? null : formatAdventurer(app, AdventurerGen(app, {
+        id: advSeed,
+        _home: this.id
+      }))
+    }
+  }, _shard)
+}
 
 /********************************************************
   Poll for Daily
 *********************************************************/
 
-const daily = (app) => {
+const daily = (app)=>{
   let UI
-  
-  const poll = () => {
-    app.submit("dailyClaims").then(res => {
+
+  const poll = ()=>{
+    app.submit("dailyClaims").then(res=>{
       //update UI
       UI.lastClaim = res.data.lastMint.slice()
       UI.hasClaimed = res.data.hasClaimed.slice()
-    })
+    }
+    )
   }
 
   let tick = 0
   return ()=>{
     UI = app.UI.dailyTreasure
-    if(!UI) return 
+    if (!UI)
+      return
 
     //every minute seconds 
-    if(tick % 120 == 0) poll()
+    if (tick % 120 == 0)
+      poll()
 
     tick++
   }
@@ -42,44 +98,77 @@ const daily = (app) => {
 
 const explorers = (app)=>{
   //version 
-  let v = app.params.version.exp 
+  let v = app.params.version
 
   let UI = app.UI.main;
 
-  const pollExplorer = (id) => {
-    app.submit("getCharacterData",{id}).then(res => {
-      if(res.data[ID_OWNER] != app.player) return
+  const pollAdventurer = async(id)=>{
+    let {data} = await app.submit("getCharacterData", {
+      id
+    })
+    let genData = {
+      id,
+      _home: data[ID_HOME]
+    }
+
+    let adv = formatAdventurer(app, AdventurerGen(app, genData))
+    adv._shard = data[ID_LOCATION]
+
+    //set UI 
+    Vue.set(UI.adventurers, id, adv)
+  }
+
+  const pollExplorer = (id)=>{
+    app.submit("getCharacterData", {
+      id
+    }).then(res=>{
+      if (res.data[ID_OWNER] != app.player)
+        return
 
       let _id = id.split(".")
         , seed = _id[2]
         , _shard = res.data[ID_LOCATION];
-      
+
       let e = {
         id,
-        nft : _id[0]+"."+_id[1],
+        nft: _id[0] + "." + _id[1],
         seed,
-        _home : res.data[ID_HOME],
+        _home: res.data[ID_HOME],
         _shard,
-        _cool : res.data[ID_COOL],
-        _xp : res.data[ID_XP],
-        _act : "",
-        get shard () {
-          return UI.shards.find(s => s.id == this._shard)
+        _cool: res.data[ID_COOL],
+        _xp: res.data[ID_XP],
+        _act: "",
+        get shard() {
+          return formatShard(app, ShardGen(app, this._shard.split(".")))
         }
-      }  
+      }
 
       //set UI 
       Vue.set(UI.explorers, id, e)
-    })
+    }
+    )
   }
 
-  const pollAllExplorers = () => {
+  const pollAllCharacters = ()=>{
     //for every version check for balance 
-    for(let i = 1; i <= v; i++){
-      app.submit("balanceOfNFT",{nft:"exp."+i}).then(res => {
+    for (let i = 1; i <= v.exp; i++) {
+      app.submit("balanceOfNFT", {
+        nft: "exp." + i
+      }).then(res=>{
         //array of ids  
-        res.data.forEach(pollExplorer) 
-      })
+        res.data.forEach(pollExplorer)
+      }
+      )
+    }
+
+    for (let i = 1; i <= v.adv; i++) {
+      app.submit("balanceOfNFT", {
+        nft: "adv." + i
+      }).then(res=>{
+        //array of ids  
+        res.data.forEach(pollAdventurer)
+      }
+      )
     }
   }
 
@@ -87,7 +176,8 @@ const explorers = (app)=>{
   return ()=>{
     tick++
 
-    if(tick % 4 == 0) pollAllExplorers()
+    if (tick % 4 == 0)
+      pollAllCharacters()
   }
 }
 
@@ -95,22 +185,24 @@ const explorers = (app)=>{
   Poll for Tokens 
 *********************************************************/
 
-const tokens = (app) => {
+const tokens = (app)=>{
   let UI = app.UI.main
 
-  const updateTokens = () => {
-    app.submit("allTokens").then(res => {
+  const updateTokens = ()=>{
+    app.submit("allTokens").then(res=>{
       let {data} = res
       //loop 
-      Object.entries(TOKENS).forEach(e => {
+      Object.entries(TOKENS).forEach(e=>{
         let id = e[0]
           , _token = e[1];
 
-        _token.val = data[id]
+        _token.val = data[id] || 0
 
         Vue.set(UI.tokens, id, _token)
-      })
-    }) 
+      }
+      )
+    }
+    )
   }
 
   //return polling function 
@@ -119,7 +211,7 @@ const tokens = (app) => {
     //tick 
     tick++
     //every 2 seconds
-    if(tick % 4 == 0){
+    if (tick % 4 == 0) {
       //set ui 
       updateTokens()
     }
@@ -133,7 +225,7 @@ const tokens = (app) => {
 
 const shards = (app)=>{
   //version 
-  let v = app.params.version.srd 
+  let v = app.params.version.srd
 
   //setup references
   let {seed, shardPeriodTimes, shardsPerPeriod} = app.params
@@ -144,25 +236,9 @@ const shards = (app)=>{
   //shard data of a given period 
   const shardDataOfPeriod = (pid,pOfi,j)=>{
     //seed for generation - Ethereum Identity function - hash 
-    let seed = hash(shardPeriodTimes[pid]+pOfi+j).slice(-12)
-    //generate based upon seed 
-    let _shard = ShardGen(app, ["srd",v,seed])
-    //handle anchor 
-    let {id, rarity} = _shard.anchor
-    let risk = OutlandsCore.ANCHORRISK[id - 1]
-
-    //add information 
-    Object.assign(_shard.anchor, {
-      text: OutlandsCore.ANCHORS[id - 1],
-      risk: [risk, OutlandsCore.RISK[risk]]
-    })
-
-    return Object.assign({
-      alignment : OutlandsCore.ALIGNMENTS[_shard._alignment],
-      safety : OutlandsCore.SAFETY[_shard._safety],
-      climate : OutlandsCore.CLIMATES[_shard._temp],
-      realmName : OutlandsCore.REALMS[_shard._realm].name
-    },_shard) 
+    let seed = hash(shardPeriodTimes[pid] + pOfi + j).slice(-12)
+    //generate and format based upon seed
+    return formatShard(app, ShardGen(app, ["srd", v, seed]))
   }
 
   //update all the random regions of the period 
@@ -184,7 +260,7 @@ const shards = (app)=>{
     }
     )
     //sort 
-    UI.shards = UI.shards.sort((a, b) => a._realm < b._realm)
+    UI.shards = UI.shards.sort((a,b)=>a._realm < b._realm)
   }
 
   //return polling function 
@@ -214,7 +290,7 @@ const PollManager = (app)=>{
     , explorerPoll = explorers(app)
     , dailyPoll = daily(app);
 
-  app.poll = () => {
+  app.poll = ()=>{
     shardPoll()
     tokenPoll()
     explorerPoll()

@@ -4,7 +4,8 @@ import "../lib/chance.min.js"
 import "../lib/localforage.1.7.1.min.js";
 //Save db for Indexed DB - localforage
 const DB = localforage.createInstance({
-  name: "Shards"
+  name: "Shards",
+  storeName: "state"
 })
 //eth
 import {ETHManager} from "../eth/index.js"
@@ -19,13 +20,15 @@ import {InventoryManager} from "./inventory.js"
 const params = {
   dbName : "Shards",
   //Seed for generation
-  seed: "0x40F35e140392265b3D1791f6aa5036EFFfE0deE5",
+  seed: "OS2021",
   shardPeriodTimes : [4 * 60 * 60, 16 * 60 * 60, 32 * 60 * 60],
   shardsPerPeriod : [12,20,16],
   travelTimes : [2*3600, 8*3600, 22*3600], // in seconds
+  d8Tod4 : [1, 1, 2, 2, 2, 3, 3, 4],
   version : {
     srd : 1,
-    exp : 1 
+    exp : 1,
+    adv : 1 
   }
 }
 

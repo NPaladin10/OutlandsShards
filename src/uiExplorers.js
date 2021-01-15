@@ -1,9 +1,10 @@
+import {formatTokenText} from "../data/tokenlist.js"
+
 const UI = (app)=>{
-  const cIds = [101, 102, 103, 104, 105, 106]
 
   Vue.component("ui-explorers", {
     template: "#ui-explorers",
-    props: ["explorers", "now", "tokens"],
+    props: ["adventurers", "explorers", "now", "tokens"],
     data: function() {
       return {
         exid: "",
@@ -15,10 +16,26 @@ const UI = (app)=>{
           id: "",
           qty: 0,
         },
-        showShard: ["", ""]
+        showShard: ["", ""],
+        exCool: 0
       }
     },
     mounted() {
+      const shardData = ()=>{
+        if (this.exid == "")
+          return
+
+        //get shard cool 
+        let sid = this.explorers[this.exid]._shard
+
+        app.submit("getExCool", {
+          id: sid
+        }).then(res=>{
+          this.exCool = res.data
+        }
+        )
+      }
+
       const setShards = ()=>{
         this.shards = app.UI.main.shards.slice().sort(function(a, b) {
           if (a.realmName < b.realmName) {
@@ -30,10 +47,12 @@ const UI = (app)=>{
           return 0;
         })
       }
+
       setShards()
 
       setInterval(()=>{
         setShards()
+        shardData()
       }
       , 5000)
     },
@@ -47,18 +66,31 @@ const UI = (app)=>{
         return this.moveTo != "" ? app.characters.travelTime(from, this.moveTo) / 3600 : 0
       },
       cooldown() {
-        return Object.entries(this.tokens).filter(t=> t[1].cool && t[1].val > 0)
+        return Object.entries(this.tokens).filter(t=>t[1].cool && t[1].val > 0)
       },
-      actOpts() {
-        let actions = ["Move", "Explore", "Hire Adventurers"]
-
-        if (this.cooldown.length > 0)
-          actions.push("Reduce Cooldown")
-
-        return actions
-      }
+      exCoolRemain() {
+        return this.exCool < this.now ? "" : app.timeFormat(this.exCool - this.now)
+      },
     },
     methods: {
+      actOpts(char) {
+        //start array - check for cooldown tokens 
+        let actions = this.cooldown.length > 0 ? ["Reduce Cooldown"] : []
+
+        if(char.id.includes("exp")){
+          if (char._cool < this.now) {
+            //explorers get more 
+            actions.push("Move", "Explore", "Hire Adventurers")
+          }
+        }
+        else if(char.id.includes("adv")) {
+          if (char._cool < this.now) {
+            actions.push("Move")
+          }
+        }
+        //set
+        Vue.set(char,"act",actions.slice()) 
+      },
       cool(cool) {
         if (cool < this.now)
           return "Ready"
@@ -78,45 +110,62 @@ const UI = (app)=>{
       },
       reduceCool() {
         let {id, qty} = this.optsReduceCool
-        if(qty > this.tokens[id].val) return 
+        if (qty > this.tokens[id].val)
+          return
 
         //submit 
-        app.submit("characterReduceCooldown", {id:this.exid, coolId:id, qty})
+        app.submit("characterReduceCooldown", {
+          id: this.exid,
+          coolId: id,
+          qty
+        })
         this.act[this.exid] = ""
       },
       explore() {
-        let gasLimit = 500000;
-        //override gas limit
-        app.ETH.submit("ExploreShard", "explore", [this.exid], {
-          gasLimit
+        app.submit("exploreShard", {
+          id: this.exid
         }).then(res=>{
-          console.log(res)
+          //format and notify
+          formatTokenText(res.data.T).forEach(t=>{
+            //notify
+            app.simpleNotify("Received " + t)
+          }
+          )
+
+          //cooldown
+          app.simpleNotify("Must cooldown by " + res.data.cool + " hrs", "warning")
         }
         )
-      },
-      searchForAdventurers() {
-        let _d8Tod4 = [1, 1, 2, 2, 2, 3, 3, 4]
-          , riskCooldown = [[4, 6, 10, 16], [10, 12, 16, 22], [16, 18, 22, 28], [22, 24, 28, 34]]
-          , shard = this.explorers[this.exid]._shard
-          , d4 = chance.d4() - 1
-          , seed = "0x" + chance.hash({
-          length: 64
-        });
-        let {rarity, risk} = shard.anchor
-
-        let cool = this.now + riskCooldown[risk[0]][_d8Tod4[d4 + rarity - 1] - 1]
-
-        Vue.set(this.search, this.exid, {
-          what: "Adventurer",
-          cool,
-          res: app.ETH.adventurerFromSeed(seed)
-        })
-
         this.act[this.exid] = ""
       },
-      hireAdventurer(id) {
-        let res = this.search[id].res
-        app.ETH.submit("Adventurers", "mint", [res._seed])
+      searchForAdventurers() {
+        //shard 
+        let sid = this.explorers[this.exid]._shard
+        //submit 
+        app.submit("searchForAdventurers", {
+          id: this.exid,
+        }).then(res=>{
+          //data
+          let {id, cool} = res.data
+          //save seed 
+          localStorage.setItem("adv." + sid, id)
+          //cooldown
+          app.simpleNotify("Must cooldown by " + cool + " hrs", "warning")
+        }
+        )
+        this.act[this.exid] = ""
+      },
+      hireAdventurer(adv) {
+        let data = {
+          id: adv.id,
+          _home: adv._home
+        }
+        app.submit("hireAdventurer", data).then(res=>{
+          app.simpleNotify("Hired " + adv.skills.text)
+          //delete storage
+          localStorage.removeItem("adv." + adv._home)
+        }
+        )
       }
     }
   })
@@ -125,6 +174,15 @@ const UI = (app)=>{
 export {UI}
 
 /*
+        let gasLimit = 500000;
+        //override gas limit
+        app.ETH.submit("ExploreShard", "explore", [this.exid], {
+          gasLimit
+        }).then(res=>{
+          console.log(res)
+        }
+        )
+
         app.ETH.submit("Characters", "move", [this.exid, this.moveTo])
         */
 

@@ -1,30 +1,41 @@
-const adventurerSkills = (adv)=>{
-    let seed = app.eth.utils.id(app.params.seed + adv._home + adv._seed)
+const HIRECOST = [0.1,1,10]
+const ADVENTURERSKILLS = ["Academic","Diplomat","Explorer","Engineer","Rogue","Soldier"]
 
-    const _d6 = (i)=>{
-      return 1 + (hexToNumber(seed, i, i + 1) % 6)
-    }
-
-    //skill 
-    let skills = [0, 0, 0]
-    skills[0] = _d6(0)
-    if (hexToNumber(seed, 1, 2) % 16 == 0) {
-      //two skills
-      skills[1] = _d6(2)
-
-      //three skills  
-      if (hexToNumber(seed, 3, 4) % 64 == 0) {
-        skills[2] = _d6(4)
-      }
-    }
-
-    //text
-    let text = skills.filter(id=>id > 0).map(id=>ADVENTURERSKILLS[id - 1])
-
-    //data formatting 
-    adv.skills = {
-      ids: skills,
-      text
-    }
-    adv.cost = Math.pow(10, -2 + text.length)
+const skillGen = (RNG)=>{
+  //skill 
+  let skills = {}, si;
+  
+  //number of skills  
+  let n = RNG.weighted([1,2,3],[1,1/16,1/1000])
+  for(let i = 0; i < n; i++) {
+    si = RNG.d6()-1
+    skills[si] = skills[si] ? skills[si]+1 : 1 
   }
+
+  let cost = HIRECOST[n-1]
+
+  return {skills,cost}
+}
+
+const gen = (app, data)=>{
+  let {_home, id} = data
+  let _id = id.split(".")
+
+  //establish chance RNG
+  let RNG = new Chance(app.utils.hash(_home + id))
+
+  //base skills 
+  let {skills, cost} = skillGen(RNG)
+
+  return {
+    id,
+    nft : _id.slice(0,2).join("."),
+    seed : _id[2],
+    _home,
+    _skills : skills,
+    cost,
+    _cool: 0
+  }
+}
+
+export {gen as AdventurerGen}

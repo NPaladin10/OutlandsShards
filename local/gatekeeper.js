@@ -208,7 +208,8 @@ const Gatekeeper = (app)=>{
     }) 
 
     //set 
-    DB_STATS.setItem(id, _stats)
+    await DB_STATS.setItem(id, _stats)
+    return true
   }
 
   const modStats = async(id,sids,vals)=>{
@@ -221,7 +222,8 @@ const Gatekeeper = (app)=>{
     }) 
 
     //set 
-    DB_STATS.setItem(id, Object.assign({},_stats))
+    await DB_STATS.setItem(id, Object.assign({},_stats))
+    return true
   }
 
   const getStats = async(id,sids)=>{

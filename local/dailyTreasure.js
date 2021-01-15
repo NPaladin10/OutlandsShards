@@ -132,7 +132,7 @@ const DailyTreasure = (app)=>{
   app.server.calls.dailyClaims = async (call) => {
     return {
       success : true,
-      data : await DB.getItem(call.player)
+      data : await DB.getItem(call.player) || {hasClaimed:[], lastMint:[0,0,0]}
     }
   }
 }

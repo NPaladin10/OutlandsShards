@@ -5,6 +5,7 @@ import {ShardManager} from "./shards.js"
 import {Storefront} from "./storefront.js"
 import {Characters} from "./characters.js"
 import {DailyTreasure} from "./dailyTreasure.js"
+import {ExploreShards} from "./exploreShard.js"
 
 const LocalServer = (app)=>{
 
@@ -22,6 +23,7 @@ const LocalServer = (app)=>{
   Storefront(app)
   Characters(app)
   DailyTreasure(app)
+  ExploreShards(app)
 
   //register calls for hooks 
   Hooks.RegisterCalls(Object.keys(app.server.calls))

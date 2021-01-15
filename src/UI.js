@@ -82,6 +82,7 @@ const UI = (app)=>{
       store: {},
       //explorers
       explorers : {},
+      adventurers : {},
       //match queue
       Q : [],
     },
