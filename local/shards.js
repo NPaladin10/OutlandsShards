@@ -2,8 +2,7 @@
 import {ShardGen} from "../gen/shard.js"
 
 //STAT ID 
-//const ID_EID = 0, ID_OWNER = 1;
-const ID_EXCOOL = 2
+const ID_EXCOOL = "ecl"
 
 const ShardManager = (app)=>{
 

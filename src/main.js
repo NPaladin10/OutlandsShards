@@ -7,14 +7,14 @@ const DB = localforage.createInstance({
   name: "Shards",
   storeName: "state"
 })
-//eth
-import {ETHManager} from "../eth/index.js"
-import {LocalServer} from "../local/index.js"
-import {PollManager} from "./poll.js"
-//UI 
-import {UI} from "./UI.js"
-//inventorry 
-import {InventoryManager} from "./inventory.js"
+
+
+import {ETHManager} from "../eth/index.js"  // ethereum interaction and functions
+import {LocalServer} from "../local/index.js" // mock server
+import {PollManager} from "./poll.js" //polling to server 
+import {FormatManager} from "./formatting.js" //formatting of object for UI and standard data 
+import {UI} from "./UI.js"  //UI 
+ import {InventoryManager} from "./inventory.js" //inventory
 
 //core params
 const params = {
@@ -141,6 +141,7 @@ UI(app)
 app.inventory = new InventoryManager(app)
 app.eth = new ETHManager(app)
 LocalServer(app)
+FormatManager(app)
 PollManager(app)
 
 setInterval(()=>{

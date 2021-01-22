@@ -1,5 +1,5 @@
 import * as OutlandsCore from "../data/outlands.js"
-import {UI as uiExplorers} from "./uiExplorers.js"
+import {UI as uiCharacters} from "./uiCharacters.js"
 import {UI as uiStaking} from "./uiStaking.js"
 import {UI as uiDaily} from "./uiDailyTreasure.js"
 
@@ -8,7 +8,7 @@ UI
 */
 const UI = (app)=>{
   //initialize sub UI
-  uiExplorers(app)
+  uiCharacters(app)
   uiStaking(app)
   uiDaily(app) 
 
@@ -80,9 +80,8 @@ const UI = (app)=>{
       shardCool : 0,
       //store
       store: {},
-      //explorers
-      explorers : {},
-      adventurers : {},
+      //actors
+      actors : {},
       //match queue
       Q : [],
     },

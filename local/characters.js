@@ -14,11 +14,11 @@ const ADVSEARCHCOOL = {
 }
 
 //STAT ID 
-//const ID_EID = 0, ID_OWNER = 1;
-const ID_HOME = 2
-  , ID_LOCATION = 3
-  , ID_COOL = 4
-  , ID_XP = 5;
+const ID_OWNER = "own" 
+  , ID_HOME = "hme"
+  , ID_LOCATION = "loc"
+  , ID_COOL = "col"
+  , ID_XP = "cxp";
 
 const Characters = (app)=>{
 

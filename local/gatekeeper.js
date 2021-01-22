@@ -1,11 +1,6 @@
 import {TOKENS, NFT} from "../data/tokenlist.js"
 
-//id of function - for DB 
-const DBID = "Gatekeeper"
-
-//set const IDs for stats 
-const ID_EID = 0
-  , ID_OWNER = 1;
+const ID_OWNER = "own" 
 
 //setup stores for tokens and stats
 const DB_TOKENS = localforage.createInstance({
@@ -15,6 +10,14 @@ const DB_TOKENS = localforage.createInstance({
 const DB_STATS = localforage.createInstance({
   name: "Shards",
   storeName: "Stats"
+})
+const DB_OWNERS = localforage.createInstance({
+  name: "Shards",
+  storeName: "Owners"
+})
+const DB_DEPLOYED = localforage.createInstance({
+  name: "Shards",
+  storeName: "Deployed"
 })
 
 const Gatekeeper = (app)=>{
@@ -69,22 +72,24 @@ const Gatekeeper = (app)=>{
     return _vals
   }
 
-  //check for ownership
-  const isOwnerOf = async(player,id)=>{
-    let stats = await DB_STATS.getItem(id)
-    return stats[ID_OWNER] == player
+  //check if NFT is deployed to ETH
+  const isDeployed = async(id)=>{
+    let allIDs = await DB_DEPLOYED.keys()
+    return allIDs.includes(id)
   }
 
   //get owner of NFT 
   const getOwner = async(id)=>{
+    let _isDeployed = await isDeployed(id)
     let stats = await DB_STATS.getItem(id)
     return stats[ID_OWNER]
   }
 
-  //check if NFT is deployed to ETH
-  const isDeployed = async(id)=>{
-    let stats = await DB_STATS.getItem(id)
-    return stats[ID_EID] ? true : false
+  //check for ownership
+  const isOwnerOf = async(player,id)=>{
+    let _isDeployed = await isDeployed(id)
+    let _tokens = await DB_TOKENS.getItem(player)
+    return _tokens[id] == 1  
   }
 
   //check if NFT exists
@@ -99,23 +104,19 @@ const Gatekeeper = (app)=>{
     let _tokens = await DB_TOKENS.getItem(player) || initTokens(player)
 
     //mint 
-    _mint(_tokens, nft, 1)
+    _mint(_tokens, id, 1)
 
     //save
     DB_TOKENS.setItem(player, _tokens)
-
     //set stats 
-    let _stats = {}
-    _stats[ID_OWNER] = player
-    DB_STATS.setItem(id, _stats)
+    let stats = {}
+    stats[ID_OWNER] = player
+    DB_STATS.setItem(id, stats)
 
     //get count and update 
     let counts = await app.DB.getItem("nfts")
-    if (counts[nft]) {
-      counts[nft] += 1
-    } else {
-      counts[nft]
-    }
+    counts[nft] = counts[nft] ? counts[nft]+1 : 1
+    //set 
     app.DB.setItem("nfts", counts)
 
     return 1
@@ -186,9 +187,9 @@ const Gatekeeper = (app)=>{
     return tokens[id] ? tokens[id] : 0
   }
 
-  const balanceOfNFT = async(nft)=>{
-    let nfts = await DB_STATS.keys()
-    return nfts.filter(id => id.includes(nft))
+  const balanceOfNFT = async(_nft)=>{
+    let nfts = await app.DB.getItem("nfts")
+    return nfts[_nft]
   }
 
   /*

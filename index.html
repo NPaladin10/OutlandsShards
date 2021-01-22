@@ -28,7 +28,7 @@
               <a type="button" class="btn btn-block btn-info" href="index.html">Home</a>
               <button type="button" class="btn btn-block btn-info" @click="show='daily'" data-toggle="collapse" href="#menu-list">Free Treasure</button>
               <button type="button" class="btn btn-block btn-info" @click="show='inventory'" data-toggle="collapse" href="#menu-list">Inventory</button>
-              <button type="button" class="btn btn-block btn-info" @click="show='explorers'" data-toggle="collapse" href="#menu-list">Explorers</button>
+              <button type="button" class="btn btn-block btn-info" @click="show='characters'" data-toggle="collapse" href="#menu-list">Characters</button>
               <button type="button" class="btn btn-block btn-info" @click="show='admin'" data-toggle="collapse" href="#menu-list" v-if="isAdmin.length>0">Admin</button>
             </div>
           </div>
@@ -43,7 +43,7 @@
       <!--END ADMIN---------------------------------------------->
       <ui-daily v-if="show=='daily'" :now="now"></ui-daily>
       <ui-staking v-if="show=='staking'" :now="now" :tokens="tokens" :allowance="allowance"></ui-staking>
-      <ui-explorers v-if="show=='explorers'" :adventurers="adventurers" :now="now" :explorers="explorers" :tokens="tokens"></ui-explorers>
+      <ui-characters v-if="show=='characters'" :actors="actors" :now="now" :tokens="tokens"></ui-characters>
       <!--INVENTRORY/STORE---------------------------------------------->
       <div class="m-1" align="center" v-if="show=='inventory'">
         <div class="container">
@@ -90,120 +90,35 @@
       <!--END FOOTER---------------------------------------------->
     </div>
     <!--CHARACTERS---------------------------------------------->
-    <template id="ui-explorers">
-      <div class="m-1" align="left">
-        <!--ADVENTURER---------------------------------------------->
-        <div class="container">
-          <h3>Adventurers</h3>
-          <div class="border my-1 py-1" v-for="(adv, id) in adventurers">
-            <div class="row align-items-center">
-              <div class="col-sm">
-                ID: {{adv.seed}} <span v-if="adv._cool > now">({{cool(adv._cool)}})</span>
-              </div>
-              <div class="col-sm link">{{adv.shard.realmName}} - {{adv.shard.seed}}</div>
-              <div class="col-sm-4">
-                <div class="input-group">
-                  <select class="custom-select" v-model="act[id]">
-                    <option v-for="(act,i) in actOpts(adv)" :value="act">{{act}}</option>
-                  </select>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
-                  </div>
+    <template id="ui-characters">
+      <div class="container" align="left">
+        <h3>Characters</h3>
+        <div class="border my-1 py-1" v-for="(actor, id) in actors">
+          <div class="row align-items-center">
+            <div class="col-sm">
+              {{actor.what}} {{actor.seed}} <span v-if="actor._cool > now">({{cool(actor._cool)}})</span>
+            </div>
+            <div class="col-sm link">{{actor.shard.realmName}} - {{actor.shard.seed}}</div>
+            <div class="col-sm-4">
+              <div class="input-group">
+                <select class="custom-select" v-model="action[id]">
+                  <option v-for="act in actor.actions" :value="act[0]">{{act[1]}}</option>
+                </select>
+                <div class="input-group-append">
+                  <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
                 </div>
               </div>
             </div>
           </div>
+          <ui-actions v-if="exid == id" :actor="actor" :action="action[id]" :now="now" :tokens="tokens"></ui-actions>
         </div>
-        <!--EXPLORER---------------------------------------------->
-        <div class="container">
-          <h3>Explorers</h3>
-          <div class="border my-1 py-1" v-for="(ex, id) in explorers">
-            <div class="row align-items-center">
-              <div class="col-sm">
-                ID: {{ex.seed}} <span v-if="ex._cool > now">({{cool(ex._cool)}})</span>
-              </div>
-              <div class="col-sm link" @click="act[id] = 'Explore',exid = id">{{ex.shard.realmName}} - {{ex.shard.seed}}</div>
-              <div class="col-sm-4">
-                <div class="input-group">
-                  <select class="custom-select" v-model="act[id]">
-                    <option v-for="(act,i) in ex.act" :value="act">{{act}}</option>
-                  </select>
-                  <div class="input-group-append">
-                    <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!--ADVENTURER AVAILABLE---------------------------------------------->
-            <div class="m-1" v-if="ex.shard.advForHire" align="center">
-              <div class="mx-2 d-flex justify-content-between">
-                <div>An {{ex.shard.advForHire.skills.text}} is willing to work for you.</div>
-                <button class="btn btn-success" type="button" @click="hireAdventurer(ex.shard.advForHire)">Hire Them ({{ex.shard.advForHire.cost}} DMD)</button>
-              </div>
-            </div>
-            <!--END ADVENTURER AVAILABLE---------------------------------------------->
-            <!--EXPLORER ACTIONS---------------------------------------------->
-            <div class="my-1 mx-3" v-if="exid == id && act[id] != ''">
-              <!--EXPLORER MOVE---------------------------------------------->
-              <div class="input-group" v-if="act[id] == 'initLoc' || act[id] == 'Move'">
-                <div class="input-group-prepend">
-                  <span class="input-group-text">Shard</span>
-                </div>
-                <select class="custom-select" v-model="moveTo">
-                  <option v-for="s in shards" :value="s.id" v-if="s.id != ex._shard">{{s.realmName}} - {{s.seed}}</option>
-                </select>
-                <div class="input-group-append">
-                  <span class="input-group-text" v-if="moveTo != '' && moveTime>0">{{moveTime}} hours</span>
-                  <button class="btn btn-outline-secondary" type="button" @click="move()" :disabled="ex._cool > now">Move</button>
-                </div>
-              </div>
-              <!--EXPLORE---------------------------------------------->
-              <div v-if="act[id] == 'Explore' && ex._shard">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    <div>{{ex.shard.realmName}} - {{ex.shard.seed}} <span v-if="exCool > now">({{exCoolRemain}})</span></div>
-                    <div>{{ex.shard.anchor.text}} [{{ex.shard.anchor.rarity}}] {{ex.shard.anchor.risk[1]}} Risk</div>
-                  </div>
-                  <button class="btn btn-outline-success" type="button" @click="explore()" :disabled="ex._cool > now || exCool>now">Explore</button>
-                </div>
-              </div>
-              <!--END EXPLORE---------------------------------------------->
-              <!--EXPLORER COOLDOWN---------------------------------------------->
-              <div class="input-group" v-if="act[id] == 'Reduce Cooldown'">
-                <div class="input-group-prepend">
-                  <span class="input-group-text">Reduce by</span>
-                </div>
-                <select class="custom-select" v-model="optsReduceCool.id">
-                  <option v-for="c in cooldown" :value="c[0]">{{c[1].name}} [{{c[1].val}}]</option>
-                </select>
-                <div class="input-group-prepend">
-                  <span class="input-group-text">#</span>
-                </div>
-                <input type="number" class="form-control" v-model="optsReduceCool.qty">
-                <div class="input-group-append">
-                  <button class="btn btn-outline-secondary" type="button" @click="reduceCool()">Reduce</button>
-                </div>
-              </div>
-              <!--END COOLDOWN---------------------------------------------->
-              <!--EXPLORER HIRE ADVENTURERS---------------------------------------------->
-              <div v-if="act[id] == 'Hire Adventurers'">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    <div>{{ex.shard.realmName}} - {{ex.shard.seed}}</div>
-                    <div>{{ex.shard.anchor.text}} [{{ex.shard.anchor.rarity}}] {{ex.shard.anchor.risk[1]}} Risk</div>
-                    <div>To hire them, you first have to find them. The time it takes depends upon the anchor of the shard.</div>
-                  </div>
-                  <button class="btn btn-outline-success" type="button" @click="searchForAdventurers()" :disabled="ex._cool > now">Search</button>
-                </div>
-              </div>
-              <!--END HIRE ADVENTURERS---------------------------------------------->
-            </div>
-            <!--END EXPLORER ACTIONS---------------------------------------------->
-          </div>
+        <div class="border my-1 py-1 px-3 d-flex justify-content-between align-items-center" v-for="adv in newHires">
+          <span>A {{adv.skills.text}} is willing to work for you.</span>
+          <button class="btn btn-outline-success" type="button" @click="hireAdventurer(adv)">Hire</button>
         </div>
       </div>
     </template>
-    <!--END EXPLORERS---------------------------------------------->
+    <!--END CHARACTERS---------------------------------------------->
     <!--DAILY TREASURE---------------------------------------------->
     <template id="ui-daily">
       <div class="m-1" align="left">

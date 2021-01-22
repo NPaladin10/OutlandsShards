@@ -33,8 +33,7 @@ const gen = (app, data)=>{
     seed : _id[2],
     _home,
     _skills : skills,
-    cost,
-    _cool: 0
+    cost
   }
 }
 
