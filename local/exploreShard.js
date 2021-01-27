@@ -7,7 +7,7 @@ import {ShardGen} from "../gen/shard.js"
 
 *******************************************************/
 
-const MAYEXPLORE = ["exp"]
+const MAYEXPLORE = ["adv"]
 const QTY = [1,1,1,1,2,2,2,3] // number to be given 
 const d8Tod4 = [1,1,2,2,2,3,3,4]
 const SHARDCOOLDOWN = 22 * 3600
@@ -29,11 +29,10 @@ const TREASURE = {
   "6" : [["dmd",50]],
 }
 
-const ID_EXCOOL = 2
-
 /*******************************************************
 *******************************************************/
-
+//STAT ID 
+const ID_EXCOOL = "ecl"
 //state for save and active data 
 const ID_COUNTS = "ESCount"
 
@@ -59,8 +58,8 @@ const ExploreShards = (app)=>{
   */
   const _getCool = (_a, r) => {
     let d4 = chance.d4()-1
-    let risk = ANCHORRISK[_a-1]-1 // anchors are 1-5
-    let d8 = r+d4
+    let risk = ANCHORRISK[_a-1] // anchors are 1-5
+    let d8 = r-1+d4
 
     //cooldown is based on risk, the rarity = size and d4 
     return RISKCOOLDOWN[risk][d8Tod4[d8]-1];

@@ -6,6 +6,7 @@ import {Storefront} from "./storefront.js"
 import {Characters} from "./characters.js"
 import {DailyTreasure} from "./dailyTreasure.js"
 import {ExploreShards} from "./exploreShard.js"
+import {SolveTrouble} from "./trouble.js"
 
 const LocalServer = (app)=>{
 
@@ -24,6 +25,7 @@ const LocalServer = (app)=>{
   Characters(app)
   DailyTreasure(app)
   ExploreShards(app)
+  SolveTrouble(app)
 
   //register calls for hooks 
   Hooks.RegisterCalls(Object.keys(app.server.calls))

@@ -7,24 +7,29 @@ const UI = (app)=>{
       return {
         exid: "",
         action: {},
-        newHires : []
+        elementals : [],
       }
     },
     mounted() {
       app.UI.characters = this
-      this.newHires = app.UI.main.shards.filter(s => s.advForHire).map(s => s.advForHire)
+      this.elementals = app.UI.main.shards.filter(s => s.elementals).map(s => s.elementals)
       setInterval(async ()=>{
-        this.newHires = app.UI.main.shards.filter(s => s.advForHire).map(s => s.advForHire)
+        this.elementals = app.UI.main.shards.filter(s => s.elementals).map(s => s.elementals)
       }, 5000)
+
     },
-    computed: {},
+    computed: {
+      activeTrouble () {
+        return app.UI.main.activeTrouble.slice()
+      }
+    },
     methods: {
       cool(cool) {
         if (cool < this.now)
           return "Ready"
         return app.timeFormat(cool - this.now)
       },
-      hireAdventurer(adv) {
+      tameElemental(e) {
         //data from saved adventurer
         let data = {
           id: adv.id,

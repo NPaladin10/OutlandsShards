@@ -5,12 +5,14 @@ import {ShardGen} from "../gen/shard.js"
 import {AdventurerGen} from "../gen/adventurer.js"
 
 //const ANCHORS = ["Lair","Terrain","Town","Ruin","Site"], comes as 1-5
-const NFTADV = "adv"
-const ADVVERSION = 1
-const ADVSEARCHCOOL = {
-  "2" : [22,16,12,10],
-  "3" : [16,10,6,4],
-  "5" : [22,16,12,10]
+const NFTELE = "ele"
+const ELEVERSION = 1
+const ELESEARCHCOOL = {
+  "1" : [12,6,2,1],
+  "2" : [16,10,6,4],
+  "3" : [20,14,10,8],
+  "4" : [16,10,6,4],
+  "5" : [14,8,4,2]
 }
 
 //STAT ID 
@@ -169,40 +171,29 @@ const Characters = (app)=>{
     return ""
   }
 
-  const searchForAdventurers = async (id) => {
-    //get shard data 
-    let shard = await getShard(id)
-
-    //check for allowance 
-    let reason = await _maySearch(id, shard)
-    if(reason != ""){
-      return {
-        success : false,
-        reason
-      }
-    }
-
+  const searchForElemental = (actor) => {
+    let {shard} = actor 
+    
     //random cool
     let {d8Tod4} = app.params
     let d4 = chance.d4() - 1 // 0-3
 
-    //determine cool - in hours 
-    let coolArray = ADVSEARCHCOOL[shard.anchor.id]
-    let {rarity} = shard.anchor //1-5
-    let cool = coolArray[d8Tod4[d4+rarity-1] - 1] * 3600
+    //determine cool
+    let coolArray = ELESEARCHCOOL[shard.anchor.id]
+    let cool = coolArray[d8Tod4[d4+shard.anchor.rarity-1] - 1] * 60 * 10
     //set cool 
-    setCool(id, app.now+cool)
+    setCool(actor.id, app.now+cool)
 
     //id to tell player the exact adventurer
     let seed = chance.hash({
-      length: 10
+      length: 12
     })
 
     return {
       success : true,
       data : {
-        id : [NFTADV,ADVVERSION,seed].join("."),
-        cool : cool/3600
+        id : [NFTELE,ELEVERSION,seed].join("."),
+        cool : cool/60
       }
     }
   }
@@ -302,7 +293,8 @@ const Characters = (app)=>{
   }
 
   app.characters = {
-    travelTime
+    travelTime,
+    searchForElemental
   }
 }
 

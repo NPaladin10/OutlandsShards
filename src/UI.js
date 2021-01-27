@@ -78,10 +78,13 @@ const UI = (app)=>{
       mayClaim : false,
       mayExplore : false,
       shardCool : 0,
+      showTrouble : "",
       //store
       store: {},
       //actors
       actors : {},
+      //trouble
+      activeTrouble : [],
       //match queue
       Q : [],
     },
@@ -103,7 +106,6 @@ const UI = (app)=>{
         //finish 
         finishQ(done)
       }, 500)
-
     },
     computed: {
       day() {
@@ -169,14 +171,12 @@ const UI = (app)=>{
       buySKU(id,sku) {
         let data = {id}
 
+        //buying and adventurer
         if(id == 0) {
+          //random home 
           data.shard = chance.pickone(this.shards).id
         }
 
-        /*
-        //buy (id, qty)
-        app.ETH.submit("Storefront1155", "buy", [id,1,bytes])
-        */
         app.submit("buy", data)
           .then(res => {
             app.simpleNotify("Received "+sku.toBuy)

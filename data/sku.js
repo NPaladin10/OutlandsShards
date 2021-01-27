@@ -1,8 +1,8 @@
 const SKU = [
   {
-    "text" : "Hire an Explorer",
+    "text" : "Hire an Adventurer",
     "cost" : [["dmd",1]],
-    "item" : [["exp",1]],
+    "item" : [["adv",1]],
     "minter" : "characters",
     "v" : 1 
   },

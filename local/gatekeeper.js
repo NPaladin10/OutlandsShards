@@ -192,6 +192,10 @@ const Gatekeeper = (app)=>{
     return nfts[_nft]
   }
 
+  const allNFTCount = async(_nft)=>{
+    return await app.DB.getItem("nfts")
+  }
+
   /*
     handle stats 
   */
@@ -251,7 +255,8 @@ const Gatekeeper = (app)=>{
     modStats,
     getStats,
     getAllStats,
-    allTokens
+    allTokens,
+    allNFTCount
   }
 
   //server calls 
@@ -265,6 +270,12 @@ const Gatekeeper = (app)=>{
     return {
       success: true,
       data: await allTokens(call.player)
+    }
+  }
+  app.server.calls.getAllStats = async(call)=>{
+    return {
+      success: true,
+      data: await getAllStats(call.data.id)
     }
   }
   app.server.calls.getStats = async(call)=>{

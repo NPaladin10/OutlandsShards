@@ -15,8 +15,6 @@
       <!--MENU---------------------------------------------->
       <h1 class="mx-1">Shards of the Outlands</h1>
       <div class="d-flex justify-content-end align-items-center" style="z-index:100">
-        <div class="mx-1 p-1 border">{{net}}</div>
-        <div class="p-1 border">{{address.slice(0,5)+'...'+address.slice(-5)}}</div>
         <div class="d-flex flex-row-reverse">
           <div class="m-2">
             <a class="btn btn-info btn-sm" data-toggle="collapse" href="#menu-list" role="button">
@@ -30,6 +28,9 @@
               <button type="button" class="btn btn-block btn-info" @click="show='inventory'" data-toggle="collapse" href="#menu-list">Inventory</button>
               <button type="button" class="btn btn-block btn-info" @click="show='characters'" data-toggle="collapse" href="#menu-list">Characters</button>
               <button type="button" class="btn btn-block btn-info" @click="show='admin'" data-toggle="collapse" href="#menu-list" v-if="isAdmin.length>0">Admin</button>
+              <div class="mt-1 p-1 border">
+                {{net}}<div>{{address.slice(0,5)+'...'+address.slice(-5)}}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -76,12 +77,23 @@
       <div class="m-1" align="left" v-if="show==''">
         <div class="m-1 p-1 border" v-for="(Realm,i) in realms">
           <h4>{{Realm.name}}</h4>
+          <div class="px-1" v-html="Realm.info"></div>
           <div class="p-1 region" v-for="S in shards" v-if="shards && S._realm == i">
-            <div class="d-flex align-items-end">
-              <h5 class="m-0 p-0">{{S.seed}}</h5>
-              <div class="mx-2">{{S.alignment}}, {{S.safety}}, {{S.climate}}</div>
+            <div class="d-flex justify-content-between align-items-end">
+              <div class="d-flex">
+                <h5 class="m-0 p-0">{{S.seed}}</h5>
+                <div class="mx-2">{{S.terrain}}, {{S.climate}}, {{S.alignment}}, {{S.safety}}</div>
+              </div>
+              <div>
+                <div class="circle circle-md bg-success" v-if="S.characters.length>0"></div>
+                <div class="circle circle-md bg-danger" v-if="S._trouble" @click="showTrouble = S.id"></div>
+              </div>
             </div>
             <div>{{S.anchor.text}} [{{S.anchor.rarity}}]</div>
+            <div class="d-flex justify-content-between" v-if="showTrouble == S.id">
+              <div>Trouble [{{S.trouble.rank}}]: {{S.trouble.skillText}} ({{S.trouble._c.length}})</div>
+              <button class="btn btn-outline-success" type="button" v-if="S.characters.length>0">Engage</button>
+            </div>
           </div>
         </div>
       </div>
@@ -93,28 +105,31 @@
     <template id="ui-characters">
       <div class="container" align="left">
         <h3>Characters</h3>
-        <div class="border my-1 py-1" v-for="(actor, id) in actors">
-          <div class="row align-items-center">
-            <div class="col-sm">
-              {{actor.what}} {{actor.seed}} <span v-if="actor._cool > now">({{cool(actor._cool)}})</span>
-            </div>
-            <div class="col-sm link">{{actor.shard.realmName}} - {{actor.shard.seed}}</div>
-            <div class="col-sm-4">
-              <div class="input-group">
-                <select class="custom-select" v-model="action[id]">
-                  <option v-for="act in actor.actions" :value="act[0]">{{act[1]}}</option>
-                </select>
-                <div class="input-group-append">
-                  <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
-                </div>
+        <div class="border my-1 py-1 px-2" v-for="(actor, id) in actors">
+          <div>
+            <span>{{actor.what}} {{actor.seed}}, {{actor.skills.text}}</span>
+            <span v-if="actor._cool > now">({{cool(actor._cool)}})</span>
+          </div>
+          <div class="d-flex d-flex justify-content-between">
+            <div class="px-1">{{actor.shard.realmName}} - {{actor.shard.seed}}</div>
+            <div class="input-group w-50">
+              <select class="custom-select" v-model="action[id]">
+                <option v-for="act in actor.actions" :value="act[0]">{{act[1]}}</option>
+              </select>
+              <div class="input-group-append">
+                <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
               </div>
             </div>
           </div>
           <ui-actions v-if="exid == id" :actor="actor" :action="action[id]" :now="now" :tokens="tokens"></ui-actions>
         </div>
-        <div class="border my-1 py-1 px-3 d-flex justify-content-between align-items-center" v-for="adv in newHires">
-          <span>A {{adv.skills.text}} is willing to work for you.</span>
-          <button class="btn btn-outline-success" type="button" @click="hireAdventurer(adv)">Hire</button>
+        <div class="border my-1 py-1 px-3 d-flex justify-content-between align-items-center" v-for="e in elementals">
+          <span>You have found an elemental: {{e.element.text}} {{e.form.base}}</span>
+          <button class="btn btn-outline-success" type="button" @click="tameElemental(e)">Hire {{e.cost}} DMD</button>
+        </div>
+        <div v-if="activeTrouble.length>0">
+          <h3>Active Trouble</h3>
+          <ui-active-trouble :now="now" :trouble="aT" v-for="aT in activeTrouble"></ui-active-trouble>
         </div>
       </div>
     </template>

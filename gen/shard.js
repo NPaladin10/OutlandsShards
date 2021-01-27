@@ -12,6 +12,15 @@ const VERSIONS = {
 const SAFETYMOD = [5,3,0,-3,-5] // evil, chaotic, neutral, lawful, good
 const SAFETYROLL = [0,1,1,1,2,2,2,2,2,2,2,2,3,3,3,3]
 
+const terrain = (app, _hash, realm) => {
+  let {hexToNumber} = app.utils
+  let hash = app.utils.hash(_hash + "-terrain")  //hash for randomization
+
+  let _ta = realm.terrain.map((n,i) => Array.from({length:n},(v,j) => i)).flat() //make an array of terrain types
+  //return main terrain and sub-indicies 
+  return [_ta[hexToNumber(hash,0,1) % 16], hexToNumber(hash,1,2), hexToNumber(hash,2,3)] 
+}
+
 const gen = (app, seedArray) => {
   let {hexToNumber} = app.utils 
 
@@ -20,6 +29,9 @@ const gen = (app, seedArray) => {
 
   //realm
   let _realm = hexToNumber(hash,0,2) % VERSIONS[_v].R  //determine realm
+
+  //terrain
+  let _terrain = terrain(app, hash, REALMS[_realm])
 
   //size - number of shards & anchors 
   let sizes = VERSIONS[_v].sizes  //size of region determined by version 
@@ -46,14 +58,17 @@ const gen = (app, seedArray) => {
 
   return {
     id : seedArray.join("."),
-    _nft : seedArray[0],
-    _v,
+    nft : seedArray[0]+"."+_v,
+    v : _v,
     seed : seedArray[2],
     _realm,
     _alignment,
     _safety,
     _temp,
-    anchor 
+    _terrain,
+    anchor,
+    _trouble : false,
+    ecl : 0  
   }
 }
 

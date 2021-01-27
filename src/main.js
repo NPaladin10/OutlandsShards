@@ -23,6 +23,7 @@ const params = {
   seed: "OS2021",
   shardPeriodTimes : [4 * 60 * 60, 16 * 60 * 60, 32 * 60 * 60],
   shardsPerPeriod : [12,20,16],
+  troublePercent : 50,
   travelTimes : [2*3600, 8*3600, 22*3600], // in seconds
   d8Tod4 : [1, 1, 2, 2, 2, 3, 3, 4],
   version : {

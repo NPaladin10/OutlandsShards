@@ -6,6 +6,8 @@ import*as OutlandsCore from "../data/outlands.js"
 //generators 
 import {ShardGen} from "../gen/shard.js"
 import {AdventurerGen} from "../gen/adventurer.js"
+import {ElementalGen} from "../gen/elemental.js"
+import {TroubleGen} from "../gen/trouble.js"
 
 /*
   Text Formatting
@@ -15,6 +17,8 @@ const ADVENTURERSKILLS = ["Academic", "Diplomat", "Explorer", "Engineer", "Rogue
 
 const FormatManager = (app)=>{
   
+  let UI = app.UI.main
+
   //establish action controll
   let actions = ActionManager(app)
 
@@ -33,16 +37,25 @@ const FormatManager = (app)=>{
   const _hasShard = (actor) => {
     //define shard 
     Object.defineProperty(actor, 'shard', { get: function() { 
-        return this._shard ? shard(this._shard) : null 
+        return this._shard ? UI.shards.find(s => s.id == this._shard) || shard(this._shard) : null 
       } 
     })
   }
   const _hasHome = (actor) => {
     //define shard 
     Object.defineProperty(actor, 'home', { get: function() { 
-        return this._home ? shard(this._home) : null 
+        return this._home ? UI.shards.find(s => s.id == this._home) || shard(this._home) : null 
       } 
     })
+  }
+
+  const elemental = (data) => {
+    //generate and assign 
+    let e = Object.assign(data, _idSplit(data.id), {
+      what: "Elemental",
+    }, ElementalGen(app, data))
+
+    return e  
   }
 
   const adventurer = (data)=>{
@@ -54,7 +67,7 @@ const FormatManager = (app)=>{
     //set skills 
     _adv.skills = {
       ids: _adv._skills,
-      text: Object.keys(_adv._skills).map(si=>ADVENTURERSKILLS[Number(si)]).join("/")
+      text: Object.entries(_adv._skills).map(e=>ADVENTURERSKILLS[Number(e[0])]+" "+e[1]).join("/")
     }
 
     //has shard - add getter 
@@ -86,6 +99,13 @@ const FormatManager = (app)=>{
     return _e
   }
 
+  const trouble = (tbl) => {
+    tbl.skillText = ADVENTURERSKILLS[tbl.skill]
+    tbl.cText = tbl._c.map(si => ADVENTURERSKILLS[si])
+
+    return tbl
+  }
+
   const shard = (_id)=>{
     //generate 
     let _shard = ShardGen(app, _id.split("."))
@@ -102,18 +122,34 @@ const FormatManager = (app)=>{
 
     //text and formatting 
     return Object.assign({
+      get realm () {
+        return OutlandsCore.REALMS[this._realm]
+      },
+      get terrain () {
+        let altT = this.realm.altTerrain
+          , t = this._terrain[0];
+
+        return altT && altT[t] ? altT[t] : OutlandsCore.TERRAIN[t] 
+      },
       alignment: OutlandsCore.ALIGNMENTS[_shard._alignment],
       safety: OutlandsCore.SAFETY[_shard._safety],
       climate: OutlandsCore.CLIMATES[_shard._temp],
       realmName: OutlandsCore.REALMS[_shard._realm].name,
+      //see if actors are present 
+      get characters () {
+        return Object.values(app.UI.main.actors).filter(a => a._shard == this.id)
+      },
       //find any adventurers for hire 
-      get advForHire() {
+      get elementals() {
         //get any adventurers for hire 
-        let advSeed = localStorage.getItem("adv." + this.id)
-        return !advSeed ? null : adventurer({
-          id: advSeed,
+        let eSeed = localStorage.getItem("ele." + this.id)
+        return !eSeed ? null : elemental({
+          id: eSeed,
           _home: this.id
         })
+      },
+      get trouble () {
+        return this._trouble ? trouble(TroubleGen(app,this)) : null
       }
     }, _shard)
   }
