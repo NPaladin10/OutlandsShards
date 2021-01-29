@@ -19,8 +19,26 @@ const VERSIONS = {
     },
     "elements" : ['void/divination','spirit/darkness/darkness/metal','fire/fire/light/luck','stone/stone/ground/metal','water/water/ice/time','air/storm','life/plant/plant/transformation','enchantment'],
     "levels" : [32769,49153,57345,61441,63489,64513,65025,65281,65409,65473,65505,65521,65529,65533,65535],
-    "stages" : [1,1,2,2,2,3,3,3]
+    "stages" : [1,1,2,2,2,3,3,3],
+
   }
+}
+//when they get their stage transformation 
+const NEWSTAGE = {
+  "2" : [4],
+  "3" : [3,5]
+}
+
+
+let hexToNumber;
+
+const pickFromArray = (_array, hash, n) => {
+  let m = n+1
+  let i = hexToNumber(hash,n,m) % _array.length
+  let _a2 = _array[i].split("/")
+  let res = _a2[hexToNumber(hash,m,m+1) % _a2.length]
+
+  return {i,res}
 }
 
 const getLevel = (n, levels)=> {
@@ -28,38 +46,63 @@ const getLevel = (n, levels)=> {
 }
 
 const form = (app, v, hash, shard) => {
-  let {hexToNumber} = app.utils
   let _hash = app.utils.hash(hash + "-form")  //hash for randomization
 
   //water air earth 
   let _wae = VERSIONS[v].wae[shard._terrain[0]].map((n,i) => Array.from({length:n},(v,j) => ["w","a","e"][i])).flat() //make an array base forms 
   let _waeId = _wae[hexToNumber(hash,0,1) % 8]
   
-  //base form 
-  let _base = hexToNumber(hash,1,2) % 16
-  let baseArr = VERSIONS[v].forms[_waeId][_base].split("/")
-  let base = baseArr[hexToNumber(hash,2,3) % baseArr.length]
+  let {i, res} = pickFromArray(VERSIONS[v].forms[_waeId], hash, 1)
   
   //return form     
   return {
     wae : _waeId,
-    _base,
-    base 
+    i,
+    base : res 
   }
 }
 
 const stages = (app, v, hash, form) => {
-  let {hexToNumber} = app.utils
   let _hash = app.utils.hash(hash + "-stages")  //hash for randomization
 
-  let n = VERSIONS[v].stages[hexToNumber(hash,2,3) % VERSIONS[v].stages.length]
+  let n = VERSIONS[v].stages[hexToNumber(hash,0,1) % VERSIONS[v].stages.length]
 
-  return {n}
+  //number of stages
+  let s = [] 
+  if(n == 2){
+    //50% form & element, otherwise eiter form or element   
+    s = ["fe","fe","f","e"][hexToNumber(hash,1,2) % 4]
+  }
+  else if (n == 3) {
+    s = (hexToNumber(hash,1,2) % 2) == 0 ? ["f","e"] : ["e","f"]
+  }
+
+  //map 
+  s = s.map(what => {
+    if(what == "e")
+      return pickFromArray(VERSIONS[v].elements, hash, 2)
+    if(what == "f")
+      return pickFromArray(VERSIONS[v].forms[form.wae], hash, 2)
+    if(what == "fe")
+      return [pickFromArray(VERSIONS[v].forms[form.wae], hash, 2), pickFromArray(VERSIONS[v].elements, hash, 4)]  
+  })
+
+  return s
+}
+
+const element = (v, hash, n) => {
+
+  let _e = hexToNumber(hash,n,n+1) % VERSIONS[v].elements.length
+  let eArr = VERSIONS[v].elements[_e].split("/")
+  let eText = eArr[hexToNumber(hash,n+1,n+2) % eArr.length]
+
+  return {_e, text}
 }
 
 
 const gen = (app, data)=>{
-  let {hexToNumber} = app.utils
+  //for all to use 
+  hexToNumber = app.utils.hexToNumber
 
   let {_home, id} = data
   let _id = id.split("."), v = _id[1];
@@ -80,9 +123,10 @@ const gen = (app, data)=>{
   let _stages = stages(app,v,hash,_form) 
 
   //element 
-  let _e = hexToNumber(hash,3,4) % VERSIONS[v].elements.length
-  let eArr = VERSIONS[v].elements[_e].split("/")
-  let eText = eArr[hexToNumber(hash,1,2) % eArr.length]
+  let _e = pickFromArray(VERSIONS[v].elements, hash, 2)
+
+  //stats 
+  let _stats = app.utils.stats(v, hash, 4)
 
   return {
     id,
@@ -90,12 +134,13 @@ const gen = (app, data)=>{
     seed : _id[2],
     _home,
     form: _form,
-    nS,
+    stages : _stages,
     element : {
-      _e,
-      text : eText
+      i : _e.i,
+      text : _e.res 
     },
-    _lv : level
+    _lv : level,
+    _stats
   }
 }
 

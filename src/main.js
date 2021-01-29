@@ -40,6 +40,22 @@ const app = {
     hexToNumber (hex,start,stop) {
       let slice = hex.slice(2).slice(start * 2, stop * 2)
       return parseInt(slice, 16)
+    },
+    stats (hash, n) {
+      let {hexToNumber} = this
+      let _hash = this.hash(hash + "-stats")
+      let m = 4, _stats = [], _val;
+
+      //loop 
+      for (let i = 0; i < n; i++){
+        _val = 0
+        for(let j = 0; j < m; j++) {
+          _val += (j>1 ? -1 : 1)*(1 + (hexToNumber(_hash, i*m+j, i*m+j+1) % 8))  
+        }
+        _stats.push(_val) 
+      }
+      
+      return _stats
     }
   },
   UI: {},
