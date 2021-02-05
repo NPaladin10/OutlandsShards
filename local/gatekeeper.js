@@ -1,6 +1,7 @@
 import {TOKENS, NFT} from "../data/tokenlist.js"
 
-const ID_OWNER = "own" 
+const ID_OWNER = "own"
+  , ID_NAME = "name"; 
 
 //setup stores for tokens and stats
 const DB_TOKENS = localforage.createInstance({

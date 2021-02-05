@@ -57,6 +57,10 @@ const TOKENS = {
     name: "Way Info",
     units: "wei"
   },
+  "tcb": {
+    name: "Taming Crystal",
+    units: "wei"
+  },
 }
 
 const NFT = {
@@ -66,6 +70,10 @@ const NFT = {
   },
   "adv": {
     name: "Adventurer",
+    units: "wei",
+  },
+  "ele": {
+    name: "Elemental",
     units: "wei",
   },
   "rgn": {

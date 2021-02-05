@@ -2,8 +2,10 @@
 import {TOKENS} from "../data/tokenlist.js"
 
 const ID_OWNER = "own" 
+  , ID_NAME = "nme"  
   , ID_HOME = "hme"
   , ID_LOCATION = "loc"
+  , ID_TRAINER = "trn"
   , ID_COOL = "col"
   , ID_XP = "cxp"
   , ID_EXCOOL = "ecl";
@@ -69,6 +71,7 @@ const explorers = (app)=>{
 
     let _data = {
       id,
+      name : data[ID_NAME] || "",
       _home: data[ID_HOME],
       _shard: data[ID_LOCATION],
       _cool: data[ID_COOL],

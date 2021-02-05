@@ -55,6 +55,9 @@ const FormatManager = (app)=>{
       what: "Elemental",
     }, ElementalGen(app, data))
 
+    //has shard - add getter 
+    _hasHome(e)
+    
     return e  
   }
 

@@ -12,6 +12,11 @@ const SKU = [
     "item" : [["sdi",100]] 
   },
   {
+    "text" : "Elemental Taming Crystal",
+    "cost" : [["dmd",0.05]],
+    "item" : [["tcb",1]] 
+  },
+  {
     "text" : "Split Diamond",
     "cost" : [["dmd",0.1]],
     "item" : [["emd",0.5],["rby",0.5],["sph",0.5]] 

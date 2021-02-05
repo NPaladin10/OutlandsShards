@@ -7,43 +7,57 @@ const UI = (app)=>{
       return {
         exid: "",
         action: {},
-        elementals : [],
+        elementals: [],
+        nameId: "",
+        name : ""
       }
     },
     mounted() {
       app.UI.characters = this
-      this.elementals = app.UI.main.shards.filter(s => s.elementals).map(s => s.elementals)
-      setInterval(async ()=>{
-        this.elementals = app.UI.main.shards.filter(s => s.elementals).map(s => s.elementals)
-      }, 5000)
+      this.elementals = app.UI.main.shards.filter(s=>s.elementals).map(s=>s.elementals)
+      setInterval(async()=>{
+        this.elementals = app.UI.main.shards.filter(s=>s.elementals).map(s=>s.elementals)
+      }
+      , 5000)
 
     },
     computed: {
-      activeTrouble () {
+      activeTrouble() {
         return app.UI.main.activeTrouble.slice()
+      },
+      canTame() {
+        return this.tokens["tcb"].val > 0
       }
     },
     methods: {
+      setName () {
+          //set the name 
+          app.characters.setName(this.nameId, this.name)
+          this.actors[this.nameId].name = this.name
+
+          //clear
+          this.nameId = ""
+          this.name = ""
+      },
       cool(cool) {
         if (cool < this.now)
           return "Ready"
         return app.timeFormat(cool - this.now)
       },
-      tameElemental(e) {
-        //data from saved adventurer
-        let data = {
-          id: adv.id,
-          _home: adv._home
+      async bindElemental(e, actor) {
+        //failed attempt
+        if (chance.bool()) {
+          return app.simpleNotify("Failed to bind the elemental.", "error")
         }
-        
-        //submit
-        app.submit("hireAdventurer", data).then(res=>{
-          app.simpleNotify("Hired " + adv.skills.text)
+
+        //call bind 
+        let res = await app.characters.bindElemental(app.player, e, actor, ["tcb", 1])
+        if (res.success) {
+          app.simpleNotify("Bound the elemental!", "success")
           //delete storage
-          localStorage.removeItem("adv." + adv._home)
-          this.newHires = app.UI.main.shards.filter(s => s.advForHire).map(s => s.advForHire)
+          localStorage.removeItem("ele." + e._home)
+          this.elementals = app.UI.main.shards.filter(s=>s.elementals).map(s=>s.elementals)
         }
-        )
       }
     }
   })

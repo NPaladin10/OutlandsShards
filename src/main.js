@@ -41,7 +41,7 @@ const app = {
       let slice = hex.slice(2).slice(start * 2, stop * 2)
       return parseInt(slice, 16)
     },
-    stats (hash, n) {
+    stats (v, hash, n) {
       let {hexToNumber} = this
       let _hash = this.hash(hash + "-stats")
       let m = 4, _stats = [], _val;
@@ -56,6 +56,13 @@ const app = {
       }
       
       return _stats
+    },
+    d100 (hash, i) {
+      let {hexToNumber} = this
+      let max = 128
+      let val = hexToNumber(hash, i, i+1) % max
+      
+      return Math.round((1+val)*100/max)  
     }
   },
   UI: {},

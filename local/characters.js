@@ -16,9 +16,11 @@ const ELESEARCHCOOL = {
 }
 
 //STAT ID 
-const ID_OWNER = "own" 
+const ID_OWNER = "own"
+  , ID_NAME = "nme"  
   , ID_HOME = "hme"
   , ID_LOCATION = "loc"
+  , ID_TRAINER = "trn"
   , ID_COOL = "col"
   , ID_XP = "cxp";
 
@@ -43,6 +45,11 @@ const Characters = (app)=>{
   const setCool = (id,cool)=>{
     //set location and cool 
     GK.setStats(id, [ID_COOL], [cool])
+  }
+
+  const setName = (id,name)=>{
+    //set location and cool 
+    GK.setStats(id, [ID_NAME], [name])
   }
 
   const getShard = async(id)=>{
@@ -142,7 +149,7 @@ const Characters = (app)=>{
       //must wait for return because Stat DB is open on mint 
       await GK.mintNFT(player, nft, _id)
       //set stats 
-      GK.setStats(_id, [ID_HOME, ID_LOCATION, ID_COOL, ID_XP], [shard, shard, 0, 0])
+      await GK.setStats(_id, [ID_HOME, ID_LOCATION, ID_COOL, ID_XP], [shard, shard, 0, 0])
 
       return {
         success: true,
@@ -171,6 +178,27 @@ const Characters = (app)=>{
     return ""
   }
 
+  const hireAdventurer = async (player, data) => {
+    let _adv = AdventurerGen(app, data) 
+    let {id, _home, cost} = _adv
+    let _id = id.split(".")
+
+    //burn cost 
+    let burn = await GK.burn(player, [["dmd",cost]])
+    if(!burn) {
+      return {
+        success : false,
+        reason : "Not enough tokens."
+      }
+    }
+
+    
+  }
+
+  /*
+    Elementals 
+  */
+
   const searchForElemental = (actor) => {
     let {shard} = actor 
     
@@ -198,13 +226,9 @@ const Characters = (app)=>{
     }
   }
 
-  const hireAdventurer = async (player, data) => {
-    let _adv = AdventurerGen(app, data) 
-    let {id, _home, cost} = _adv
-    let _id = id.split(".")
-
+  const bindElemental = async (player, e, trainer, toBurn) => {
     //burn cost 
-    let burn = await GK.burn(player, [["dmd",cost]])
+    let burn = await GK.burn(player, [toBurn])
     if(!burn) {
       return {
         success : false,
@@ -212,13 +236,22 @@ const Characters = (app)=>{
       }
     }
 
-    //mint
+    //mint 
     let mintData = {
-      nft : _id.slice(0,2).join("."),
-      shard : _home, 
-      seed : _id[2]
+      nft : e.nft,
+      shard : e._home, 
+      seed : e.seed
     }
-    return mint(player, mintData)
+    let _mint = await mint(player, mintData) 
+
+    if(_mint.success) {
+      //set stats 
+      GK.setStats(e.id, [ID_LOCATION, ID_TRAINER], ["", trainer.id])
+      return _mint
+    }
+    else {
+      return _mint
+    }
   }
 
   //set functions for external use  
@@ -229,7 +262,7 @@ const Characters = (app)=>{
     move,
     setCool,
     mayAct,
-    getShard
+    getShard,
   }
 
   /*
@@ -293,8 +326,10 @@ const Characters = (app)=>{
   }
 
   app.characters = {
+    bindElemental,
     travelTime,
-    searchForElemental
+    searchForElemental,
+    setName
   }
 }
 

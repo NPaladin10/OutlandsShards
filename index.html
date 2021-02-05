@@ -107,25 +107,45 @@
         <h3>Characters</h3>
         <div class="border my-1 py-1 px-2" v-for="(actor, id) in actors">
           <div>
-            <span>{{actor.what}} {{actor.seed}}, {{actor.skills.text}}</span>
-            <span v-if="actor._cool > now">({{cool(actor._cool)}})</span>
+            <span>
+              <span class="link" @click="nameId=actor.id">
+                <span><span v-if="actor.name!=''">{{actor.name}},</span> {{actor.what}} {{actor.seed}},</span>
+              </span>
+              <span>{{actor.skills.text}}</span>
+              <span v-if="actor._cool > now">({{cool(actor._cool)}})</span>
+            </span>
+            <div class="input-group" v-if="nameId==actor.id">
+              <div class="input-group-prepend">
+                <span class="input-group-text">Name</span>
+              </div>
+              <input type="text" class="form-control" placeholder="name" v-model="name">
+              <div class="input-group-append">
+                <button class="btn btn-outline-success" type="button" @click="setName()">Set</button>
+              </div>
+            </div>
           </div>
           <div class="d-flex d-flex justify-content-between">
             <div class="px-1">{{actor.shard.realmName}} - {{actor.shard.seed}}</div>
-            <div class="input-group w-50">
-              <select class="custom-select" v-model="action[id]">
-                <option v-for="act in actor.actions" :value="act[0]">{{act[1]}}</option>
-              </select>
-              <div class="input-group-append">
-                <button class="btn btn-outline-secondary" type="button" @click="exid = id">Act</button>
+            <div class="dropdown">
+              <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown">Take Action</button>
+              <div class="dropdown-menu">
+                <a class="dropdown-item" href="#" v-for="act in actor.actions" @click="action[id]=act[0], exid=id">{{act[1]}}</a>
               </div>
             </div>
           </div>
           <ui-actions v-if="exid == id" :actor="actor" :action="action[id]" :now="now" :tokens="tokens"></ui-actions>
         </div>
         <div class="border my-1 py-1 px-3 d-flex justify-content-between align-items-center" v-for="e in elementals">
-          <span>You have found an elemental: {{e.element.text}} {{e.form.base}}</span>
-          <button class="btn btn-outline-success" type="button" @click="tameElemental(e)">Hire {{e.cost}} DMD</button>
+          <div>
+            <div>You have found an elemental: {{e.element.text}} {{e.form.text}}</div>
+            <div class="pl-3">To tame an elemental you have to have a taming crystal to bind them to. However, not every attempt is successful.</div>
+          </div>
+          <div class="dropdown" v-if="tokens.tcb.val > 0">
+            <button class="btn btn-outline-success dropdown-toggle" type="button" data-toggle="dropdown">Bind Elemental</button>
+            <div class="dropdown-menu">
+              <a class="dropdown-item" href="#" v-for="a in e.home.characters" @click="bindElemental(e,a)">{{a.name == '' ? a.seed : a.name}}</a>
+            </div>
+          </div>
         </div>
         <div v-if="activeTrouble.length>0">
           <h3>Active Trouble</h3>
