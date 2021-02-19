@@ -1,24 +1,42 @@
-const poll = (eth)=>{
+const ROLE_ADMIN = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+const TOKENS = {
+  "eth": {
+    "name": "ETH",
+    "units": "ether"
+  }
+}
+
+const poll = (app,eth)=>{
   //count ticks 
   let tick = 0
 
-  let app = eth.app
-    , UI = app.UI.main
-    , signer = eth.signer
-    , Contracts = null;
+  let UI = app.UI.main, signer, Contracts;
+
+  //decode an array of bignumber token ids and values 
+  const tokenMapping = (id,val)=>{
+    let T = TOKENS[id]
+
+    return {
+      id,
+      name: T.name,
+      val: Number(eth.utils.formatUnits(val, TOKENS[id].units))
+    }
+  }
 
   //get when daily treasure was claimed 
-  eth.dailyTreasureTime = () => {
+  eth.dailyTreasureTime = ()=>{
     let lT = Contracts.DailyTreasure.lastTreasure
 
-    for(let i = 0; i < 3; i++) {
+    for (let i = 0; i < 3; i++) {
       //call to see when claimed 
-      lT(eth.address, i).then(t => {
+      lT(eth.address, i).then(t=>{
         //set ui 
         Vue.set(app.UI.dailyTreasure.lastClaim, i, t.toNumber())
-      })
+      }
+      )
     }
-  } 
+  }
 
   //check allowances of contracts
   const pollAllowance = ()=>{
@@ -38,8 +56,7 @@ const poll = (eth)=>{
   }
 
   //view whether address has admin role 
-  const pollAdmin = () => {
-    let adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000"
+  const pollAdmin = ()=>{
     //check for admin 
     Object.entries(Contracts).forEach(e=>{
       let name = e[0]
@@ -47,7 +64,7 @@ const poll = (eth)=>{
 
       if (C.hasRole) {
         //check role 
-        C.hasRole(adminRole, eth.address).then(_isAdm=>{
+        C.hasRole(ROLE_ADMIN, eth.address).then(_isAdm=>{
           //push the contract to the list 
           if (_isAdm && !UI.isAdmin.includes(name))
             UI.isAdmin.push(name)
@@ -59,18 +76,25 @@ const poll = (eth)=>{
   }
 
   //poll address
-  const getAddress = ()=>{
-    signer.getAddress().then(address=>{
-      //do something on change 
-      if (address != eth.address) {
-        //update address
-        eth.address = UI.address = address
-        //clear admin 
-        UI.isAdmin = []
+  const getAddress = async()=>{
+    let address = await signer.getAddress()
 
-      }
+    //do something on change 
+    if (address != eth.address) {
+      //update address
+      eth.address = UI.address = address
+      //clear admin 
+      UI.isAdmin = []
     }
-    )
+
+    //set tokens 
+    let bal = await signer.getBalance()
+    let tid = ["goerli"].includes(eth.net) ? "eth" : "" 
+    Vue.set(UI.tokens,"0",tokenMapping(tid, bal))
+
+    if (address != "") {
+      pollAdmin()
+    }
   }
 
   return ()=>{
@@ -84,13 +108,8 @@ const poll = (eth)=>{
     //every 2 seconds
     if (tick % 4 == 0) {
       getAddress()
-      if(eth.address != "") {
-        pollAllowance()
-        pollAdmin()
-      } 
     }
-    if (UI.show == "daily" && tick % 120 == 0) {
-      eth.dailyTreasureTime()
+    if (UI.show == "daily" && tick % 120 == 0) {//eth.dailyTreasureTime()
     }
 
   }

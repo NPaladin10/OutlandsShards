@@ -1,245 +1,78 @@
 //outlands data 
 import*as OutlandsCore from "../data/outlands.js"
 
-const ZeroByte = "0x0000000000000000000000000000000000000000000000000000000000000000"
+const ZERO = "0x0000000000000000000000000000000000000000"
 
-const _shardsPerPeriod = [[24, 3, 8], [24, 3, 8], [24, 3, 8]]
-const _periodTimes = [4 * 60 * 60, 8 * 60 * 60, 24 * 60 * 60]
+const poll = (app,eth)=>{
+    //count ticks 
+    let tick = 0
 
-const hexToNumber = (hex,start,stop)=>{
-  let slice = hex.slice(2).slice(start * 2, stop * 2)
-  return parseInt(slice, 16)
-}
+    //data to call later
+    let OS, nShards = 0, all = [], owns = [];
 
-//given seed and rarity 
-const getRarity = (seed, R)=>{
-  let reduced = hexToNumber(seed, R.start, R.stop) % R.max
-  let value = R.steps.length + 1
-
-  for (let i = 0; i < R.steps.length; i++) {
-    if (reduced < R.steps[i]) {
-      value = i + 1
-      break
-    }
-  }
-
-  return value
-}
-
-const poll = (eth)=>{
-  //count ticks 
-  let tick = 0
- 
-  //data to call later
-  let OR = null
-    , OS = null
-    , nRegions = OutlandsCore.REGIONS.length
-    , regions = {}
-    , shards = {};
-
-  //set regions
-  OutlandsCore.REGIONS.forEach((r,i) => {
-    //data format
-    let R = {
-      id : i+1,
-      _shards : [],
-      periodShards : [],
-      realmName: OutlandsCore.REALMS[r.realm - 1],
-      get shards () {
-        return this._shards.concat(this.periodShards)
-      },
-      get claimedShards () {
-        return this.shards.filter(s => s._claimed)
-      },
-      _vId : ""  
+    const transfer = (from,to,tId)=>{
+        //convert id 
+        let id = tId.toNumber()
+        
+        //new shard
+        if (from == ZERO) {     
+            //push to all 
+            if(!all.includes(id)) all.push(id)
+            //check for owner 
+            if (eth.address == to && !owns.includes(id))
+                owns.push(id)
+        }
+        //burn shard
+        else if(to == ZERO) {
+            let i = all.indexOf(id)
+            let j = owns.indexOf(id)
+            all.splice(i,1)
+            if(j > -1) owns.splice(j,1)
+        }
+        //remove ownership
+        else if(from == eth.address) {
+            let j = owns.indexOf(id)
+            owns.splice(j,1)
+        }
     }
 
-    //set region 
-    regions[i+1] = Object.assign(R,r) 
-  })
-  eth._regions = regions   
+    const load = (res)=>{
+        res.forEach(tx=>{
+            let {args} = tx
+            transfer(args.from, args.to, args.tokenId)
+        }
+        )
 
-  //setup references
-  let app = eth.app
-    , appSeed = app.params.seed 
-    , UI = app.UI.main
-    , BN = eth.BN
-    , keccak256 = eth.keccak256
-    , hexZeroPad = eth.utils.hexZeroPad;
-
-  //generate from seed 
-  eth.shardFromSeed = (seed) => {
-    if(seed == ZeroByte) return null
-    //region 
-    let r = 1 + BN.from(seed).mod(nRegions).toNumber()
-    //anchors 
-    let anchors = regions[r].anchors
-    let a = anchors[hexToNumber(seed, 1, 2)%anchors.length]
-    let risk = OutlandsCore.ANCHORRISK[a-1]
-    
-    //data formatting 
-    return {
-      _seed : seed,
-      seed : seed.slice(2,7)+'...'+seed.slice(-4),
-      anchor: {
-        id: a,
-        rarity: getRarity(seed, eth.rarity[1]),
-        text: OutlandsCore.ANCHORS[a - 1],
-        risk: [risk, OutlandsCore.RISK[risk]]
-      },
-      region : r,
-      regionName : regions[r].name,
-      _claimed : false  
-    }
-  }
-
-  //shard data of a given period 
-  const shardDataOfPeriod = (pid, pOfi, j) => {
-    //format numbers 
-    let pt = BN.from(_periodTimes[pid]).toHexString()
-    pOfi = BN.from(pOfi).toHexString()
-    j = BN.from(j).toHexString()
-    //keccak256(abi.encode(address(this), pt, pOfi, j))
-    let seed = keccak256(["address", "uint256", "uint256", "uint256"], [appSeed, pt, pOfi, j]) 
-    
-    //generate based upon seed 
-    return eth.shardFromSeed(seed)
-  }
-
-  //determine the number of shards in a period 
-  const shardsInPeriod = (i, p)=>{
-    let pt = BN.from(_periodTimes[i]).toHexString()
-      , ofPi = BN.from(p).toHexString();
-    //seed for generation
-    //abi.encode(address(this), pt, ofPi) 
-    let seed = keccak256(["address", "uint256", "uint256"], [appSeed, pt, ofPi])
-
-    let spp = _shardsPerPeriod[i]
-    //start with base 
-    let count = spp[0]
-    //loops as required in spp 
-    for (let i = 0; i < spp[1]; i++) {
-      count += 1 + (hexToNumber(seed, i, i+1) % spp[2]);
+        app.UI.main.shards_eth = all.map(id => app.format.shard_eth(OS.address, id))
     }
 
-    return count
-  }
+    //return polling function 
+    return ()=>{
+        let oneMin = 2 * 60
+        //set OS 
+        OS = eth.contracts.ShardV1
 
-  //update period numbers 
-  const periodPoll = ()=>{
-    let now = Date.now()/1000;
-    app.periods = _periodTimes.map(_p=> Math.floor(now/_p))
-  }
+        if (tick == 0) {
+            OS.on("Transfer", (from,to,tId) => {
+                transfer(from,to,tId)
+                //notify 
+                if(eth.address == to){
+                    app.simpleNotify("You have claimed shard #"+tId.toString(),"success")
+                }
+            })
 
-  //update all the random shards of the period 
-  const updatePeriodShards = ()=>{
-    //first reset all region periodShards
-    Object.values(regions).forEach(r => r.periodShards = [])
-    //counting 
-    let total = 0
-    let p = app.periods
-    //for each period get the count of shards 
-    app.periods.forEach((p,i)=>{
-      //get the number of shards
-      let nsp = shardsInPeriod(i, p)
-      //loop through a number of shards
-      for(let j = 0; j < nsp; j++){
-        let shard = shardDataOfPeriod(i, p, j)
-        //push to objects
-        shards[shard._seed] = shard 
-        regions[shard.region].periodShards.push(shard)
-      }
+            //pull initial
+            OS.queryFilter("Transfer").then(load)
+        }
+
+        //poll after certain time 
+        if ((tick % oneMin) == 0) {//poll for period
+            app.UI.main.shards_eth = all.map(id => app.format.shard_eth(OS.address, id)) 
+        }
+
+        //tick 
+        tick++
     }
-    )
-
-    //update UI
-    UI.regions = regions
-    eth._shards = shards
-  }
-
-  const shardByPage = () => {
-    OS.getCount().then(n => {
-      //convert to numner 
-      n = n.toNumber()
-      let base = 1000000001
-        , pages = Array.from({length: 1+Math.floor(n/50)}, (v,i) => {
-            let m = n < i*50+50 ? n-(i*50) : 50 
-
-            return Array.from({length: m}, (w,j) => base + i*50 + j)
-        });
-
-      //loop through pages 
-      pages.forEach(p => {
-
-        OS.getClaimedShardsBatch(p).then(res => {
-          let {rids, anchors} = res 
-
-          //loop and set region 
-          res.seeds.forEach((seed, j) => {
-            let a = anchors[j],
-              risk = OutlandsCore.ANCHORRISK[a-1]
-              , r = rids[j].toNumber()-1001000000;
-
-            //data formatting 
-            let shard = {
-              _id : p[j],
-              _seed : seed,
-              seed : seed.slice(2,7)+'...'+seed.slice(-4),
-              anchor: {
-                id: a,
-                rarity: getRarity(seed, eth.rarity[1]),
-                text: OutlandsCore.ANCHORS[a - 1],
-                risk: [risk, OutlandsCore.RISK[risk]]
-              },
-              region : r,
-              regionName : regions[r].name,
-              _claimed : true   
-            }
-
-            //push to objects
-            shards[shard._seed] = shard 
-            //shard ids 
-            let sids = regions[shard.region].shards.map(s => s._seed)
-            if(!sids.includes(shard._seed)) {
-              regions[shard.region]._shards.push(shard) 
-            }
-          })
-        })
-
-      })
-    })
-  }
-
-  //return polling function 
-  return (C)=>{
-    let tenMin = 2*60*10
-    //tick 
-    tick++
-    //set OS 
-    OS = C.OutlandsShards
-    OR = C.OutlandsRegions
-
-    //poll after certain time 
-    //10 minutes
-    if((tick % tenMin) == 1) {
-      //poll for period 
-      periodPoll()
-
-      //Region poll 
-      if(OR) {
-        OR.getCount().then(n => { nRegions = n.toNumber() })
-      }
-    }
-    if((tick % tenMin) == 2) {
-      //poll for period 
-      updatePeriodShards()
-    }
-    //every minute 
-    if((tick % 2*60) == 0) {
-      //poll for newly created shards 
-      if(OS) shardByPage()
-    }
-  }
 }
 
 export {poll}

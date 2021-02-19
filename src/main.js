@@ -162,10 +162,10 @@ const app = {
 }
 //initialize 
 UI(app)
+FormatManager(app)
 app.inventory = new InventoryManager(app)
 app.eth = new ETHManager(app)
 LocalServer(app)
-FormatManager(app)
 PollManager(app)
 
 setInterval(()=>{

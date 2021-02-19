@@ -1,16 +1,16 @@
-const Characters = `
+const ShardV1 = `
 [
 	{
 		"inputs": [
 			{
-				"internalType": "contract Gatekeeper",
-				"name": "gk",
-				"type": "address"
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
 			},
 			{
-				"internalType": "contract OutlandsShards",
-				"name": "os",
-				"type": "address"
+				"internalType": "string",
+				"name": "symbol",
+				"type": "string"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -22,29 +22,23 @@ const Characters = `
 			{
 				"indexed": true,
 				"internalType": "address",
-				"name": "operator",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "approved",
 				"type": "address"
 			},
 			{
 				"indexed": true,
 				"internalType": "uint256",
-				"name": "what",
+				"name": "tokenId",
 				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "bytes32",
-				"name": "home",
-				"type": "bytes32"
 			}
 		],
-		"name": "Mint",
+		"name": "Approval",
 		"type": "event"
 	},
 	{
@@ -52,18 +46,37 @@ const Characters = `
 		"inputs": [
 			{
 				"indexed": true,
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
 			},
 			{
 				"indexed": true,
-				"internalType": "bytes32",
-				"name": "shard",
-				"type": "bytes32"
+				"internalType": "address",
+				"name": "operator",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "approved",
+				"type": "bool"
 			}
 		],
-		"name": "Move",
+		"name": "ApprovalForAll",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "Paused",
 		"type": "event"
 	},
 	{
@@ -142,30 +155,104 @@ const Characters = `
 		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "COOL_ID",
-		"outputs": [
+		"anonymous": false,
+		"inputs": [
 			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
+				"indexed": true,
+				"internalType": "address",
+				"name": "operator",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "stat",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "int256",
+				"name": "val",
+				"type": "int256"
 			}
 		],
-		"stateMutability": "view",
-		"type": "function"
+		"name": "StatChange",
+		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "COOL_ROLE",
-		"outputs": [
+		"anonymous": false,
+		"inputs": [
 			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
+				"indexed": true,
+				"internalType": "address",
+				"name": "operator",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256[]",
+				"name": "stats",
+				"type": "uint256[]"
+			},
+			{
+				"indexed": false,
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
 			}
 		],
-		"stateMutability": "view",
-		"type": "function"
+		"name": "StatChangeBatch",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			}
+		],
+		"name": "Transfer",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "Unpaused",
+		"type": "event"
 	},
 	{
 		"inputs": [],
@@ -182,77 +269,12 @@ const Characters = `
 	},
 	{
 		"inputs": [],
-		"name": "HOME_ID",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "LOCATION_ID",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "MINTER_ROLE",
 		"outputs": [
 			{
 				"internalType": "bytes32",
 				"name": "",
 				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MOVER_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "NFTID",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "NFT_ID",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -285,13 +307,50 @@ const Characters = `
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			}
+		],
+		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [],
-		"name": "callMint",
+		"name": "baseURI",
 		"outputs": [
 			{
-				"internalType": "bool",
+				"internalType": "string",
 				"name": "",
-				"type": "bool"
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",
@@ -301,111 +360,29 @@ const Characters = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "id",
+				"name": "tokenId",
 				"type": "uint256"
 			}
 		],
-		"name": "getCooldown",
-		"outputs": [
-			{
-				"internalType": "int256",
-				"name": "",
-				"type": "int256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getCount",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
+		"name": "burn",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "id",
+				"name": "tokenId",
 				"type": "uint256"
 			}
 		],
-		"name": "getCurrentLocation",
+		"name": "getApproved",
 		"outputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "address",
 				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			}
-		],
-		"name": "getData",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "nft",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "home",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_id",
-				"type": "uint256"
-			}
-		],
-		"name": "getHomeData",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "int256",
-				"name": "r",
-				"type": "int256"
-			},
-			{
-				"internalType": "int256",
-				"name": "a",
-				"type": "int256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "rare",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -479,14 +456,19 @@ const Characters = `
 				"internalType": "uint256",
 				"name": "id",
 				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "si",
+				"type": "uint256[]"
 			}
 		],
-		"name": "getSeed",
+		"name": "getStatBatch",
 		"outputs": [
 			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -495,37 +477,22 @@ const Characters = `
 	{
 		"inputs": [
 			{
+				"internalType": "uint256[]",
+				"name": "ids",
+				"type": "uint256[]"
+			},
+			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "si",
 				"type": "uint256"
 			}
 		],
-		"name": "getShardData",
+		"name": "getStatsOfIdBatch",
 		"outputs": [
 			{
-				"internalType": "bytes32",
-				"name": "seed",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "int256",
-				"name": "r",
-				"type": "int256"
-			},
-			{
-				"internalType": "int256",
-				"name": "a",
-				"type": "int256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "rare",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
+				"internalType": "int256[]",
+				"name": "vals",
+				"type": "int256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -577,16 +544,16 @@ const Characters = `
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "player",
+				"name": "owner",
 				"type": "address"
 			},
 			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
+				"internalType": "address",
+				"name": "operator",
+				"type": "address"
 			}
 		],
-		"name": "isOwnerOf",
+		"name": "isApprovedForAll",
 		"outputs": [
 			{
 				"internalType": "bool",
@@ -600,142 +567,46 @@ const Characters = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes",
-				"name": "data",
-				"type": "bytes"
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
 			}
 		],
 		"name": "mint",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "name",
 		"outputs": [
 			{
-				"internalType": "bytes",
+				"internalType": "string",
 				"name": "",
-				"type": "bytes"
+				"type": "string"
 			}
 		],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "id",
+				"name": "tokenId",
 				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "i",
-				"type": "uint256"
-			},
-			{
-				"internalType": "int256",
-				"name": "val",
-				"type": "int256"
 			}
 		],
-		"name": "modStat",
+		"name": "ownerOf",
 		"outputs": [
 			{
-				"internalType": "int256",
+				"internalType": "address",
 				"name": "",
-				"type": "int256"
+				"type": "address"
 			}
 		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "si",
-				"type": "uint256[]"
-			},
-			{
-				"internalType": "int256[]",
-				"name": "_vals",
-				"type": "int256[]"
-			}
-		],
-		"name": "modStatBatch",
-		"outputs": [
-			{
-				"internalType": "int256[]",
-				"name": "vals",
-				"type": "int256[]"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "toShard",
-				"type": "bytes32"
-			}
-		],
-		"name": "move",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256[]",
-				"name": "ids",
-				"type": "uint256[]"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "toShard",
-				"type": "bytes32"
-			}
-		],
-		"name": "moveBatch",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "toShard",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bool",
-				"name": "useCooldown",
-				"type": "bool"
-			}
-		],
-		"name": "moveFor",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -797,17 +668,22 @@ const Characters = `
 	{
 		"inputs": [
 			{
-				"internalType": "contract Gatekeeper",
-				"name": "gk",
+				"internalType": "address",
+				"name": "from",
 				"type": "address"
 			},
 			{
-				"internalType": "contract OutlandsShards",
-				"name": "os",
+				"internalType": "address",
+				"name": "to",
 				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
 			}
 		],
-		"name": "setContracts",
+		"name": "safeTransferFrom",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -815,17 +691,27 @@ const Characters = `
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
 				"internalType": "uint256",
-				"name": "id",
+				"name": "tokenId",
 				"type": "uint256"
 			},
 			{
-				"internalType": "int256",
-				"name": "cool",
-				"type": "int256"
+				"internalType": "bytes",
+				"name": "_data",
+				"type": "bytes"
 			}
 		],
-		"name": "setCooldown",
+		"name": "safeTransferFrom",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -833,17 +719,17 @@ const Characters = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256[]",
-				"name": "ids",
-				"type": "uint256[]"
+				"internalType": "address",
+				"name": "operator",
+				"type": "address"
 			},
 			{
-				"internalType": "int256[]",
-				"name": "cool",
-				"type": "int256[]"
+				"internalType": "bool",
+				"name": "approved",
+				"type": "bool"
 			}
 		],
-		"name": "setCooldownBatch",
+		"name": "setApprovalForAll",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -851,25 +737,12 @@ const Characters = `
 	{
 		"inputs": [
 			{
-				"internalType": "uint256[6]",
-				"name": "_steps",
-				"type": "uint256[6]"
+				"internalType": "address",
+				"name": "gk",
+				"type": "address"
 			}
 		],
-		"name": "setCooldownSteps",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256[6]",
-				"name": "_tokens",
-				"type": "uint256[6]"
-			}
-		],
-		"name": "setCooldownTokens",
+		"name": "setGatekeeper",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -893,13 +766,7 @@ const Characters = `
 			}
 		],
 		"name": "setStat",
-		"outputs": [
-			{
-				"internalType": "int256",
-				"name": "",
-				"type": "int256"
-			}
-		],
+		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
@@ -922,13 +789,20 @@ const Characters = `
 			}
 		],
 		"name": "setStatBatch",
-		"outputs": [
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
-				"internalType": "int256[]",
-				"name": "",
-				"type": "int256[]"
+				"internalType": "string",
+				"name": "_uri",
+				"type": "string"
 			}
 		],
+		"name": "setURI",
+		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
@@ -936,21 +810,152 @@ const Characters = `
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "id",
+				"name": "",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint256",
-				"name": "ti",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "qty",
+				"name": "",
 				"type": "uint256"
 			}
 		],
-		"name": "spendTokens",
+		"name": "stats",
+		"outputs": [
+			{
+				"internalType": "int256",
+				"name": "",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes4",
+				"name": "interfaceId",
+				"type": "bytes4"
+			}
+		],
+		"name": "supportsInterface",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "symbol",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "tokenByIndex",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "tokenOfOwnerByIndex",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			}
+		],
+		"name": "tokenURI",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalSupply",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -965,4 +970,4 @@ const Characters = `
 ]
 `
 
-export {Characters}
+export {ShardV1}

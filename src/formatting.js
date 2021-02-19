@@ -4,6 +4,7 @@ import {ActionManager} from "./action.js" //handle actions and UI of characters/
 import*as OutlandsCore from "../data/outlands.js"
 
 //generators 
+import {ShardGenEth} from "../gen/shard_eth.js"
 import {ShardGen} from "../gen/shard.js"
 import {AdventurerGen} from "../gen/adventurer.js"
 import {ElementalGen} from "../gen/elemental.js"
@@ -109,6 +110,32 @@ const FormatManager = (app)=>{
     return tbl
   }
 
+  const shard_eth = (contract, id)=>{
+    //generate 
+    let _shard = ShardGenEth(app, contract, id)
+
+    //handle anchor - anchor from 0-3 but want 1-4
+    let risk = OutlandsCore.ANCHORRISK[_shard._anchor+1]
+    _shard.anchor = {
+      text: OutlandsCore.ANCHORS[_shard._anchor+1],
+      risk : [risk, OutlandsCore.RISK[risk]] 
+    }
+
+    //text and formatting 
+    return Object.assign({
+      get realm () {
+        return OutlandsCore.REALMS[this._realm]
+      },
+      get terrain () {
+        let altT = this.realm.altTerrain
+          , t = this._terrain[0];
+
+        return altT && altT[t] ? altT[t] : OutlandsCore.TERRAIN[t] 
+      },
+      realmName: OutlandsCore.REALMS[_shard._realm].name,
+    }, _shard)
+  }
+
   const shard = (_id)=>{
     //generate 
     let _shard = ShardGen(app, _id.split("."))
@@ -155,12 +182,46 @@ const FormatManager = (app)=>{
         return this._trouble ? trouble(TroubleGen(app,this)) : null
       }
     }, _shard)
+
+    //text and formatting 
+    return Object.assign({
+      get realm () {
+        return OutlandsCore.REALMS[this._realm]
+      },
+      get terrain () {
+        let altT = this.realm.altTerrain
+          , t = this._terrain[0];
+
+        return altT && altT[t] ? altT[t] : OutlandsCore.TERRAIN[t] 
+      },
+      alignment: OutlandsCore.ALIGNMENTS[_shard._alignment],
+      safety: OutlandsCore.SAFETY[_shard._safety],
+      climate: OutlandsCore.CLIMATES[_shard._temp],
+      realmName: OutlandsCore.REALMS[_shard._realm].name,
+      //see if actors are present 
+      get characters () {
+        return Object.values(app.UI.main.actors).filter(a => a._shard == this.id)
+      },
+      //find any adventurers for hire 
+      get elementals() {
+        //get any adventurers for hire 
+        let eSeed = localStorage.getItem("ele." + this.id)
+        return !eSeed ? null : elemental({
+          id: eSeed,
+          _home: this.id
+        })
+      },
+      get trouble () {
+        return this._trouble ? trouble(TroubleGen(app,this)) : null
+      }
+    }, _shard)
   }
 
   app.format = {
     adventurer,
     explorer,
-    shard
+    shard,
+    shard_eth
   }
 }
 

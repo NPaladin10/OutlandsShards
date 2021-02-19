@@ -21,13 +21,13 @@ const MULTI = `
 `
 
 
-const UI = (app)=>{
+const UI = (app, eth)=>{
   
   Vue.component("ui-eth-admin-multi", {
     template: MULTI,
     data: function() {
       return {
-        abi : app.ETH.ABI,
+        abi : eth.ABI,
         contract : "",
         fId: -1,
         iValues : []
@@ -66,22 +66,16 @@ const UI = (app)=>{
           }
           else if (input.type.includes("[]")) {
             //regular array
-            return d.split(",").map(s => s.trim()) 
+            return d == "" ? [] : d.split(",").map(s => s.trim()) 
           }
           else if (input.type == "address") {
-            return  d == "" ? app.ETH.constants.AddressZero : d 
+            return  d == "" ? eth.constants.AddressZero : d 
           }
 
           return d 
         })
 
-        let eth = app.ETH
-          , T1155 = eth.contracts.CPXToken1155
-          , abi = ["event TransferBatch(address indexed operator, address indexed from, address indexed to, uint256[] ids, uint256[] values)"]
-          //event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)
-          , iface = new eth.utils.Interface(abi); 
-
-        app.ETH.submit(this.contract, f.name, data).then(res => {  
+        eth.submit(this.contract, f.name, data).then(res => {  
           //let reward = res.logs.map((log) => iface.parseLog(log)) 
           console.log(res)
         })

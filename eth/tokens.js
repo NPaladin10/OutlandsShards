@@ -15,6 +15,25 @@ const poll = (eth)=>{
     , address = ""
     , tokens = {};
 
+  //decode an array of bignumber token ids and values 
+    const tokenMapping = (ids,vals)=>{
+      return ids.map((_id,i)=>{
+        let id = _id.toNumber()
+          , NFTId = getNFTId(id)
+          , _t = NFTId ? T[NFTId] : T[id]
+          , val = Number(this.utils.formatUnits(vals[i], _t.units));
+
+        return {
+          id,
+          name: _t.name,
+          _t,
+          val,
+          notify: "Recieved " + val + " " + _t.name
+        }
+      }
+      )
+    }
+
   const getStaking = ()=>{
     //check for free cosmic claim
     CSM.last_mint(eth.address).then(time=>{

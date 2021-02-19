@@ -75,6 +75,17 @@
       <!--END INVENTRORY/STORE---------------------------------------------->
       <!--REGIONS / SHARDS---------------------------------------------->
       <div class="m-1" align="left" v-if="show==''">
+        <div align="left">
+          <div>Own a piece of the Outlands. Claim a shard to gather its resources.</div>
+          <button class="btn btn-success btn-block" type="button" :disabled="tokens['0'] ? tokens['0'].val < cost.shard : true" @click="claimShard()">Claim a Shard</button>
+        </div>
+        <div class="d-flex">
+          <div class="m-1 p-1 border" v-for="S in shards_eth">
+            <div>Realm: {{S.realmName}}</div>
+            <div>{{S.seed}}</div>
+            <div>{{S.color}} | {{S.terrain}} | {{S.anchor.text}}</div>
+          </div>
+        </div>
         <div class="m-1 p-1 border" v-for="(Realm,i) in realms">
           <h4>{{Realm.name}}</h4>
           <div class="px-1" v-html="Realm.info"></div>

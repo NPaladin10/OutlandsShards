@@ -60,12 +60,11 @@ const LocalServer = (app)=>{
     let callData = {
       player: app.player,
       data: data,
-      signed: await app.eth.signer.signMessage(JSON.stringify(data))
+      signed: ""   //await app.eth.signer.signMessage(JSON.stringify(data))
     }
 
     /*
       server side functions 
-    */
 
     //check Signature
     if (!app.checkSignature(callData)) {
@@ -76,6 +75,7 @@ const LocalServer = (app)=>{
         reason: "Signature does not match."
       })
     }
+    */
 
     //make call 
     if (calls[callId]) {

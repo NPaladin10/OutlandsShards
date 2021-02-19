@@ -70,10 +70,15 @@ const UI = (app)=>{
       tokens : {},
       allowance: {},
       approval : [],
+      //cost 
+      cost : {
+        shard : 0.01
+      },
       //shards
       realms : OutlandsCore.REALMS,
       regions : null,
       shards : null,
+      shards_eth : [],
       sid: "",
       mayClaim : false,
       mayExplore : false,
@@ -185,9 +190,11 @@ const UI = (app)=>{
             console.log(rej)
           })
       },
-      claimShard() {
-        //buy id 100, data = (bytes32 seed)
-        app.ETH.submit("Storefront1155", "buy", [100, 1, this.sid])
+      async claimShard() {
+        let value = app.eth.utils.parseUnits(this.cost.shard.toString())
+        //mint (id, [] vals)
+        let res = await app.eth.submit("Gatekeeper", "mint", [0, []], {value : value.toString()})
+        
       },
       explore () {
         //filter for the explorer 
